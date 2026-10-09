@@ -1,0 +1,175 @@
+erDiagram
+    RESTAURANTE ||--|{ SUCURSAL : tiene
+    RESTAURANTE ||--o{ ROL : define
+    RESTAURANTE ||--o{ EMPLEADO : emplea
+    USUARIO ||--o| EMPLEADO : es
+    USUARIO ||--o| COMENSAL : es
+    USUARIO ||--o{ CREDENCIAL_BIOMETRICA : registra
+    ROL ||--o{ ROL_PERMISO : otorga
+    PERMISO ||--o{ ROL_PERMISO : incluido_en
+    ROL ||--o{ EMPLEADO : asignado_a
+    EMPLEADO ||--o{ EMPLEADO_SUCURSAL : trabaja_en
+    SUCURSAL ||--o{ EMPLEADO_SUCURSAL : cuenta_con
+    EMPLEADO ||--o{ TURNO : cumple
+    SUCURSAL ||--o{ TURNO : programa
+    SUCURSAL ||--|{ HORARIO_SERVICIO : define
+    SUCURSAL ||--o{ MESA : tiene
+    MESA ||--o{ RESERVA : recibe
+    SUCURSAL ||--o{ RESERVA : registra
+    COMENSAL ||--o{ RESERVA : realiza
+    RESERVA ||--o| CUENTA_MESA : abre
+    CUENTA_MESA ||--o{ PEDIDO : agrupa
+    SUCURSAL ||--o{ PEDIDO : prepara
+    PEDIDO ||--|{ LINEA_PEDIDO : contiene
+    CUENTA_MESA ||--o{ PAGO : recibe
+    COMENSAL ||--o{ PAGO : efectua
+    PAGO ||--o| COMPROBANTE : emite
+    COMENSAL ||--o{ MEDIO_PAGO_GUARDADO : guarda
+
+    RESTAURANTE {
+        uuid id PK
+        varchar nombre
+        varchar cuit UK
+    }
+    SUCURSAL {
+        uuid id PK
+        uuid restaurante_id FK
+        varchar nombre
+        varchar direccion
+        time horario_apertura
+        time horario_cierre
+        int tolerancia_no_show_min
+        uuid menu_activo_id FK "null si no tiene menu asignado"
+    }
+    USUARIO {
+        uuid id PK
+        varchar email UK
+        varchar password_hash
+        varchar tipo "EMPLEADO | COMENSAL"
+        bool activo
+    }
+    CREDENCIAL_BIOMETRICA {
+        uuid id PK
+        uuid usuario_id FK
+        varchar credential_id UK
+        text clave_publica
+        varchar dispositivo
+        int contador_firmas
+    }
+    EMPLEADO {
+        uuid usuario_id PK, FK
+        uuid restaurante_id FK
+        uuid rol_id FK
+        varchar nombre_completo
+        varchar foto_url
+        int horas_semanales_max
+    }
+    COMENSAL {
+        uuid usuario_id PK, FK
+        varchar nombre
+        varchar telefono
+    }
+    ROL {
+        uuid id PK
+        uuid restaurante_id FK
+        varchar nombre
+        bool predeterminado
+        varchar arquetipo "MOZO | COCINERO | OTRO"
+        bool activo
+    }
+    PERMISO {
+        uuid id PK
+        varchar codigo UK
+        varchar modulo
+        varchar accion
+    }
+    ROL_PERMISO {
+        uuid rol_id PK, FK
+        uuid permiso_id PK, FK
+    }
+    EMPLEADO_SUCURSAL {
+        uuid empleado_id PK, FK
+        uuid sucursal_id PK, FK
+    }
+    HORARIO_SERVICIO {
+        uuid id PK
+        uuid sucursal_id FK
+        varchar franja "ALMUERZO | CENA; UK con sucursal_id"
+        time hora_inicio
+        time hora_fin
+    }
+    TURNO {
+        uuid id PK
+        uuid planificacion_id FK
+        uuid empleado_id FK
+        uuid sucursal_id FK
+        date fecha
+        varchar franja "ALMUERZO | CENA; UK con empleado_id y fecha"
+    }
+    MESA {
+        uuid id PK
+        uuid sucursal_id FK
+        int numero "UK con sucursal_id"
+        int capacidad
+        numeric pos_x
+        numeric pos_y
+        bool activa
+    }
+    RESERVA {
+        uuid id PK
+        uuid sucursal_id FK "redundante con mesa; consultas por sucursal"
+        uuid mesa_id FK
+        uuid comensal_id FK
+        timestamptz inicio "hora en punto; fin = inicio + 1 h; UK parcial con mesa_id si PENDIENTE o ACTIVA"
+        int cantidad_personas
+        varchar modo_asignacion "MANUAL | AUTOMATICA"
+        varchar estado "PENDIENTE | ACTIVA | FINALIZADA | CANCELADA | VENCIDA (State)"
+    }
+    CUENTA_MESA {
+        uuid id PK
+        uuid reserva_id FK, UK
+        timestamptz abierta_en
+        timestamptz cerrada_en
+        varchar estado "ABIERTA | CERRADA"
+    }
+    PEDIDO {
+        uuid id PK
+        uuid cuenta_mesa_id FK
+        uuid sucursal_id FK "redundante; cola de cocina por sucursal"
+        int numero
+        timestamptz creado_en
+        varchar estado "CONFIRMADO | EN_PREPARACION | LISTO | ENTREGADO | CANCELADO (State)"
+        varchar motivo_cancelacion "solo CANCELADO"
+    }
+    LINEA_PEDIDO {
+        uuid id PK
+        uuid pedido_id FK
+        uuid item_menu_id FK
+        int cantidad
+        numeric precio_unitario "copia del precio vigente"
+        varchar observaciones
+    }
+    PAGO {
+        uuid id PK
+        uuid cuenta_mesa_id FK
+        uuid comensal_id FK
+        numeric monto
+        varchar metodo "TARJETA | BILLETERA_VIRTUAL"
+        varchar estado "PENDIENTE | APROBADO | RECHAZADO (State)"
+        varchar referencia_externa UK "id de Mercado Pago"
+        timestamptz fecha
+    }
+    COMPROBANTE {
+        uuid id PK
+        uuid pago_id FK, UK
+        varchar numero
+        timestamptz fecha_emision
+        numeric total
+    }
+    MEDIO_PAGO_GUARDADO {
+        uuid id PK
+        uuid comensal_id FK
+        varchar token_pasarela
+        varchar marca
+        char ultimos4
+    }

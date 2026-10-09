@@ -1,0 +1,34 @@
+@startuml estado-planificacion-turnos-v1
+' Diagrama de estado (UML). Paleta alineada con CU y secuencias formato Vialia.
+' Transiciones: evento (quién) [condición] / efecto
+skinparam dpi 300
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam state {
+  BackgroundColor #DAE8FC
+  BorderColor #000000
+  FontSize 13
+  FontStyle bold
+  StartColor #000000
+  EndColor #000000
+}
+skinparam note {
+  BackgroundColor #FFF59D
+  BorderColor #BFA800
+}
+hide empty description
+title Planificación de turnos
+
+state BORRADOR
+state CONFIRMADA
+[*] --> BORRADOR : generar (Gerente de sucursal)\n/ asigna turnos y crea alertas de faltante
+BORRADOR --> BORRADOR : regenerar (Gerente)\n/ recrea turnos y alertas
+BORRADOR --> CONFIRMADA : confirmar (Gerente)\n/ publica los turnos al staff
+CONFIRMADA --> [*]
+note right of CONFIRMADA
+  En esta versión una planificación
+  confirmada no se edita ni se regenera.
+end note
+@enduml

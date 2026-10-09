@@ -1,0 +1,41 @@
+@startuml estado-pago-v1
+' Diagrama de estado (UML). Paleta alineada con CU y secuencias formato Vialia.
+' Transiciones: evento (quién) [condición] / efecto
+skinparam dpi 300
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam state {
+  BackgroundColor #DAE8FC
+  BorderColor #000000
+  FontSize 13
+  FontStyle bold
+  StartColor #000000
+  EndColor #000000
+}
+skinparam note {
+  BackgroundColor #FFF59D
+  BorderColor #BFA800
+}
+hide empty description
+title Pago
+
+state PENDIENTE
+state APROBADO
+state RECHAZADO
+[*] --> PENDIENTE : pagar (Comensal)\n/ recalcula saldo y beneficios;\nderiva el cobro a Mercado Pago
+PENDIENTE --> APROBADO : notificación de Mercado Pago\n[aprobado]\n/ acredita puntos y monto, aplica canje,\ndescuenta stock de promoción, emite comprobante
+PENDIENTE --> RECHAZADO : notificación de Mercado Pago\n[rechazado]
+APROBADO --> [*]
+RECHAZADO --> [*]
+note right of RECHAZADO
+  Estado final. Un reintento crea un Pago
+  nuevo en PENDIENTE, con los beneficios
+  elegidos revalidados.
+end note
+note right of PENDIENTE
+  Una notificación repetida de Mercado Pago
+  se ignora (referencia externa única).
+end note
+@enduml

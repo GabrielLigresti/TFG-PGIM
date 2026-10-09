@@ -1,0 +1,42 @@
+@startuml estado-reserva-v1
+' Diagrama de estado (UML). Paleta alineada con CU y secuencias formato Vialia.
+' Transiciones: evento (quién) [condición] / efecto
+skinparam dpi 300
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam state {
+  BackgroundColor #DAE8FC
+  BorderColor #000000
+  FontSize 13
+  FontStyle bold
+  StartColor #000000
+  EndColor #000000
+}
+skinparam note {
+  BackgroundColor #FFF59D
+  BorderColor #BFA800
+}
+hide empty description
+title Reserva
+
+state PENDIENTE
+state ACTIVA
+state FINALIZADA
+state CANCELADA
+state VENCIDA
+[*] --> PENDIENTE : reservar (Comensal)\n/ bloquea la mesa en la franja
+PENDIENTE --> ACTIVA : activar (Staff)\n/ abre la cuenta de mesa
+PENDIENTE --> CANCELADA : cancelar (Comensal)\n[antes del inicio de la franja]\n/ libera la mesa
+PENDIENTE --> VENCIDA : vencer (tarea programada)\n[inicio + tolerancia superado]\n/ libera la mesa
+ACTIVA --> FINALIZADA : cerrar mesa (Staff)\n[saldo pendiente: pide confirmación]\n/ cierra la cuenta; visita solo a quienes pagaron
+FINALIZADA --> [*]
+CANCELADA --> [*]
+VENCIDA --> [*]
+note right of ACTIVA
+  Si el comensal se va sin consumir,
+  también se cierra la mesa: la cuenta
+  con total $0 no registra visita.
+end note
+@enduml

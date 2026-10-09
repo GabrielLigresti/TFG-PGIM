@@ -1,0 +1,40 @@
+@startuml estado-pedido-v1
+' Diagrama de estado (UML). Paleta alineada con CU y secuencias formato Vialia.
+' Transiciones: evento (quién) [condición] / efecto
+skinparam dpi 300
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam state {
+  BackgroundColor #DAE8FC
+  BorderColor #000000
+  FontSize 13
+  FontStyle bold
+  StartColor #000000
+  EndColor #000000
+}
+skinparam note {
+  BackgroundColor #FFF59D
+  BorderColor #BFA800
+}
+hide empty description
+title Pedido
+
+state CONFIRMADO
+state EN_PREPARACION
+state LISTO
+state ENTREGADO
+state CANCELADO
+[*] --> CONFIRMADO : confirmar carrito (Comensal)\n[stock suficiente]\n/ descuenta stock por receta
+CONFIRMADO --> EN_PREPARACION : iniciar preparación\n(permiso "preparar pedidos")
+EN_PREPARACION --> LISTO : marcar listo\n(permiso "preparar pedidos")\n/ avisa al comensal
+LISTO --> ENTREGADO : entregar\n(permiso "entregar pedidos")
+CONFIRMADO --> CANCELADO : cancelar\n(permiso "preparar pedidos")\n/ devuelve stock (DEVOLUCION_PEDIDO)
+ENTREGADO --> [*]
+CANCELADO --> [*]
+note right of EN_PREPARACION
+  Desde EN_PREPARACION en adelante
+  el pedido ya no se puede cancelar.
+end note
+@enduml

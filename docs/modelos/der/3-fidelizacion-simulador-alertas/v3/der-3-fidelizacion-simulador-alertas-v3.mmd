@@ -1,0 +1,157 @@
+erDiagram
+    RESTAURANTE ||--|| PROGRAMA_FIDELIDAD : configura
+    RESTAURANTE ||--o{ CUENTA_FIDELIDAD : fideliza
+    COMENSAL ||--o{ CUENTA_FIDELIDAD : posee
+    CUENTA_FIDELIDAD ||--o{ MOVIMIENTO_PUNTOS : registra
+    CUENTA_FIDELIDAD ||--o{ VISITA : acumula
+    CUENTA_MESA ||--o{ VISITA : origina
+    PAGO |o--o{ MOVIMIENTO_PUNTOS : acredita
+    RESTAURANTE ||--o{ GRUPO_BENEFICIOS : organiza
+    GRUPO_BENEFICIOS |o--o{ BENEFICIO : agrupa
+    RESTAURANTE ||--o{ BENEFICIO : ofrece
+    MENU |o--o{ BENEFICIO : promocion_de
+    PAGO ||--o{ BENEFICIO_APLICADO : aplica
+    BENEFICIO ||--o{ BENEFICIO_APLICADO : aplicado_en
+    SUCURSAL ||--|| CONFIGURACION_APERTURA : parametriza
+    SUCURSAL ||--o{ PRONOSTICO : proyecta
+    PRONOSTICO ||--o{ DEMANDA_ITEM : detalla
+    ITEM_MENU ||--o{ DEMANDA_ITEM : estimado_en
+    SUCURSAL ||--o{ PLANIFICACION_TURNOS : planifica
+    PLANIFICACION_TURNOS ||--o{ TURNO : contiene
+    PLANIFICACION_TURNOS |o--o{ ALERTA : reporta_faltante
+    SUCURSAL ||--o{ ALERTA : recibe
+    PRONOSTICO |o--o{ ALERTA : genera
+    EXISTENCIA |o--o{ ALERTA : dispara
+    ITEM_MENU |o--o{ ALERTA : dispara
+
+    PROGRAMA_FIDELIDAD {
+        uuid id PK
+        uuid restaurante_id FK, UK
+        numeric puntos_por_unidad
+        bool activo
+    }
+    CUENTA_FIDELIDAD {
+        uuid id PK
+        uuid comensal_id FK
+        uuid restaurante_id FK "UK con comensal_id"
+        int puntos
+        int cantidad_visitas
+        numeric monto_acumulado
+    }
+    VISITA {
+        uuid id PK
+        uuid cuenta_fidelidad_id FK
+        uuid cuenta_mesa_id FK "UK con cuenta_fidelidad_id"
+        timestamptz fecha
+    }
+    MOVIMIENTO_PUNTOS {
+        uuid id PK
+        uuid cuenta_fidelidad_id FK
+        uuid pago_id FK
+        varchar tipo "ACREDITACION | CANJE | AJUSTE"
+        int puntos
+        timestamptz fecha
+    }
+    GRUPO_BENEFICIOS {
+        uuid id PK
+        uuid restaurante_id FK
+        varchar nombre
+        bool habilitado
+    }
+    BENEFICIO {
+        uuid id PK
+        uuid restaurante_id FK
+        uuid grupo_id FK
+        varchar nombre
+        varchar clase "RECOMPENSA | PROMOCION"
+        uuid menu_id FK "solo PROMOCION"
+        varchar criterio_tipo "solo RECOMPENSA; VISITAS | MONTO | PUNTOS | NUEVO_CLIENTE"
+        numeric criterio_valor "solo RECOMPENSA; parametro del criterio (Strategy)"
+        varchar tipo_descuento "PORCENTAJE | MONTO_FIJO"
+        numeric valor
+        timestamptz vigencia_desde
+        timestamptz vigencia_hasta
+        int stock_disponible
+        bool activo
+    }
+    BENEFICIO_APLICADO {
+        uuid pago_id PK, FK
+        uuid beneficio_id PK, FK
+        numeric monto_descontado
+    }
+    CONFIGURACION_APERTURA {
+        uuid sucursal_id PK, FK
+        int semanas_historico_minimo "default 8"
+        numeric cubiertos_por_mozo
+        numeric platos_por_cocinero_hora
+    }
+    PLANIFICACION_TURNOS {
+        uuid id PK
+        uuid sucursal_id FK
+        date semana_desde "UK con sucursal_id"
+        varchar estado "BORRADOR | CONFIRMADA"
+        timestamptz generada_en
+        timestamptz confirmada_en
+    }
+    PRONOSTICO {
+        uuid id PK
+        uuid sucursal_id FK
+        date fecha_servicio
+        varchar franja "ALMUERZO | CENA"
+        int cubiertos_estimados
+        int limite_inferior
+        int limite_superior
+        numeric ingreso_estimado
+        numeric error_mape
+        varchar metodo "PROMEDIO_MOVIL_PONDERADO | NAIVE_ESTACIONAL | REGRESION_ESTACIONAL"
+        timestamptz generado_en
+    }
+    DEMANDA_ITEM {
+        uuid pronostico_id PK, FK
+        uuid item_menu_id PK, FK
+        int cantidad_estimada
+    }
+    ALERTA {
+        uuid id PK
+        uuid sucursal_id FK
+        uuid pronostico_id FK
+        uuid planificacion_id FK "solo FALTANTE_PERSONAL"
+        uuid existencia_id FK
+        uuid item_menu_id FK
+        varchar tipo "TipoAlerta, incluye STOCK_INSUFICIENTE"
+        varchar severidad "INFO | ADVERTENCIA | CRITICA"
+        text descripcion
+        date fecha_servicio
+        varchar franja "ALMUERZO | CENA"
+        varchar arquetipo "solo FALTANTE_PERSONAL"
+        int cantidad
+        timestamptz creada_en
+        bool resuelta
+    }
+    RESTAURANTE {
+        uuid id PK
+    }
+    SUCURSAL {
+        uuid id PK
+    }
+    COMENSAL {
+        uuid usuario_id PK
+    }
+    PAGO {
+        uuid id PK
+    }
+    CUENTA_MESA {
+        uuid id PK
+    }
+    MENU {
+        uuid id PK
+    }
+    ITEM_MENU {
+        uuid id PK
+    }
+    EXISTENCIA {
+        uuid id PK
+    }
+    TURNO {
+        uuid id PK
+    }

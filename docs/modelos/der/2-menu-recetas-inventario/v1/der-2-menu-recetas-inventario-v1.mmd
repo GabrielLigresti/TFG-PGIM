@@ -1,0 +1,113 @@
+erDiagram
+    RESTAURANTE ||--o{ MENU : define
+    RESTAURANTE ||--o{ ITEM_MENU : ofrece
+    RESTAURANTE ||--o{ CATEGORIA : clasifica
+    RESTAURANTE ||--o{ COMPONENTE_INVENTARIO : cataloga
+    SUCURSAL }o--o| MENU : menu_activo
+    MENU ||--o{ MENU_ITEM : incluye
+    ITEM_MENU ||--o{ MENU_ITEM : aparece_en
+    CATEGORIA ||--o{ ITEM_MENU : agrupa
+    ITEM_MENU ||--o| MODELO_RA : se_visualiza_con
+    ITEM_MENU |o--o| RECETA : se_prepara_con
+    COMPONENTE_INVENTARIO |o--o| RECETA : intermedio_se_elabora_con
+    RECETA ||--|{ LINEA_RECETA : compone
+    COMPONENTE_INVENTARIO ||--o{ LINEA_RECETA : usado_en
+    COMPONENTE_INVENTARIO ||--o{ EXISTENCIA : stock_en
+    SUCURSAL ||--o{ EXISTENCIA : almacena
+    EXISTENCIA ||--o{ MOVIMIENTO_STOCK : registra
+    LINEA_PEDIDO |o--o{ MOVIMIENTO_STOCK : origina
+    ITEM_MENU ||--o{ LINEA_PEDIDO : pedido_en
+    EMPLEADO |o--o{ MOVIMIENTO_STOCK : registra
+
+    MENU {
+        uuid id PK
+        uuid restaurante_id FK
+        varchar nombre
+        text descripcion
+        date vigencia_desde
+        date vigencia_hasta
+    }
+    MENU_ITEM {
+        uuid menu_id PK, FK
+        uuid item_menu_id PK, FK
+    }
+    CATEGORIA {
+        uuid id PK
+        uuid restaurante_id FK
+        varchar nombre
+        bool requiere_receta
+    }
+    ITEM_MENU {
+        uuid id PK
+        uuid restaurante_id FK
+        uuid categoria_id FK
+        varchar nombre
+        text descripcion
+        numeric precio
+        varchar foto_url
+        bool disponible
+        bool activo
+    }
+    MODELO_RA {
+        uuid id PK
+        uuid item_menu_id FK, UK
+        varchar url_modelo "glb"
+        varchar url_modelo_ios "usdz"
+        numeric escala_real
+        int porcion_gramos
+    }
+    COMPONENTE_INVENTARIO {
+        uuid id PK
+        uuid restaurante_id FK
+        varchar tipo "INSUMO | INTERMEDIO"
+        varchar nombre
+        varchar unidad_base "GRAMO | MILILITRO | UNIDAD"
+        numeric costo_compra "por unidad base, solo INSUMO"
+        bool activo
+    }
+    RECETA {
+        uuid id PK
+        uuid item_menu_id FK, UK "exclusivo con intermedio"
+        uuid producto_intermedio_id FK, UK "exclusivo con item; obligatoria para INTERMEDIO (se valida en la app)"
+        numeric rendimiento
+        text instrucciones
+    }
+    LINEA_RECETA {
+        uuid id PK
+        uuid receta_id FK
+        uuid componente_id FK
+        numeric cantidad
+        varchar unidad "misma dimension que unidad_base"
+        numeric porcentaje_merma "0 a 100, default 0"
+    }
+    EXISTENCIA {
+        uuid id PK
+        uuid sucursal_id FK
+        uuid componente_id FK "UK con sucursal_id, solo INSUMO"
+        numeric cantidad_actual "en unidad base"
+    }
+    MOVIMIENTO_STOCK {
+        uuid id PK
+        uuid existencia_id FK
+        varchar tipo "INGRESO | CONSUMO_PEDIDO | DEVOLUCION_PEDIDO | MERMA | AJUSTE"
+        numeric cantidad "en unidad base"
+        numeric costo_unitario "costo vigente al registrar"
+        timestamptz fecha
+        varchar motivo
+        uuid linea_pedido_id FK "solo CONSUMO_PEDIDO o DEVOLUCION_PEDIDO"
+        uuid empleado_id FK "null en CONSUMO_PEDIDO"
+    }
+    SUCURSAL {
+        uuid id PK
+        uuid menu_activo_id FK "null si no tiene menu asignado"
+    }
+    RESTAURANTE {
+        uuid id PK
+    }
+    LINEA_PEDIDO {
+        uuid id PK
+        uuid item_menu_id FK
+    }
+    EMPLEADO {
+        uuid usuario_id PK
+    }
