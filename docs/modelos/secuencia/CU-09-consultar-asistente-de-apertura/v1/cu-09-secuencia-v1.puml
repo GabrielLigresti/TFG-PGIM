@@ -1,0 +1,103 @@
+@startuml cu-09-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor "Gerente de sucursal" as G
+  participant ":Vista asistente" as V
+  participant ":AperturaController" as AC
+  participant ":AsistenteApertura" as AA
+  participant ":EstrategiaPronostico" as EP
+  participant ":Verificador" as VE
+  participant ":EstrategiaAsignacionTurnos" as EAT
+  participant ":PlanificacionTurnos" as PT
+  participant ":BusEventos" as BUS
+end box
+
+G -> V : Abre el asistente de apertura de su sucursal
+activate V
+V -> AC : abrirAsistente(sucursalId, semanaDesde)
+activate AC
+AC -> AA : progresoDatos(sucursal)
+activate AA
+AA --> AC : ProgresoDatos (alcanza el mínimo de 8 semanas)
+deactivate AA
+note right of AC : E1. Historial insuficiente: muestra\nel avance (ej. "5 de 8 semanas")\ny termina el caso
+
+AC -> AA : planificarSemana(sucursal, semanaDesde)
+activate AA
+note over AA #D5E8D4 : por cada día de la semana siguiente
+AA -> AA : generarPronostico(sucursal, fecha)
+note over EP #D5E8D4 : por cada franja configurada y cada uno de los tres métodos
+AA -> EP : pronosticar(historial, fecha, franja)
+activate EP
+EP --> AA : Pronostico (valor, rango, MAPE\ne ingreso estimado)
+deactivate EP
+AA -> AA : conserva el método de menor MAPE\ny guarda un Pronostico por franja
+
+note over VE #D5E8D4 : por cada pronóstico (VerificadorStock y VerificadorMesas)
+AA -> VE : verificar(pronostico)
+activate VE
+VE --> AA : alertas de stock y de capacidad de mesas
+deactivate VE
+
+AA -> AA : calcula la DotacionRequerida\npor fecha, franja y arquetipo
+AA -> EAT : asignar(dotacion, empleados)
+activate EAT
+EAT --> AA : turnos asignados
+deactivate EAT
+AA -> AA : compara la dotación con los turnos asignados
+note right of AA : E2. Personal insuficiente: cubre lo posible y crea\nalertas FALTANTE_PERSONAL con fecha, franja,\narquetipo y cantidad faltante
+AA -> PT : crear(sucursal, semanaDesde, turnos, alertas)
+activate PT
+PT --> AA : planificación en BORRADOR
+deactivate PT
+AA --> AC : planificación en BORRADOR
+deactivate AA
+AC --> V : pronósticos, alertas y grilla de turnos
+deactivate AC
+V --> G : Muestra el pronóstico (valor, rango, error\ne ingreso estimado), las alertas y la grilla
+note right of V : A. Regenerar: el gerente ajusta un parámetro\n(ej. cubiertos por mozo); PlanificacionTurnos.regenerar()\nreemplaza turnos y alertas del borrador.\nB. Semana ya confirmada: se muestra en modo lectura
+
+G -> V : Revisa y confirma la planificación
+V -> AC : confirmar(planificacionId)
+activate AC
+AC -> PT : confirmar()
+activate PT
+PT -> BUS : publicar(PLANIFICACION_CONFIRMADA)
+activate BUS
+deactivate BUS
+note left of BUS : NotificadorStaff envía a cada\nempleado sus turnos
+PT --> AC : planificación CONFIRMADA
+deactivate PT
+AC --> V : planificación confirmada
+deactivate AC
+V --> G : Muestra la planificación confirmada
+deactivate V
+@enduml

@@ -1,0 +1,48 @@
+@startuml cu-03-diagrama-v1
+' Formato Vialia: actor de palitos, límite del sistema con pestaña "Sistema",
+' casos de uso en elipses celestes sin número, «include»/«extend» punteados.
+left to right direction
+skinparam dpi 300
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam actorStyle default
+skinparam packageStyle folder
+skinparam nodesep 40
+skinparam ranksep 70
+skinparam actor {
+  BorderColor #000000
+  BackgroundColor #FFFFFF
+}
+skinparam usecase {
+  BackgroundColor #DAE8FC
+  BorderColor #6C8EBF
+  ArrowColor #000000
+}
+skinparam package {
+  BorderColor #000000
+  BorderThickness 3
+  FontSize 22
+  FontStyle plain
+  BackgroundColor #FFFFFF
+}
+skinparam rectangle {
+  BorderColor #4A90D9
+  BorderThickness 1
+}
+rectangle " " as MARCO {
+  actor "Comensal" as A1
+  package "Sistema" {
+    usecase "Reservar mesa" as P
+    usecase "Asignar mesa\nautomáticamente" as E1
+    usecase "Cancelar reserva" as E2
+    usecase "Vencer reservas" as E3
+  }
+  actor "Temporizador\n<<sistema>>" as B1
+  A1 -- P
+  P <.. E1 : <<extend>>
+  P <.. E2 : <<extend>>
+  P <.. E3 : <<extend>>
+  E3 -- B1
+}
+@enduml

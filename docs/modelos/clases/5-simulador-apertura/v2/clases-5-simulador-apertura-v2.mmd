@@ -1,0 +1,99 @@
+classDiagram
+direction TB
+class Sucursal
+class ItemMenu
+class Existencia
+class Empleado
+class Turno
+class AsistenteApertura {
+  <<service>>
+  +progresoDatos(sucursal) ProgresoDatos
+  +generarPronostico(sucursal, fecha) Pronostico
+  +planificarSemana(sucursal, semanaDesde) PlanificacionTurnos
+}
+class EstrategiaPronostico {
+  <<interface>>
+  +pronosticar(historial, fecha)
+}
+class PromedioMovilPonderado
+class NaiveEstacional
+class RegresionConEstacionalidad
+class Verificador {
+  <<interface>>
+  +verificar(pronostico) List~Alerta~
+}
+class VerificadorStock
+class VerificadorMesas
+class EstrategiaAsignacionTurnos {
+  <<interface>>
+  +asignar(dotacion, empleados) List~Turno~
+}
+class AsignacionGolosaBalanceada
+class DotacionRequerida {
+  <<value object>>
+  +fecha : Date
+  +franja : FranjaServicio
+  +arquetipo : Arquetipo
+  +cantidad : Integer
+}
+class PlanificacionTurnos {
+  +semanaDesde : Date
+  +estado : EstadoPlanificacion
+  +generadaEn : DateTime
+  +confirmadaEn : DateTime
+  +confirmar()
+  +regenerar()
+}
+class ConfiguracionApertura {
+  +semanasHistoricoMinimo : Integer
+  +cubiertosPorMozo : Decimal
+  +platosPorCocineroHora : Decimal
+}
+class Pronostico {
+  +fechaServicio : Date
+  +franja : FranjaServicio
+  +cubiertosEstimados : Integer
+  +limiteInferior : Integer
+  +limiteSuperior : Integer
+  +ingresoEstimado : Decimal
+  +errorMAPE : Decimal
+  +metodo : MetodoPronostico
+  +generadoEn : DateTime
+}
+class DemandaItem {
+  +cantidadEstimada : Integer
+}
+class Alerta {
+  +tipo : TipoAlerta
+  +severidad : Severidad
+  +descripcion : String
+  +fechaServicio : Date
+  +franja : FranjaServicio
+  +arquetipo : Arquetipo
+  +cantidad : Integer
+  +creadaEn : DateTime
+  +resuelta : Boolean
+}
+AsistenteApertura --> EstrategiaPronostico : usa
+EstrategiaPronostico <|.. PromedioMovilPonderado
+EstrategiaPronostico <|.. NaiveEstacional
+EstrategiaPronostico <|.. RegresionConEstacionalidad
+AsistenteApertura --> "1..*" Verificador : ejecuta
+Verificador <|.. VerificadorStock
+Verificador <|.. VerificadorMesas
+AsistenteApertura --> EstrategiaAsignacionTurnos : usa
+EstrategiaAsignacionTurnos <|.. AsignacionGolosaBalanceada
+AsistenteApertura ..> DotacionRequerida : calcula
+Sucursal "1" -- "1" ConfiguracionApertura
+Sucursal "1" -- "*" Pronostico
+Pronostico "1" *-- "*" DemandaItem
+DemandaItem "*" --> "1" ItemMenu
+Pronostico "0..1" -- "*" Alerta : genera
+Sucursal "1" -- "*" PlanificacionTurnos
+PlanificacionTurnos "1" *-- "*" Turno
+PlanificacionTurnos ..> Pronostico : se basa en
+PlanificacionTurnos "0..1" -- "*" Alerta : faltante de personal
+Turno "*" --> "1" Empleado
+Alerta "*" --> "1" Sucursal
+Alerta "*" --> "0..1" Existencia
+Alerta "*" --> "0..1" ItemMenu

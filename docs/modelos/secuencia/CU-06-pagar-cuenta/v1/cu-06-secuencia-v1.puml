@@ -1,0 +1,126 @@
+@startuml cu-06-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor Comensal as C
+  participant ":Vista cuenta" as V
+  participant ":PagoController" as PGC
+  participant ":CuentaMesa" as CM
+  participant ":CuentaFidelidad" as CF
+  participant ":Beneficio" as B
+  participant ":Pago" as P
+  participant ":BeneficioAplicado" as BA
+  participant ":Comprobante" as CO
+  participant ":BusEventos" as BUS
+  actor "Mercado Pago" as MP
+end box
+
+C -> V : Abre la cuenta de su mesa
+activate V
+V -> PGC : obtenerCuenta(cuentaId)
+activate PGC
+PGC -> CM : saldoPendiente()
+activate CM
+CM --> PGC : consumos y saldo pendiente
+deactivate CM
+PGC -> CF : beneficiosDisponibles()
+activate CF
+CF --> PGC : beneficios aplicables
+deactivate CF
+note right of CF : Incluye las promociones del menú activo y las\nrecompensas cuyo criterio se cumple desde el\núltimo canje (esElegible(cuenta, desde)).\nE1. Beneficio fuera de vigencia, sin stock o ya\ncanjeado en el ciclo: no se ofrece
+PGC --> V : cuenta con beneficios
+deactivate PGC
+V --> C : Muestra consumos, saldo pendiente\ny beneficios aplicables
+
+C -> V : Elige el monto (total o parcial)\ny los beneficios
+V -> PGC : calcularMonto(monto, beneficios)
+activate PGC
+note over B #D5E8D4 : por cada beneficio elegido
+PGC -> B : calcularDescuento(monto)
+activate B
+B --> PGC : descuento
+deactivate B
+PGC --> V : descuentos y monto final
+deactivate PGC
+V --> C : Muestra el monto final
+
+C -> V : Confirma y elige el medio de pago
+V -> PGC : pagar(cuentaId, monto, beneficios, medio)
+activate PGC
+PGC -> P : crear(cuenta, comensal, monto, medio)
+activate P
+P --> PGC : pago creado (PagoPendiente)
+deactivate P
+PGC -> MP : cobrar(monto, medio)
+activate MP
+MP --> PGC : cobro iniciado
+note right of V : B. Guardar el medio de pago: se crea\nMedioPagoGuardado solo con el token que\nentrega Mercado Pago
+PGC --> V : pago en proceso
+deactivate PGC
+V --> C : Informa que el pago está en proceso
+
+MP -> PGC : notificarResultado(referenciaExterna, APROBADO)
+deactivate MP
+activate PGC
+PGC -> P : aprobar()
+activate P
+P --> PGC : APROBADO
+deactivate P
+note right of P : E2. Pago rechazado: Pago.rechazar(), se informa\nal comensal y puede reintentar con un pago nuevo.\nE3. Notificación duplicada: la referencia externa\nya procesada se ignora (no acredita dos veces)
+
+note over CF, CO : Paso 9: transacción única
+note over BA #D5E8D4 : por cada beneficio aplicado
+PGC -> BA : crear(pago, beneficio, montoDescontado)
+activate BA
+BA --> PGC : beneficio aplicado
+deactivate BA
+PGC -> B : consumirStock()
+activate B
+B --> PGC : stock actualizado
+deactivate B
+PGC -> CF : acreditar(pago)
+activate CF
+CF --> PGC : puntos y monto acreditados
+deactivate CF
+note left of CF : A. Canje de recompensa por puntos:\nCuentaFidelidad.canjear(recompensa, pago)\nregistra un MovimientoPuntos CANJE
+PGC -> CO : crear(pago)
+activate CO
+CO --> PGC : comprobante emitido
+deactivate CO
+
+PGC -> BUS : publicar(PAGO_REGISTRADO)
+activate BUS
+deactivate BUS
+note left of BUS : NotificadorComensal envía el comprobante;\nCuentaFidelidad publica PUNTOS_ACREDITADOS\ncon el progreso hacia cada recompensa
+deactivate PGC
+V --> C : Muestra el comprobante y su progreso\nen el programa de fidelidad
+deactivate V
+note over V, CM : C. Saldo en cero: si con este pago CuentaMesa.saldoPendiente() queda en cero,\nla mesa queda lista para que el staff la cierre (CU-18)
+@enduml

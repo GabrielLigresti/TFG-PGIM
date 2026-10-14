@@ -1,0 +1,34 @@
+@startuml act-1-reservar-mesa-v1-parte2
+' Diagrama de actividades, formato Vialia (sin carriles; el actor va en el texto).
+' Dividido en partes para el documento; los conectores (A), (B)... unen las partes.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+skinparam circledCharacter {
+  FontSize 12
+}
+
+(A)
+repeat
+  if (¿Elige la mesa en el mapa?) then (Sí)
+    :Elegir mesa en el mapa del salón;
+  else (No)
+    :Sistema: asigna una mesa automáticamente;
+  endif
+repeat while (¿La mesa se ocupó mientras elegía?) is (Sí) not (No)
+:Sistema: registra la reserva PENDIENTE
+y actualiza el mapa en tiempo real;
+:Recibir la confirmación con la tolerancia de llegada;
+(B)
+detach
+@enduml

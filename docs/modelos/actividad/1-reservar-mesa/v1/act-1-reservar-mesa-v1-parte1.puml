@@ -1,0 +1,37 @@
+@startuml act-1-reservar-mesa-v1-parte1
+' Diagrama de actividades, formato Vialia (sin carriles; el actor va en el texto).
+' Dividido en partes para el documento; los conectores (A), (B)... unen las partes.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+skinparam circledCharacter {
+  FontSize 12
+}
+
+start
+:Ver el menú digital;
+if (¿Tiene la sesión iniciada?) then (No)
+  :Iniciar sesión;
+else (Sí)
+endif
+:Elegir sucursal, fecha y cantidad de personas;
+:Sistema: muestra las franjas de 1 h disponibles;
+if (¿Hay franjas disponibles?) then (No)
+  :Sistema: informa que no hay disponibilidad;
+  stop
+else (Sí)
+endif
+:Elegir franja;
+(A)
+detach
+@enduml

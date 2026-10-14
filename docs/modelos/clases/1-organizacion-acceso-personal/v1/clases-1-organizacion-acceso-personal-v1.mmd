@@ -1,0 +1,59 @@
+classDiagram
+direction LR
+class Restaurante {
+  +nombre : String
+  +cuit : String
+}
+class Sucursal {
+  +nombre : String
+  +direccion : String
+  +horarioApertura : Time
+  +horarioCierre : Time
+}
+class Usuario {
+  <<abstract>>
+  +email : String
+  +passwordHash : String
+  +activo : Boolean
+  +autenticar(credencial) bool
+}
+class Empleado {
+  +nombreCompleto : String
+  +foto : String
+  +puedeAcceder(permiso) bool
+}
+class Comensal {
+  +nombre : String
+  +telefono : String
+}
+class CredencialBiometrica {
+  +credentialId : String
+  +clavePublica : String
+  +dispositivo : String
+}
+class Rol {
+  +nombre : String
+  +predeterminado : Boolean
+  +tienePermiso(permiso) bool
+}
+class Permiso {
+  +codigo : String
+  +modulo : String
+  +accion : String
+}
+class Turno {
+  +diaSemana : DiaSemana
+  +horaInicio : Time
+  +horaFin : Time
+}
+Restaurante "1" *-- "1..*" Sucursal
+Restaurante "1" *-- "*" Rol
+Restaurante "1" o-- "*" Empleado
+Usuario <|-- Empleado
+Usuario <|-- Comensal
+Usuario "1" *-- "*" CredencialBiometrica
+Empleado "*" --> "1" Rol
+Empleado "*" -- "1..*" Sucursal : trabaja en
+Rol "*" -- "*" Permiso
+Empleado "1" *-- "*" Turno
+Turno "*" --> "1" Sucursal

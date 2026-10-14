@@ -1,0 +1,93 @@
+classDiagram
+direction LR
+class Sucursal
+class Comensal
+class ItemMenu
+class Mesa {
+  +numero
+  +capacidad
+  +posicionX
+  +posicionY
+  +activa
+  +estaDisponible(franja) bool
+}
+class Reserva {
+  +inicio
+  +fin
+  +cantidadPersonas
+  +modoAsignacion
+  +origen
+  +estado : EstadoReserva
+  +activar()
+  +cancelar()
+  +vencer()
+}
+class EstadoReserva {
+  <<enumeration>>
+  PENDIENTE
+  ACTIVA
+  FINALIZADA
+  CANCELADA
+  VENCIDA
+}
+class CuentaMesa {
+  +abiertaEn
+  +cerradaEn
+  +estado
+  +total()
+  +saldoPendiente()
+  +cerrar()
+}
+class Pedido {
+  +numero
+  +creadoEn
+  +estado : EstadoPedido
+  +avanzarEstado()
+  +cancelar()
+}
+class EstadoPedido {
+  <<enumeration>>
+  CONFIRMADO
+  EN_PREPARACION
+  LISTO
+  ENTREGADO
+  CANCELADO
+}
+class LineaPedido {
+  +cantidad
+  +precioUnitario
+  +observaciones
+  +subtotal()
+}
+class Pago {
+  +monto
+  +metodo
+  +estado
+  +fecha
+  +referenciaExterna
+}
+class BeneficioAplicado {
+  +montoDescontado
+}
+class Comprobante {
+  +numero
+  +fechaEmision
+  +total
+}
+class MedioPagoGuardado {
+  +tokenPasarela
+  +marca
+  +ultimos4
+}
+Sucursal "1" *-- "*" Mesa
+Mesa "1" -- "*" Reserva
+Comensal "0..1" -- "*" Reserva
+Reserva "1" -- "0..1" CuentaMesa : se abre al activarse
+CuentaMesa "1" *-- "*" Pedido
+Pedido "1" *-- "1..*" LineaPedido
+LineaPedido "*" --> "1" ItemMenu
+CuentaMesa "1" -- "*" Pago
+Comensal "1" -- "*" Pago
+Pago "1" *-- "*" BeneficioAplicado
+Pago "1" -- "0..1" Comprobante
+Comensal "1" *-- "*" MedioPagoGuardado

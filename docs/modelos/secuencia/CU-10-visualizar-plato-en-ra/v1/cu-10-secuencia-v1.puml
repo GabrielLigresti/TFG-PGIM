@@ -1,0 +1,73 @@
+@startuml cu-10-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor Comensal as C
+  participant ":Vista detalle del plato" as V
+  participant ":MenuController" as MC
+  participant ":ItemMenu" as IM
+  participant ":ModeloRA" as RA
+  participant ":Visor RA del navegador" as VRA
+end box
+
+C -> V : Abre el detalle de un plato del menú
+activate V
+V -> MC : obtenerDetalle(itemId)
+activate MC
+MC -> IM : obtenerModeloRA()
+activate IM
+IM --> MC : modelo RA / ninguno
+deactivate IM
+MC -> RA : obtener datos del modelo
+activate RA
+RA --> MC : urlModelo, urlModeloIOS,\nescalaReal y porcionGramos
+deactivate RA
+MC --> V : detalle del plato con su modelo
+deactivate MC
+V --> C : Muestra el detalle con la opción "Ver en RA"
+note right of V : E1. Plato sin modelo RA:\nno se muestra la opción "Ver en RA"
+
+C -> V : Elige "Ver en RA"
+V -> VRA : abrir(urlModelo, escalaReal, porcionGramos)
+activate VRA
+note right of VRA : B. Dispositivo iOS: abre el modelo\nusdz (urlModeloIOS) con el visor\nnativo del navegador
+VRA --> C : Solicita permiso para usar la cámara
+C -> VRA : Concede el permiso y apunta a la mesa
+VRA -> VRA : detecta la superficie y ubica el modelo\na escala real
+VRA --> C : Muestra el plato con la porción en gramos
+note right of VRA : E2. Permiso denegado o dispositivo no\ncompatible: se muestra la foto del plato\n(fotoUrl) con la porción en gramos
+C -> VRA : Observa el plato, lo rota y lo acerca
+C -> VRA : Cierra la vista
+VRA --> V : vista RA cerrada
+deactivate VRA
+V --> C : Vuelve al detalle del plato
+deactivate V
+note over V, RA : A. Agregar al carrito: si el comensal tiene una reserva activa,\nagrega el plato al carrito y el caso continúa en CU-04
+@enduml

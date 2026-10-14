@@ -1,0 +1,53 @@
+@startuml act-2-consumo-y-pago-en-la-mesa-v1
+' Diagrama de actividades, formato Vialia: sin carriles (el actor va en el texto),
+' acciones blancas con borde negro, decisiones Sí/No. El marco se agrega al exportar.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+
+start
+:Staff: activa la reserva;
+:Sistema: abre la cuenta de mesa;
+repeat
+  if (¿Quiere pedir?) then (Sí)
+    :Armar el carrito desde el menú;
+    if (¿Hay stock suficiente?) then (No)
+      :Sistema: informa los platos sin stock;
+    else (Sí)
+      :Confirmar el pedido;
+      :Sistema: descuenta el stock por receta;
+      :Iniciar flujo "Preparación de pedidos";
+    endif
+  else (No)
+  endif
+  if (¿Quiere pagar?) then (Sí)
+    :Elegir monto y beneficios;
+    repeat
+      :Sistema: calcula el saldo y valida los beneficios;
+      :Mercado Pago: procesa el cobro;
+    repeat while (¿Pago aprobado?) is (No: reintenta con un pago nuevo) not (Sí)
+    :Sistema: acredita puntos y monto,
+    aplica el canje y emite el comprobante;
+  else (No)
+  endif
+repeat while (¿Sigue en la mesa?) is (Sí) not (No)
+:Staff: cierra la mesa;
+if (¿Queda saldo pendiente?) then (Sí)
+  :Staff: confirma el cierre con saldo impago;
+else (No)
+endif
+:Sistema: cierra la cuenta, finaliza la reserva
+y libera la mesa;
+:Sistema: registra la visita a quienes pagaron;
+stop
+@enduml

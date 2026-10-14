@@ -1,0 +1,82 @@
+classDiagram
+direction TB
+class Restaurante
+class Comensal
+class Menu
+class Pago
+class CuentaMesa
+class BusEventos
+class ProgramaFidelidad {
+  +puntosPorUnidadMonetaria : Decimal
+  +activo : Boolean
+  +calcularPuntos(monto)
+}
+class CuentaFidelidad {
+  +puntos : Integer
+  +cantidadVisitas : Integer
+  +montoAcumulado : Decimal
+  +acreditar(pago)
+  +registrarVisita(cuentaMesa)
+  +canjear(recompensa, pago)
+  +beneficiosDisponibles()
+  +progresoHacia(recompensa)
+}
+class Visita {
+  +fecha : DateTime
+}
+class MovimientoPuntos {
+  +tipo : TipoMovimientoPuntos
+  +puntos : Integer
+  +fecha : DateTime
+}
+class GrupoBeneficios {
+  +nombre : String
+  +habilitado : Boolean
+}
+class Beneficio {
+  <<abstract>>
+  +nombre : String
+  +tipoDescuento : TipoDescuento
+  +valor : Decimal
+  +vigenciaDesde : DateTime
+  +vigenciaHasta : DateTime
+  +stockDisponible : Integer
+  +activo : Boolean
+  +estaVigente() bool
+  +aplicaA(cuenta, pago) bool*
+}
+class Recompensa
+class Promocion
+class CriterioElegibilidad {
+  <<interface>>
+  +esElegible(cuentaFidelidad) bool
+}
+class CriterioPorVisitas {
+  +visitasRequeridas : Integer
+}
+class CriterioPorMonto {
+  +montoRequerido : Decimal
+}
+class CriterioPorPuntos {
+  +puntosRequeridos : Integer
+}
+class CriterioNuevoCliente {
+  +numeroVisita : Integer
+}
+Restaurante "1" *-- "1" ProgramaFidelidad
+Comensal "1" -- "*" CuentaFidelidad
+CuentaFidelidad "*" --> "1" Restaurante
+CuentaFidelidad "1" *-- "*" MovimientoPuntos
+MovimientoPuntos "*" --> "0..1" Pago
+GrupoBeneficios "0..1" o-- "*" Beneficio
+Beneficio <|-- Recompensa
+Beneficio <|-- Promocion
+Recompensa "*" --> "1" CriterioElegibilidad
+CriterioElegibilidad <|.. CriterioPorVisitas
+CriterioElegibilidad <|.. CriterioPorMonto
+CriterioElegibilidad <|.. CriterioPorPuntos
+CriterioElegibilidad <|.. CriterioNuevoCliente
+Promocion "*" --> "1" Menu
+CuentaFidelidad "1" *-- "*" Visita
+Visita "*" --> "1" CuentaMesa
+CuentaFidelidad ..> BusEventos : publica progreso

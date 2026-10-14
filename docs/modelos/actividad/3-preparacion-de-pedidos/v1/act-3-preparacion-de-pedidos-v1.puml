@@ -1,0 +1,35 @@
+@startuml act-3-preparacion-de-pedidos-v1
+' Diagrama de actividades, formato Vialia (sin carriles; el actor va en el texto).
+' Dividido en partes para el documento; los conectores (A), (B)... unen las partes.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+skinparam circledCharacter {
+  FontSize 12
+}
+
+start
+:Sistema: agrega el pedido CONFIRMADO
+a la cola de la sucursal;
+if (¿Se cancela el pedido?) then (Sí)
+  :Cocina: cancela el pedido;
+  :Sistema: devuelve el stock y avisa al comensal;
+  stop
+else (No)
+endif
+:Cocina: inicia la preparación;
+:Cocina: marca el pedido como listo;
+:Sistema: avisa al comensal;
+:Salón: entrega el pedido;
+stop
+@enduml

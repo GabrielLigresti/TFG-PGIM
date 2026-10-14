@@ -1,0 +1,95 @@
+@startuml cu-03-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor Comensal as C
+  participant ":Vista mapa del salón" as V
+  participant ":ReservaController" as RC
+  participant ":Sucursal" as S
+  participant ":Mesa" as M
+  participant ":Reserva" as R
+  participant ":BusEventos" as BUS
+end box
+
+C -> V : Elige la sucursal, la fecha\ny la cantidad de personas
+activate V
+V -> RC : obtenerFranjasDisponibles(sucursalId, fecha, personas)
+activate RC
+note over S #D5E8D4 : por cada franja de 1 h dentro del horario de la sucursal
+RC -> S : buscarMesaDisponible(inicio, personas)
+activate S
+S -> M : estaDisponible(inicio)
+activate M
+M --> S : true / false
+deactivate M
+S --> RC : mesa libre de menor capacidad suficiente / ninguna
+deactivate S
+RC --> V : franjas con mesas disponibles
+deactivate RC
+V --> C : Muestra las franjas disponibles
+note right of V : E1. Sin franjas disponibles: lo informa\ny vuelve a pedir sucursal, fecha y personas
+
+C -> V : Elige una franja
+V -> RC : obtenerMapa(sucursalId, inicio)
+activate RC
+note over M #D5E8D4 : por cada mesa activa de la sucursal
+RC -> M : estaDisponible(inicio)
+activate M
+M --> RC : libre / reservada
+deactivate M
+RC --> V : mapa con mesas libres y reservadas
+deactivate RC
+V --> C : Muestra el mapa del salón de esa franja
+
+C -> V : Elige una mesa libre de capacidad suficiente
+V -> RC : reservar(mesaId, inicio, personas)
+activate RC
+note right of V : A. Asignación automática: en lugar de elegir la mesa,\nReservaController usa buscarMesaDisponible(inicio, personas)\ny continúa con la verificación de la mesa asignada
+RC -> M : estaDisponible(inicio)
+activate M
+M --> RC : true
+deactivate M
+RC -> R : crear(sucursal, mesa, comensal, inicio, personas, modoAsignacion)
+activate R
+R --> RC : reserva creada (ReservaPendiente)
+deactivate R
+note right of R : E2. Mesa tomada al mismo tiempo: el índice único\n(mesa_id, inicio) rechaza la segunda reserva; informa\nque la mesa ya no está disponible y refresca el mapa
+RC -> BUS : publicar(RESERVA_CREADA)
+activate BUS
+deactivate BUS
+note left of BUS : NotificadorSalon actualiza el mapa de los comensales\nconectados a la sucursal; NotificadorComensal envía\nla confirmación con la tolerancia de llegada
+RC --> V : reserva PENDIENTE\n(con la tolerancia de llegada)
+deactivate RC
+V --> C : Muestra la confirmación de la reserva
+deactivate V
+
+note over V, R : B. Cancelación posterior (hasta el inicio de la franja): Reserva.cancelar()\npasa a CANCELADA, publica RESERVA_CANCELADA y la mesa queda libre en el mapa
+note over V, R : E3. No presentación: TareaVencimientoReservas llama a Reserva.vencer() al pasar la tolerancia;\nla reserva pasa a VENCIDA y la mesa se libera (CU-21)
+@enduml

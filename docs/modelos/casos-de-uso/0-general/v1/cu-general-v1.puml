@@ -1,0 +1,148 @@
+@startuml cu-general-v1
+top to bottom direction
+skinparam dpi 300
+skinparam defaultFontName Calibri
+skinparam defaultFontSize 18
+skinparam shadowing false
+skinparam legendFontSize 16
+skinparam legendBackgroundColor #FFF8DC
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam nodesep 12
+skinparam ranksep 30
+skinparam usecase {
+  BackgroundColor #FFFFFF
+  BorderColor #2E5E8C
+  ArrowColor #555555
+}
+skinparam rectangle {
+  BorderColor #2E5E8C
+  FontStyle bold
+}
+skinparam note {
+  BackgroundColor #FFF8DC
+  BorderColor #999999
+}
+
+actor "Empleado" as EMP
+actor "Administrador" as ADM
+actor "Gerente de\nsucursal" as GER
+actor "Jefe de\ncocina" as JEF
+actor "Staff" as STF
+actor "Comensal" as COM
+actor "Mercado Pago\n<<sistema externo>>" as MP
+actor "Sistema\n<<temporizador>>" as SYS
+
+EMP <|-- ADM
+EMP <|-- GER
+EMP <|-- JEF
+EMP <|-- STF
+
+rectangle "PGIM" {
+  rectangle "Personal y acceso" {
+    usecase "CU-01 Iniciar sesión" as CU01
+    usecase "Ingresar\ncon huella" as HUE
+    usecase "CU-20 Gestionar\ncuenta de usuario" as CU20
+    usecase "CU-02 Gestionar\nroles y permisos" as CU02
+    usecase "CU-11 Registrar\nrestaurante" as CU11
+    usecase "CU-15 Gestionar\npersonal" as CU15
+  }
+  rectangle "Salón y reservas" {
+    usecase "CU-13 Gestionar sucursales\ny horarios de servicio" as CU13
+    usecase "CU-14 Configurar\nmapa del salón" as CU14
+    usecase "CU-03 Reservar mesa" as CU03
+    usecase "Asignar mesa\nautomáticamente" as AUTO
+    usecase "Cancelar\nreserva" as CANR
+    usecase "CU-12 Activar\nreserva" as CU12
+    usecase "CU-18 Cerrar\nmesa" as CU18
+    usecase "CU-21 Vencer reservas\ny notificar alertas" as CU21
+  }
+  rectangle "Menú, pedidos, pago y fidelización" {
+    usecase "CU-16 Gestionar\nmenús y platos" as CU16
+    usecase "CU-17 Gestionar\nbeneficios" as CU17
+    usecase "CU-04 Realizar\npedido" as CU04
+    usecase "CU-10 Visualizar\nplato en RA" as CU10
+    usecase "Verificar y descontar\nstock por receta" as STK
+    usecase "CU-05 Gestionar\ncola de pedidos" as CU05
+    usecase "Cancelar\npedido" as CANP
+    usecase "CU-06 Pagar\ncuenta" as CU06
+    usecase "Emitir comprobante\ny acreditar puntos" as COMP
+    usecase "Canjear recompensa\npor puntos" as CANJE
+  }
+  rectangle "Stock, simulador y métricas" {
+    usecase "CU-07 Configurar\nreceta" as CU07
+    usecase "Crear producto\nintermedio" as INT
+    usecase "CU-08 Registrar\nmovimientos de stock" as CU08
+    usecase "CU-09 Asistente\nde apertura" as CU09
+    usecase "Pronosticar\ndemanda" as PRON
+    usecase "Verificar stock\ny mesas" as VERI
+    usecase "Planificar\nturnos" as TURN
+    usecase "CU-19 Consultar\nmétricas" as CU19
+  }
+}
+
+' --- Personal (arriba)
+EMP -- CU01
+EMP -- CU20
+ADM -- CU02
+ADM -- CU11
+ADM -- CU15
+ADM -- CU13
+ADM -- CU14
+ADM -- CU16
+ADM -- CU17
+ADM -- CU19
+GER -- CU09
+GER -- CU19
+JEF -- CU07
+JEF -- CU08
+STF -- CU05
+STF -- CU08
+STF -- CU12
+STF -- CU18
+
+' --- Comensal y sistemas externos (abajo)
+CU01 -- COM
+CU20 -- COM
+CU03 -- COM
+CU04 -- COM
+CU10 -- COM
+CU06 -- COM
+CU06 -- MP
+CU21 -- SYS
+
+' --- include / extend
+CU01 <.. HUE : <<extend>>
+CU03 <.. AUTO : <<extend>>
+CU03 <.. CANR : <<extend>>
+CU03 <.. CU21 : <<extend>>
+CU04 <.. CU10 : <<extend>>
+CU04 ..> STK : <<include>>
+CU05 <.. CANP : <<extend>>
+CU06 ..> COMP : <<include>>
+CU06 <.. CANJE : <<extend>>
+CU07 <.. INT : <<extend>>
+CU09 ..> PRON : <<include>>
+CU09 ..> VERI : <<include>>
+CU09 ..> TURN : <<include>>
+
+' --- Distribución en grilla 2x2
+' filas internas
+CU11 -[hidden]down- CU02
+CU15 -[hidden]down- CU20
+CU13 -[hidden]down- CU12
+CU14 -[hidden]down- CU18
+CU16 -[hidden]down- CU05
+CU17 -[hidden]down- CU04
+CU19 -[hidden]down- CU08
+' módulos en dos filas
+HUE -[hidden]down- CU07
+CU02 -[hidden]down- CU19
+CU21 -[hidden]down- CU16
+CANR -[hidden]down- CU17
+
+legend bottom left
+La sesión iniciada (CU-01) es precondición de todos los casos, salvo CU-10, CU-11, CU-21 y el alta de comensal de CU-20.
+Por eso CU-01 no se conecta con «include» a cada caso. Empleado generaliza a los cuatro roles del personal.
+endlegend
+@enduml

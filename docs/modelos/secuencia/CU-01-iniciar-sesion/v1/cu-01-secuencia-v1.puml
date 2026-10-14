@@ -1,0 +1,90 @@
+@startuml cu-01-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor "Empleado\no Comensal" as A
+  participant ":Vista login" as V
+  participant ":AuthController" as AC
+  participant ":Usuario" as U
+  participant ":CredencialBiometrica" as CB
+  participant ":Empleado" as E
+  participant ":Rol" as R
+end box
+
+A -> V : Elige "Contraseña" en la pantalla de inicio de sesión
+activate V
+V --> A : Solicita email y contraseña
+A -> V : Ingresa email y contraseña
+V -> AC : iniciarSesion(email, contraseña)
+activate AC
+AC -> U : autenticar(credencial)
+activate U
+U --> AC : true (credenciales válidas y usuario activo)
+deactivate U
+note right of AC : E2. Credenciales incorrectas: mensaje genérico\ny vuelve a pedir las credenciales.\nE3. Usuario inactivo: informa que la cuenta\nestá deshabilitada y termina el caso
+
+note over V, CB : A. Ingreso con huella: reemplaza el ingreso con contraseña
+A -> V : Elige "Huella"
+V -> AC : iniciarSesionConHuella(email)
+AC -> AC : generarDesafio()
+AC --> V : desafío WebAuthn
+V --> A : Solicita la huella en el dispositivo
+A -> V : Verifica su huella\n(el dispositivo firma el desafío)
+V -> AC : validarFirma(credentialId, firma)
+AC -> U : autenticar(firma)
+activate U
+U -> CB : verificarFirma(desafío, firma)
+activate CB
+CB --> U : true (firma válida con la clave pública)
+deactivate CB
+U --> AC : true
+deactivate U
+note right of AC : E1. Credencial biométrica no reconocida:\ninforma el error y ofrece ingresar con contraseña
+
+note over E #FFF59D : Solo si es Empleado
+AC -> E : obtenerRol()
+activate E
+E --> AC : rol
+deactivate E
+AC -> R : obtenerPermisos()
+activate R
+R --> AC : permisos del rol
+deactivate R
+AC -> E : obtenerSucursales()
+activate E
+E --> AC : sucursales donde trabaja
+deactivate E
+note left of E : B. Empleado de varias sucursales: el sistema\npide elegir la sucursal de trabajo antes de\niniciar la sesión
+
+AC --> V : sesión iniciada\n(restaurante, permisos y sucursales)
+deactivate AC
+V --> A : Muestra el panel del staff filtrado por permisos\no el inicio del comensal
+deactivate V
+@enduml

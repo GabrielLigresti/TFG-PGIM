@@ -1,0 +1,681 @@
+@startuml clases-0-unificado-v1
+' Diagrama de clases unificado — PGIM
+' Fuente: vistas vigentes 1 (v2), 2 (v2), 3 (v3), 4 (v2) y 5 (v2). Formato de referencia: Vialia.
+' PNG a 125 dpi para no superar 25 MP (límite de imágenes de Google Docs). Para imprimir o hacer zoom, usar el PDF/SVG vectorial.
+top to bottom direction
+skinparam dpi 125
+skinparam defaultFontName Calibri
+skinparam defaultFontSize 11
+skinparam shadowing false
+skinparam linetype polyline
+skinparam nodesep 22
+skinparam ranksep 38
+skinparam packageStyle rectangle
+skinparam classAttributeIconSize 0
+hide circle
+hide empty members
+
+skinparam class {
+  BackgroundColor #FFFFFF
+  BorderColor #3A3A3A
+  ArrowColor #3A3A3A
+  FontStyle bold
+  HeaderBackgroundColor #B4B7F0
+  HeaderBackgroundColor<<abstract>> #B4B7F0
+  HeaderBackgroundColor<<interface>> #F6E3A6
+  HeaderBackgroundColor<<service>> #EBA3A3
+  HeaderBackgroundColor<<scheduled>> #EBA3A3
+  HeaderBackgroundColor<<builder>> #EBA3A3
+  HeaderBackgroundColor<<value object>> #D9D9D9
+  HeaderBackgroundColor<<enum>> #FFFFFF
+  StereotypeFontSize 9
+}
+skinparam package {
+  BorderColor #8C8C8C
+  FontColor #2E5E8C
+  FontSize 13
+  BackgroundColor #FFFFFF
+}
+skinparam note {
+  BackgroundColor #FFF8DC
+  BorderColor #999999
+  FontSize 9
+}
+skinparam legend {
+  BackgroundColor #FFFFFF
+  BorderColor #8C8C8C
+  FontSize 10
+}
+
+' =====================================================================
+package "1. Organización, acceso y personal" as P1 {
+  class Restaurante {
+    -nombre : String
+    -cuit : String
+  }
+  class Sucursal {
+    -nombre : String
+    -direccion : String
+    -horarioApertura : Time
+    -horarioCierre : Time
+    -toleranciaNoShowMin : Integer
+  }
+  class HorarioServicio {
+    -franja : FranjaServicio
+    -horaInicio : Time
+    -horaFin : Time
+    +duracionHoras() : Decimal
+  }
+  abstract class Usuario <<abstract>> {
+    -email : String
+    -passwordHash : String
+    -activo : Boolean
+    +autenticar(credencial) : Boolean
+  }
+  class Empleado {
+    -nombreCompleto : String
+    -foto : String
+    -horasSemanalesMax : Integer
+    +puedeAcceder(permiso) : Boolean
+    +arquetipo() : Arquetipo
+  }
+  class Comensal {
+    -nombre : String
+    -telefono : String
+  }
+  class CredencialBiometrica {
+    -credentialId : String
+    -clavePublica : String
+    -dispositivo : String
+  }
+  class Rol {
+    -nombre : String
+    -predeterminado : Boolean
+    -arquetipo : Arquetipo
+    -activo : Boolean
+    +tienePermiso(permiso) : Boolean
+  }
+  class Permiso {
+    -codigo : String
+    -modulo : String
+    -accion : String
+  }
+  class Turno {
+    -fecha : Date
+    -franja : FranjaServicio
+    +horas() : Decimal
+  }
+}
+
+' =====================================================================
+package "2. Salón, reservas, consumo y pago" as P2 {
+  class Mesa {
+    -numero : Integer
+    -capacidad : Integer
+    -posicionX : Decimal
+    -posicionY : Decimal
+    -activa : Boolean
+    +estaDisponible(inicio : DateTime) : Boolean
+  }
+  class Reserva {
+    -inicio : DateTime
+    -cantidadPersonas : Integer
+    -modoAsignacion : ModoAsignacion
+    -estado : EstadoReserva
+    +fin() : DateTime
+    +activar() : void
+    +cancelar() : void
+    +vencer() : void
+  }
+  class CuentaMesa {
+    -abiertaEn : DateTime
+    -cerradaEn : DateTime
+    -estado : EstadoCuenta
+    +total() : Decimal
+    +saldoPendiente() : Decimal
+    +cerrar() : void
+  }
+  class Pedido {
+    -numero : Integer
+    -creadoEn : DateTime
+    -estado : EstadoPedido
+    +avanzarEstado() : void
+    +cancelar() : void
+  }
+  class LineaPedido {
+    -cantidad : Integer
+    -precioUnitario : Decimal
+    -observaciones : String
+    +subtotal() : Decimal
+  }
+  class Pago {
+    -monto : Decimal
+    -metodo : MetodoPago
+    -estado : EstadoPago
+    -fecha : DateTime
+    -referenciaExterna : String
+  }
+  class BeneficioAplicado {
+    -montoDescontado : Decimal
+  }
+  class Comprobante {
+    -numero : String
+    -fechaEmision : DateTime
+    -total : Decimal
+  }
+  class MedioPagoGuardado {
+    -tokenPasarela : String
+    -marca : String
+    -ultimos4 : String
+  }
+}
+
+' =====================================================================
+package "Eventos de dominio y tiempo real (Observer)" as PE {
+  class BusEventos <<service>> {
+    +suscribir(tipoEvento, suscriptor) : void
+    +publicar(evento) : void
+  }
+  class EventoDominio {
+    -tipo : TipoEvento
+    -sucursalId : UUID
+    -comensalId : UUID
+    -ocurridoEn : DateTime
+    -datos : JSON
+  }
+  interface Suscriptor <<interface>> {
+    +manejar(evento) : void
+  }
+  class NotificadorSalon
+  class NotificadorStaff
+  class NotificadorComensal
+  class GeneradorAlertas
+  class RegistroVisitas
+  class CanalTiempoReal <<service>> {
+    +emitir(canal, mensaje) : void
+  }
+  class TareaVencimientoReservas <<scheduled>> {
+    +ejecutar() : void
+  }
+}
+
+' =====================================================================
+package "3. Menú, recetas e inventario" as P3 {
+  class Menu {
+    -nombre : String
+    -descripcion : String
+    -vigenciaDesde : Date
+    -vigenciaHasta : Date
+    +estaVigente(fecha : Date) : Boolean
+  }
+  class ItemMenu {
+    -nombre : String
+    -descripcion : String
+    -precio : Decimal
+    -disponible : Boolean
+    -activo : Boolean
+    +estaHuerfano() : Boolean
+    +hayStockEn(sucursal, cantidad) : Boolean
+  }
+  class Categoria {
+    -nombre : String
+    -requiereReceta : Boolean
+  }
+  class ModeloRA {
+    -urlModelo : String
+    -urlModeloIOS : String
+    -escalaReal : Decimal
+    -porcionGramos : Integer
+  }
+  class Receta {
+    -rendimiento : Decimal
+    -instrucciones : String
+    +costoTotal() : Decimal
+    +insumosNecesarios(cantidad : Decimal) : Map<Insumo, Decimal>
+  }
+  class LineaReceta {
+    -cantidad : Decimal
+    -unidad : UnidadMedida
+    -porcentajeMermaEsperada : Decimal
+    +cantidadNetaEnBase() : Decimal
+    +cantidadBrutaEnBase() : Decimal
+  }
+  abstract class ComponenteInventario <<abstract>> {
+    -nombre : String
+    -unidadBase : UnidadMedida
+    -activo : Boolean
+    {abstract} +costoUnitario() : Decimal
+    +contiene(c : ComponenteInventario) : Boolean
+  }
+  class Insumo {
+    -costoCompra : Decimal
+    +costoUnitario() : Decimal
+  }
+  class ProductoIntermedio {
+    +costoUnitario() : Decimal
+    +contiene(c : ComponenteInventario) : Boolean
+  }
+  class RecetaBuilder <<builder>> {
+    +desde(receta : Receta) : RecetaBuilder
+    +paraItem(item : ItemMenu) : RecetaBuilder
+    +paraIntermedio(intermedio : ProductoIntermedio) : RecetaBuilder
+    +agregarLinea(ComponenteInventario, Decimal, UnidadMedida, Decimal) : RecetaBuilder
+    +conRendimiento(valor : Decimal) : RecetaBuilder
+    +conInstrucciones(texto : String) : RecetaBuilder
+    +build() : Receta
+  }
+  class Existencia {
+    -cantidadActualEnBase : Decimal
+    +descontar(cantidad : Decimal) : void
+  }
+  class MovimientoStock {
+    -tipo : TipoMovimiento
+    -cantidadEnBase : Decimal
+    -costoUnitario : Decimal
+    -fecha : DateTime
+    -motivo : String
+  }
+}
+
+' =====================================================================
+package "4. Fidelización y promociones" as P4 {
+  class ProgramaFidelidad {
+    -puntosPorUnidadMonetaria : Decimal
+    -activo : Boolean
+    +calcularPuntos(monto : Decimal) : Integer
+  }
+  class CuentaFidelidad {
+    -puntos : Integer
+    -cantidadVisitas : Integer
+    -montoAcumulado : Decimal
+    +acreditar(pago : Pago) : void
+    +registrarVisita(cuentaMesa : CuentaMesa) : void
+    +canjear(recompensa : Recompensa, pago : Pago) : void
+    +beneficiosDisponibles() : List<Beneficio>
+    +progresoHacia(recompensa : Recompensa) : Decimal
+  }
+  class Visita {
+    -fecha : DateTime
+  }
+  class MovimientoPuntos {
+    -tipo : TipoMovimientoPuntos
+    -puntos : Integer
+    -fecha : DateTime
+  }
+  class GrupoBeneficios {
+    -nombre : String
+    -habilitado : Boolean
+  }
+  abstract class Beneficio <<abstract>> {
+    -nombre : String
+    -tipoDescuento : TipoDescuento
+    -valor : Decimal
+    -vigenciaDesde : DateTime
+    -vigenciaHasta : DateTime
+    -stockDisponible : Integer
+    -activo : Boolean
+    +estaVigente() : Boolean
+    {abstract} +aplicaA(cuenta, pago) : Boolean
+  }
+  class Recompensa
+  class Promocion
+  interface CriterioElegibilidad <<interface>> {
+    +esElegible(cuenta : CuentaFidelidad) : Boolean
+  }
+  class CriterioPorVisitas {
+    -visitasRequeridas : Integer
+  }
+  class CriterioPorMonto {
+    -montoRequerido : Decimal
+  }
+  class CriterioPorPuntos {
+    -puntosRequeridos : Integer
+  }
+  class CriterioNuevoCliente {
+    -numeroVisita : Integer
+  }
+}
+
+' =====================================================================
+package "5. Simulador de apertura y planificación de turnos" as P5 {
+  class AsistenteApertura <<service>> {
+    +progresoDatos(sucursal) : ProgresoDatos
+    +generarPronostico(sucursal, fecha) : Pronostico
+    +planificarSemana(sucursal, semanaDesde) : PlanificacionTurnos
+  }
+  class ConfiguracionApertura {
+    -semanasHistoricoMinimo : Integer
+    -cubiertosPorMozo : Decimal
+    -platosPorCocineroHora : Decimal
+  }
+  interface EstrategiaPronostico <<interface>> {
+    +pronosticar(historial, fecha) : Pronostico
+  }
+  class PromedioMovilPonderado
+  class NaiveEstacional
+  class RegresionConEstacionalidad
+  interface Verificador <<interface>> {
+    +verificar(pronostico) : List<Alerta>
+  }
+  class VerificadorStock
+  class VerificadorMesas
+  interface EstrategiaAsignacionTurnos <<interface>> {
+    +asignar(dotacion, empleados) : List<Turno>
+  }
+  class AsignacionGolosaBalanceada
+  class DotacionRequerida <<value object>> {
+    -fecha : Date
+    -franja : FranjaServicio
+    -arquetipo : Arquetipo
+    -cantidad : Integer
+  }
+  class PlanificacionTurnos {
+    -semanaDesde : Date
+    -estado : EstadoPlanificacion
+    -generadaEn : DateTime
+    -confirmadaEn : DateTime
+    +confirmar() : void
+    +regenerar() : void
+  }
+  class Pronostico {
+    -fechaServicio : Date
+    -franja : FranjaServicio
+    -cubiertosEstimados : Integer
+    -limiteInferior : Integer
+    -limiteSuperior : Integer
+    -ingresoEstimado : Decimal
+    -errorMAPE : Decimal
+    -metodo : MetodoPronostico
+    -generadoEn : DateTime
+  }
+  class DemandaItem {
+    -cantidadEstimada : Integer
+  }
+  class Alerta {
+    -tipo : TipoAlerta
+    -severidad : Severidad
+    -descripcion : String
+    -fechaServicio : Date
+    -franja : FranjaServicio
+    -arquetipo : Arquetipo
+    -cantidad : Integer
+    -creadaEn : DateTime
+    -resuelta : Boolean
+  }
+}
+
+' =====================================================================
+package "Enumeraciones" as PEN {
+  enum EstadoReserva <<enum>> {
+    PENDIENTE
+    ACTIVA
+    FINALIZADA
+    CANCELADA
+    VENCIDA
+  }
+  enum EstadoPedido <<enum>> {
+    CONFIRMADO
+    EN_PREPARACION
+    LISTO
+    ENTREGADO
+    CANCELADO
+  }
+  enum EstadoCuenta <<enum>> {
+    ABIERTA
+    CERRADA
+  }
+  enum ModoAsignacion <<enum>> {
+    MANUAL
+    AUTOMATICA
+  }
+  enum MetodoPago <<enum>> {
+    TARJETA
+    BILLETERA_VIRTUAL
+  }
+  enum EstadoPago <<enum>> {
+    PENDIENTE
+    APROBADO
+    RECHAZADO
+  }
+  enum UnidadMedida <<enum>> {
+    GRAMO
+    KILOGRAMO
+    MILILITRO
+    LITRO
+    UNIDAD
+    --
+    +dimension() : Dimension
+    +factorABase() : Decimal
+  }
+  enum Dimension <<enum>> {
+    MASA
+    VOLUMEN
+    CONTEO
+  }
+  enum TipoMovimiento <<enum>> {
+    INGRESO
+    CONSUMO_PEDIDO
+    DEVOLUCION_PEDIDO
+    MERMA
+    AJUSTE
+  }
+  enum TipoMovimientoPuntos <<enum>> {
+    ACREDITACION
+    CANJE
+    AJUSTE
+  }
+  enum TipoDescuento <<enum>> {
+    PORCENTAJE
+    MONTO_FIJO
+  }
+  enum Arquetipo <<enum>> {
+    MOZO
+    COCINERO
+    OTRO
+  }
+  enum FranjaServicio <<enum>> {
+    ALMUERZO
+    CENA
+  }
+  enum EstadoPlanificacion <<enum>> {
+    BORRADOR
+    CONFIRMADA
+  }
+  enum MetodoPronostico <<enum>> {
+    PROMEDIO_MOVIL_PONDERADO
+    NAIVE_ESTACIONAL
+    REGRESION_ESTACIONAL
+  }
+  enum TipoAlerta <<enum>> {
+    PLATO_SIN_RECETA
+    FALTANTE_STOCK_PREVISTO
+    FALTANTE_PERSONAL
+    CAPACIDAD_MESAS
+  }
+  enum Severidad <<enum>> {
+    INFO
+    ADVERTENCIA
+    CRITICA
+  }
+  enum TipoEvento <<enum>> {
+    RESERVA_CREADA
+    RESERVA_ACTIVADA
+    RESERVA_CANCELADA
+    RESERVA_VENCIDA
+    PEDIDO_CONFIRMADO
+    PEDIDO_CAMBIO_ESTADO
+    PEDIDO_CANCELADO
+    PAGO_REGISTRADO
+    CUENTA_MESA_CERRADA
+    PLATO_SIN_RECETA
+    ALERTA_CREADA
+    VISITA_REGISTRADA
+    PUNTOS_ACREDITADOS
+    BENEFICIO_DESBLOQUEADO
+  }
+}
+
+' =====================================================================
+' Relaciones — 1. Organización, acceso y personal
+Restaurante "1" *-- "1..*" Sucursal
+Sucursal "1" *-- "1..2" HorarioServicio
+Restaurante "1" *-- "*" Rol
+Restaurante "1" o-- "*" Empleado
+Usuario <|-- Empleado
+Usuario <|-- Comensal
+Usuario "1" *-- "*" CredencialBiometrica
+Empleado "*" --> "1" Rol
+Empleado "*" -- "1..*" Sucursal : trabaja en
+Rol "*" -- "*" Permiso
+Empleado "1" -- "*" Turno
+Sucursal "1" <-- "*" Turno
+Turno ..> HorarioServicio : horas de la franja
+
+' Relaciones — 2. Salón, reservas, consumo y pago
+Sucursal "1" *-- "*" Mesa
+Mesa "1" -- "*" Reserva
+Comensal "1" -- "*" Reserva
+Reserva "1" -- "0..1" CuentaMesa : se abre al activarse
+CuentaMesa "1" *-- "*" Pedido
+Pedido "1" *-- "1..*" LineaPedido
+LineaPedido "*" --> "1" ItemMenu
+CuentaMesa "1" -- "*" Pago
+Comensal "1" -- "*" Pago
+Pago "1" *-- "*" BeneficioAplicado
+Pago "1" -- "0..1" Comprobante
+Comensal "1" *-- "*" MedioPagoGuardado
+
+' Relaciones — Observer
+Reserva ..> BusEventos : publica
+Pedido ..> BusEventos : publica
+Pago ..> BusEventos : publica
+CuentaMesa ..> BusEventos : publica
+BusEventos <.. CuentaFidelidad : publica progreso
+BusEventos --> EventoDominio : distribuye
+BusEventos "1" o-- "*" Suscriptor
+Suscriptor <|.. NotificadorSalon
+Suscriptor <|.. NotificadorStaff
+Suscriptor <|.. NotificadorComensal
+Suscriptor <|.. GeneradorAlertas
+Suscriptor <|.. RegistroVisitas
+NotificadorSalon --> CanalTiempoReal
+NotificadorStaff --> CanalTiempoReal
+NotificadorComensal --> CanalTiempoReal
+GeneradorAlertas ..> Alerta : crea
+RegistroVisitas ..> CuentaFidelidad : registrarVisita()
+Reserva <.. TareaVencimientoReservas : vencer()
+
+' Relaciones — 3. Menú, recetas e inventario
+Restaurante "1" *-- "*" Menu
+Restaurante "1" *-- "*" ItemMenu
+Restaurante "1" *-- "*" Categoria
+Restaurante "1" *-- "*" ComponenteInventario
+Menu "*" -- "*" ItemMenu
+Sucursal "*" --> "0..1" Menu : menú activo
+ItemMenu "*" --> "1" Categoria
+ItemMenu "1" -- "0..1" ModeloRA
+ItemMenu "0..1" -- "0..1" Receta
+ProductoIntermedio "0..1" -- "1" Receta : se elabora con
+Receta "1" *-- "1..*" LineaReceta
+RecetaBuilder ..> Receta : <<create>>
+RecetaBuilder ..> ComponenteInventario : valida contiene()
+LineaReceta "*" --> "1" ComponenteInventario
+ComponenteInventario <|-- Insumo
+ComponenteInventario <|-- ProductoIntermedio
+Insumo "1" -- "*" Existencia
+Sucursal "1" <-- "*" Existencia
+Existencia "1" *-- "*" MovimientoStock
+LineaPedido "0..1" <-- "*" MovimientoStock : origen
+Empleado "0..1" <-- "*" MovimientoStock : registrado por
+
+note left of Receta
+  {xor} pertenece a un ItemMenu
+  o a un ProductoIntermedio.
+  rendimiento: porciones (ítem)
+  o unidad base (intermedio)
+end note
+note bottom of Existencia
+  {única por insumo y sucursal}
+end note
+
+' Relaciones — 4. Fidelización y promociones
+Restaurante "1" *-- "1" ProgramaFidelidad
+Comensal "1" -- "*" CuentaFidelidad
+Restaurante "1" <-- "*" CuentaFidelidad
+CuentaFidelidad "1" *-- "*" MovimientoPuntos
+Pago "0..1" <-- "*" MovimientoPuntos
+CuentaFidelidad "1" *-- "*" Visita
+CuentaMesa "1" <-- "*" Visita
+GrupoBeneficios "0..1" o-- "*" Beneficio
+Beneficio <|-- Recompensa
+Beneficio <|-- Promocion
+Recompensa "*" --> "1" CriterioElegibilidad
+CriterioElegibilidad <|.. CriterioPorVisitas
+CriterioElegibilidad <|.. CriterioPorMonto
+CriterioElegibilidad <|.. CriterioPorPuntos
+CriterioElegibilidad <|.. CriterioNuevoCliente
+Menu "1" <-- "*" Promocion
+
+' Relaciones — 5. Simulador de apertura
+AsistenteApertura --> EstrategiaPronostico : usa
+EstrategiaPronostico <|.. PromedioMovilPonderado
+EstrategiaPronostico <|.. NaiveEstacional
+EstrategiaPronostico <|.. RegresionConEstacionalidad
+AsistenteApertura --> "1..*" Verificador : ejecuta
+Verificador <|.. VerificadorStock
+Verificador <|.. VerificadorMesas
+AsistenteApertura --> EstrategiaAsignacionTurnos : usa
+EstrategiaAsignacionTurnos <|.. AsignacionGolosaBalanceada
+AsistenteApertura ..> DotacionRequerida : calcula
+Sucursal "1" -- "1" ConfiguracionApertura
+Sucursal "1" -- "*" Pronostico
+Pronostico "1" *-- "*" DemandaItem
+ItemMenu "1" <-- "*" DemandaItem
+Pronostico "0..1" -- "*" Alerta : genera
+Sucursal "1" -- "*" PlanificacionTurnos
+Turno "*" --* "1" PlanificacionTurnos
+PlanificacionTurnos ..> Pronostico : se basa en
+PlanificacionTurnos "0..1" -- "*" Alerta : faltante de personal
+Empleado "1" <-- "*" Turno
+Sucursal "1" <-- "*" Alerta
+Existencia "0..1" <-- "*" Alerta
+ItemMenu "0..1" <-- "*" Alerta
+
+' ---------------------------------------------------------------------
+' Distribución vertical (enlaces ocultos: no son relaciones del modelo)
+Permiso -[hidden]down- Mesa
+CredencialBiometrica -[hidden]down- MedioPagoGuardado
+Comprobante -[hidden]down- BusEventos
+BeneficioAplicado -[hidden]down- Suscriptor
+CanalTiempoReal -[hidden]down- Menu
+CanalTiempoReal -[hidden]down- ProgramaFidelidad
+MovimientoStock -[hidden]down- AsistenteApertura
+CriterioPorMonto -[hidden]down- ConfiguracionApertura
+NaiveEstacional -[hidden]down- EstadoReserva
+Alerta -[hidden]down- EstadoReserva
+EstadoReserva -[hidden]right- EstadoPedido
+EstadoPedido -[hidden]right- EstadoCuenta
+EstadoCuenta -[hidden]right- ModoAsignacion
+ModoAsignacion -[hidden]right- MetodoPago
+EstadoPago -[hidden]right- TipoEvento
+TipoEvento -[hidden]right- UnidadMedida
+UnidadMedida -[hidden]right- Dimension
+Dimension -[hidden]right- TipoMovimiento
+TipoMovimientoPuntos -[hidden]right- TipoDescuento
+TipoDescuento -[hidden]right- Arquetipo
+Arquetipo -[hidden]right- FranjaServicio
+FranjaServicio -[hidden]right- EstadoPlanificacion
+MetodoPronostico -[hidden]right- TipoAlerta
+TipoAlerta -[hidden]right- Severidad
+EstadoReserva -[hidden]down- EstadoPago
+EstadoPago -[hidden]down- TipoMovimientoPuntos
+TipoMovimientoPuntos -[hidden]down- MetodoPronostico
+
+legend bottom right
+  <b>Convenciones</b>
+  <back:#B4B7F0>   </back> Entidad de dominio   <back:#EBA3A3>   </back> Servicio / tarea programada / builder
+  <back:#F6E3A6>   </back> Interfaz (Strategy / Observer)   <back:#D9D9D9>   </back> Objeto valor (no se persiste)
+  <back:#FFFFFF>   </back> Enumeración (se usa como tipo de atributo; sin líneas para no saturar)
+  - atributo privado · + operación pública · <i>cursiva</i> = abstracta
+endlegend
+@enduml

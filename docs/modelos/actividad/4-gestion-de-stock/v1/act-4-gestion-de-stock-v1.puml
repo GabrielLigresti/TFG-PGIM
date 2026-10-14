@@ -1,0 +1,55 @@
+@startuml act-4-gestion-de-stock-v1
+' Diagrama de actividades, formato Vialia: sin carriles (el actor va en el texto),
+' acciones blancas con borde negro, decisiones Sí/No. El marco se agrega al exportar.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+
+start
+if (¿Qué tarea realiza?) then (Configurar receta)
+  :Jefe de cocina: elige el plato
+  o el producto intermedio;
+  repeat
+    :Agregar línea: componente, cantidad,
+    unidad y merma esperada;
+    if (¿La unidad es de la misma dimensión?) then (No)
+      :Sistema: rechaza la línea;
+    else (Sí)
+      if (¿El componente genera un ciclo?) then (Sí)
+        :Sistema: rechaza la línea;
+      else (No)
+        :Sistema: agrega la línea;
+      endif
+    endif
+  repeat while (¿Agrega otra línea?) is (Sí) not (No)
+  :Sistema: guarda la receta y calcula el costo;
+else (Registrar movimiento)
+  :Elegir tipo: ingreso, merma o ajuste;
+  :Cargar insumo, cantidad, unidad y motivo
+  (la merma de un intermedio se carga
+  sobre sus insumos);
+  if (¿La unidad es de la misma dimensión?) then (No)
+    :Sistema: rechaza el movimiento;
+    stop
+  else (Sí)
+  endif
+  if (¿El stock quedaría negativo?) then (Sí)
+    :Sistema: rechaza el movimiento;
+    stop
+  else (No)
+  endif
+  :Sistema: registra el movimiento con empleado
+  y costo, y actualiza la existencia;
+endif
+stop
+@enduml

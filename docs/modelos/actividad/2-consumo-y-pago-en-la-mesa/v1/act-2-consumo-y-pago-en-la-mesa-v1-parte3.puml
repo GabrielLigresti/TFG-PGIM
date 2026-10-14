@@ -1,0 +1,31 @@
+@startuml act-2-consumo-y-pago-en-la-mesa-v1-parte3
+' Diagrama de actividades, formato Vialia (sin carriles; el actor va en el texto).
+' Dividido en partes para el documento; los conectores (A), (B)... unen las partes.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+skinparam circledCharacter {
+  FontSize 12
+}
+
+(C)
+:Staff: cierra la mesa;
+if (¿Queda saldo pendiente?) then (Sí)
+  :Staff: confirma el cierre con saldo impago;
+else (No)
+endif
+:Sistema: cierra la cuenta, finaliza la reserva
+y libera la mesa;
+:Sistema: registra la visita a quienes pagaron;
+stop
+@enduml

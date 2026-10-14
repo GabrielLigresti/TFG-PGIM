@@ -1,0 +1,44 @@
+@startuml act-4-gestion-de-stock-v1-parte1
+' Diagrama de actividades, formato Vialia (sin carriles; el actor va en el texto).
+' Dividido en partes para el documento; los conectores (A), (B)... unen las partes.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+skinparam circledCharacter {
+  FontSize 12
+}
+
+start
+if (¿Qué tarea realiza?) then (Configurar receta)
+  :Jefe de cocina: elige el plato
+  o el producto intermedio;
+  repeat
+    :Agregar línea: componente, cantidad,
+    unidad y merma esperada;
+    if (¿La unidad es de la misma dimensión?) then (No)
+      :Sistema: rechaza la línea;
+    else (Sí)
+      if (¿El componente genera un ciclo?) then (Sí)
+        :Sistema: rechaza la línea;
+      else (No)
+        :Sistema: agrega la línea;
+      endif
+    endif
+  repeat while (¿Agrega otra línea?) is (Sí) not (No)
+  :Sistema: guarda la receta y calcula el costo;
+  stop
+else (Registrar movimiento)
+  (A)
+  detach
+endif
+@enduml

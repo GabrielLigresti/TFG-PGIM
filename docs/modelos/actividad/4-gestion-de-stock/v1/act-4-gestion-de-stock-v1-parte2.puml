@@ -1,0 +1,39 @@
+@startuml act-4-gestion-de-stock-v1-parte2
+' Diagrama de actividades, formato Vialia (sin carriles; el actor va en el texto).
+' Dividido en partes para el documento; los conectores (A), (B)... unen las partes.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+skinparam circledCharacter {
+  FontSize 12
+}
+
+(A)
+:Elegir tipo: ingreso, merma o ajuste;
+:Cargar insumo, cantidad, unidad y motivo
+(la merma de un intermedio se carga
+sobre sus insumos);
+if (¿La unidad es de la misma dimensión?) then (No)
+  :Sistema: rechaza el movimiento;
+  stop
+else (Sí)
+endif
+if (¿El stock quedaría negativo?) then (Sí)
+  :Sistema: rechaza el movimiento;
+  stop
+else (No)
+endif
+:Sistema: registra el movimiento con empleado
+y costo, y actualiza la existencia;
+stop
+@enduml

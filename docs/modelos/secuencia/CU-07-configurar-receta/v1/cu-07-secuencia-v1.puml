@@ -1,0 +1,99 @@
+@startuml cu-07-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor "Jefe de cocina" as J
+  participant ":Vista receta" as V
+  participant ":RecetaController" as RC
+  participant ":ItemMenu" as IM
+  participant ":RecetaBuilder" as RB
+  participant ":ComponenteInventario" as CI
+  participant ":Receta" as R
+end box
+
+J -> V : Elige un plato o un producto intermedio
+activate V
+V -> RC : obtenerReceta(itemId)
+activate RC
+RC -> IM : obtenerReceta()
+activate IM
+IM --> RC : receta actual / ninguna
+deactivate IM
+RC --> V : receta actual o vacía
+deactivate RC
+V --> J : Muestra la receta
+note right of V : A. Producto intermedio nuevo: el Jefe de cocina indica\nnombre y unidad base, y sigue con la carga de líneas
+
+J -> V : Agrega o modifica líneas\n(componente, cantidad, unidad y merma)
+J -> V : Indica rendimiento e instrucciones
+J -> V : Guarda la receta
+V -> RC : guardarReceta(itemId, líneas, rendimiento, instrucciones)
+activate RC
+RC -> RB : desde(receta) / paraItem(item)
+activate RB
+RB --> RC : builder
+deactivate RB
+note over RB #D5E8D4 : por cada línea
+RC -> RB : agregarLinea(componente, cantidad, unidad, merma)
+activate RB
+RB -> CI : contiene(intermedio)
+activate CI
+CI --> RB : false
+deactivate CI
+RB --> RC : builder
+deactivate RB
+note right of CI : Solo si la receta es de un producto intermedio.\nE2. Ciclo entre intermedios: si el componente ya\ncontiene al intermedio, rechaza la línea y explica\nla dependencia
+RC -> RB : conRendimiento(valor)
+activate RB
+RB --> RC : builder
+deactivate RB
+RC -> RB : conInstrucciones(texto)
+activate RB
+RB --> RC : builder
+deactivate RB
+RC -> RB : build()
+activate RB
+RB -> RB : valida unidades, merma (0 a 100),\nrendimiento > 0 y al menos una línea
+RB -> R : crear(dueño, líneas, rendimiento, instrucciones)
+activate R
+R --> RB : receta
+deactivate R
+RB --> RC : receta válida
+deactivate RB
+note left of RB : E1. Unidad de otra dimensión: marca la línea con error.\nE3. Sin líneas o rendimiento no válido: indica el error.\nEn ambos casos vuelve a la carga de líneas
+RC -> R : costoTotal()
+activate R
+R --> RC : costo total
+deactivate R
+RC --> V : receta guardada con costo total\ny por porción (costo / rendimiento)
+deactivate RC
+V --> J : Muestra la receta con su costo
+deactivate V
+@enduml

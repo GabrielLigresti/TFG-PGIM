@@ -1,0 +1,83 @@
+@startuml dominio-v1
+left to right direction
+skinparam dpi 200
+skinparam defaultFontName Carlito
+skinparam defaultFontSize 16
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam actorStyle awesome
+skinparam nodesep 25
+skinparam ranksep 90
+skinparam usecase {
+  BackgroundColor #DDEBF7
+  BorderColor #2E5E8C
+  ArrowColor #555555
+}
+skinparam rectangle {
+  BorderColor #2E5E8C
+  FontStyle bold
+  FontSize 20
+}
+skinparam note {
+  BackgroundColor #FFF8DC
+  BorderColor #999999
+}
+
+actor "Empleado" as EMP
+actor "Administrador" as ADM
+actor "Gerente de\nsucursal" as GER
+actor "Jefe de\ncocina" as JEF
+actor "Staff" as STF
+actor "Comensal" as COM
+actor "Mercado Pago\n<<sistema externo>>" as MP
+
+EMP <|-- ADM
+EMP <|-- GER
+EMP <|-- JEF
+EMP <|-- STF
+
+rectangle "PGIM" {
+  usecase "CU-02 Gestionar\nroles y permisos" as CU02
+  usecase "CU-09 Consultar asistente\nde apertura" as CU09
+  usecase "CU-07 Configurar receta" as CU07
+  usecase "CU-08 Registrar movimientos\nde stock" as CU08
+  usecase "CU-05 Gestionar cola\nde pedidos" as CU05
+  usecase "CU-01 Iniciar sesión" as CU01
+  usecase "CU-03 Reservar mesa" as CU03
+  usecase "CU-04 Realizar pedido" as CU04
+  usecase "CU-10 Visualizar plato\nen RA" as CU10
+  usecase "CU-06 Pagar cuenta con\nMercado Pago" as CU06
+}
+
+ADM -- CU02
+GER -- CU09
+JEF -- CU07
+JEF -- CU08
+STF -- CU08
+STF -- CU05
+EMP -- CU01
+
+CU01 -- COM
+CU03 -- COM
+CU04 -- COM
+CU10 -- COM
+CU06 -- COM
+CU06 -- MP
+
+CU10 .> CU04 : <<extend>>
+
+CU06 -[hidden]right- CU10
+CU10 -[hidden]right- CU04
+CU04 -[hidden]right- CU03
+CU03 -[hidden]right- CU01
+CU01 -[hidden]right- CU05
+CU05 -[hidden]right- CU08
+CU08 -[hidden]right- CU07
+CU07 -[hidden]right- CU09
+CU09 -[hidden]right- CU02
+
+legend bottom left
+Iniciar sesión (CU-01) es precondición de los demás casos, salvo CU-10. Por eso no se conecta con «include» a cada uno.
+Empleado generaliza a los cuatro roles del personal. Los subcasos de «include»/«extend» están en el diagrama general de casos de uso.
+endlegend
+@enduml

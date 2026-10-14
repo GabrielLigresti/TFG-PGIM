@@ -1,0 +1,79 @@
+@startuml cu-02-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor Administrador as A
+  participant ":Vista roles" as V
+  participant ":RolController" as RC
+  participant ":Restaurante" as REST
+  participant ":Permiso" as P
+  participant ":Rol" as R
+end box
+
+A -> V : Ingresa a "Roles"
+activate V
+V -> RC : listarRoles(restauranteId)
+activate RC
+RC -> REST : obtenerRoles()
+activate REST
+REST --> RC : roles con arquetipo y\ncantidad de empleados
+deactivate REST
+RC --> V : listado de roles
+deactivate RC
+V --> A : Muestra los roles del restaurante
+
+A -> V : Elige "Nuevo rol"
+V -> RC : obtenerPermisos()
+activate RC
+RC -> P : listarPorModulo()
+activate P
+P --> RC : permisos agrupados por módulo
+deactivate P
+RC --> V : permisos disponibles
+deactivate RC
+V --> A : Muestra el formulario\n(nombre, arquetipo y permisos por módulo)
+
+A -> V : Completa los datos y confirma
+V -> RC : guardarRol(restauranteId, nombre, arquetipo, permisos)
+activate RC
+RC -> RC : validarDatos()\n(nombre único en el restaurante y al menos un permiso)
+note right of RC : E1. Nombre repetido o sin permisos: indica el error\ny vuelve al formulario.\nE2. Quitar el último permiso de gestión de roles:\nrechaza el cambio (al menos un rol debe conservarlo)
+RC -> R : crear(restaurante, nombre, arquetipo, permisos)
+activate R
+R --> RC : rol creado
+deactivate R
+RC --> V : rol guardado
+deactivate RC
+V --> A : Muestra el rol en el listado
+deactivate V
+
+note over V, P : A. Editar un rol: el sistema carga los datos del rol\ny sigue en "Completa los datos y confirma"
+note over V, P : B. Desactivar un rol: si tiene empleados asignados\npide reasignarlos antes; luego lo marca inactivo (baja lógica)
+@enduml

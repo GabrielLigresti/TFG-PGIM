@@ -1,0 +1,42 @@
+@startuml cu-07-diagrama-v1
+' Formato Vialia: actor de palitos, límite del sistema con pestaña "Sistema",
+' casos de uso en elipses celestes sin número, «include»/«extend» punteados.
+left to right direction
+skinparam dpi 300
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 13
+skinparam shadowing false
+skinparam actorStyle default
+skinparam packageStyle folder
+skinparam nodesep 40
+skinparam ranksep 70
+skinparam actor {
+  BorderColor #000000
+  BackgroundColor #FFFFFF
+}
+skinparam usecase {
+  BackgroundColor #DAE8FC
+  BorderColor #6C8EBF
+  ArrowColor #000000
+}
+skinparam package {
+  BorderColor #000000
+  BorderThickness 3
+  FontSize 22
+  FontStyle plain
+  BackgroundColor #FFFFFF
+}
+skinparam rectangle {
+  BorderColor #4A90D9
+  BorderThickness 1
+}
+rectangle " " as MARCO {
+  actor "Jefe de cocina" as A1
+  package "Sistema" {
+    usecase "Configurar receta" as P
+    usecase "Crear producto\nintermedio" as E1
+  }
+  A1 -- P
+  E1 .> P : <<extend>>
+}
+@enduml

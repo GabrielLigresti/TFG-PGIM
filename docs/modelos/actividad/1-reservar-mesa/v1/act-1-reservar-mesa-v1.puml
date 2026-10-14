@@ -1,0 +1,55 @@
+@startuml act-1-reservar-mesa-v1
+' Diagrama de actividades, formato Vialia: sin carriles (el actor va en el texto),
+' acciones blancas con borde negro, decisiones Sí/No. El marco se agrega al exportar.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+
+start
+:Ver el menú digital;
+if (¿Tiene la sesión iniciada?) then (No)
+  :Iniciar sesión;
+else (Sí)
+endif
+:Elegir sucursal, fecha y cantidad de personas;
+:Sistema: muestra las franjas de 1 h disponibles;
+if (¿Hay franjas disponibles?) then (No)
+  :Sistema: informa que no hay disponibilidad;
+  stop
+else (Sí)
+endif
+:Elegir franja;
+repeat
+  if (¿Elige la mesa en el mapa?) then (Sí)
+    :Elegir mesa en el mapa del salón;
+  else (No)
+    :Sistema: asigna una mesa automáticamente;
+  endif
+repeat while (¿La mesa se ocupó mientras elegía?) is (Sí) not (No)
+:Sistema: registra la reserva PENDIENTE
+y actualiza el mapa en tiempo real;
+:Recibir la confirmación con la tolerancia de llegada;
+if (¿Cancela antes del inicio de la franja?) then (Sí)
+  :Cancelar la reserva;
+  :Sistema: libera la mesa;
+  stop
+else (No)
+endif
+if (¿Llega dentro de la tolerancia?) then (No)
+  :Sistema: vence la reserva y libera la mesa;
+  stop
+else (Sí)
+endif
+:Iniciar flujo "Consumo y pago en la mesa";
+stop
+@enduml

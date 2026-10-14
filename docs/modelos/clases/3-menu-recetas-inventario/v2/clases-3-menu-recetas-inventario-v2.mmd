@@ -1,0 +1,90 @@
+classDiagram
+direction TB
+class Sucursal
+class LineaPedido
+class Menu {
+  +nombre : String
+  +descripcion : String
+  +vigenciaDesde : Date
+  +vigenciaHasta : Date
+}
+class ItemMenu {
+  +nombre : String
+  +descripcion : String
+  +precio : Decimal
+  +disponible : Boolean
+  +estaHuerfano() bool
+}
+class Categoria {
+  +nombre : String
+  +requiereReceta : Boolean
+}
+class ModeloRA {
+  +urlModelo : String
+  +urlModeloIOS : String
+  +escalaReal : Decimal
+  +porcionGramos : Integer
+}
+class Receta {
+  +rendimiento : Decimal
+  +instrucciones : String
+  +costoTotal()
+  +insumosNecesarios(cantidad)
+}
+class LineaReceta {
+  +cantidad : Decimal
+  +unidad : UnidadMedida
+  +porcentajeMermaEsperada : Decimal
+  +cantidadNetaEnBase()
+  +cantidadBrutaEnBase()
+}
+class UnidadMedida {
+  <<enumeration>>
+  GRAMO
+  KILOGRAMO
+  MILILITRO
+  LITRO
+  UNIDAD
+  +dimension() Dimension
+  +factorABase() decimal
+}
+class ComponenteInventario {
+  <<abstract>>
+  +nombre : String
+  +unidadBase : UnidadMedida
+  +costoUnitario()*
+}
+class Insumo {
+  +costoCompra : Decimal
+}
+class ProductoIntermedio {
+  +costoUnitario()
+}
+class Existencia {
+  +cantidadActualEnBase : Decimal
+  +stockMinimo : Decimal
+  +estaBajoMinimo() bool
+  +descontar(cantidad)
+}
+class MovimientoStock {
+  +tipo : TipoMovimiento
+  +cantidadEnBase : Decimal
+  +fecha : DateTime
+  +motivo : String
+}
+Menu "*" -- "*" ItemMenu
+Sucursal "*" --> "1" Menu : menú activo
+ItemMenu "*" --> "1" Categoria
+ItemMenu "1" -- "0..1" ModeloRA
+ItemMenu "1" -- "0..1" Receta
+ProductoIntermedio "1" -- "1" Receta : se elabora con
+Receta "1" *-- "1..*" LineaReceta
+LineaReceta "*" --> "1" ComponenteInventario
+LineaReceta ..> UnidadMedida
+ComponenteInventario ..> UnidadMedida
+ComponenteInventario <|-- Insumo
+ComponenteInventario <|-- ProductoIntermedio
+ComponenteInventario "1" -- "*" Existencia
+Existencia "*" --> "1" Sucursal
+Existencia "1" *-- "*" MovimientoStock
+MovimientoStock "*" --> "0..1" LineaPedido : origen

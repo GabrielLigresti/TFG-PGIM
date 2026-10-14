@@ -1,0 +1,74 @@
+classDiagram
+direction TB
+class Sucursal
+class LineaPedido
+class Menu {
+  +nombre
+  +descripcion
+  +vigenciaDesde
+  +vigenciaHasta
+}
+class ItemMenu {
+  +nombre
+  +descripcion
+  +precio
+  +disponible
+  +estaHuerfano() bool
+}
+class Categoria {
+  +nombre
+  +requiereReceta
+}
+class ModeloRA {
+  +urlModelo
+  +urlModeloIOS
+  +escalaReal
+  +porcionGramos
+}
+class Receta {
+  +rendimiento
+  +instrucciones
+  +costoTotal()
+  +insumosNecesarios(cantidad)
+}
+class LineaReceta {
+  +cantidad
+}
+class ComponenteInventario {
+  <<abstract>>
+  +nombre
+  +unidadMedida
+  +costoUnitario()*
+}
+class Insumo {
+  +costoCompra
+}
+class ProductoIntermedio {
+  +costoUnitario()
+}
+class Existencia {
+  +cantidadActual
+  +stockMinimo
+  +estaBajoMinimo() bool
+  +descontar(cantidad)
+}
+class MovimientoStock {
+  +tipo : INGRESO|CONSUMO|MERMA|PRODUCCION|AJUSTE
+  +cantidad
+  +fecha
+  +motivo
+}
+Menu "*" -- "*" ItemMenu
+Sucursal "*" --> "1" Menu : menú activo
+ItemMenu "*" --> "1" Categoria
+ItemMenu "1" -- "0..1" ModeloRA
+ItemMenu "1" -- "0..1" Receta
+ProductoIntermedio "1" -- "1" Receta : se elabora con
+Receta "1" *-- "1..*" LineaReceta
+LineaReceta "*" --> "1" ComponenteInventario
+ComponenteInventario <|-- Insumo
+ComponenteInventario <|-- ProductoIntermedio
+ComponenteInventario "1" -- "*" Existencia
+Existencia "*" --> "1" Sucursal
+Existencia "1" *-- "*" MovimientoStock
+MovimientoStock "*" --> "0..1" LineaPedido : origen

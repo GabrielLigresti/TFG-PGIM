@@ -1,0 +1,116 @@
+classDiagram
+direction TB
+class Restaurante
+class Sucursal
+class LineaPedido
+class Empleado
+class Menu {
+  +nombre : String
+  +descripcion : String
+  +vigenciaDesde : Date
+  +vigenciaHasta : Date
+  +estaVigente(fecha : Date) Boolean
+}
+class ItemMenu {
+  +nombre : String
+  +descripcion : String
+  +precio : Decimal
+  +disponible : Boolean
+  +activo : Boolean
+  +estaHuerfano() Boolean
+  +hayStockEn(sucursal, cantidad) Boolean
+}
+class Categoria {
+  +nombre : String
+  +requiereReceta : Boolean
+}
+class ModeloRA {
+  +urlModelo : String
+  +urlModeloIOS : String
+  +escalaReal : Decimal
+  +porcionGramos : Integer
+}
+class Receta {
+  +rendimiento : Decimal
+  +instrucciones : String
+  +costoTotal() Decimal
+  +insumosNecesarios(cantidad : Decimal) Map~Insumo, Decimal~
+}
+class LineaReceta {
+  +cantidad : Decimal
+  +unidad : UnidadMedida
+  +porcentajeMermaEsperada : Decimal
+  +cantidadNetaEnBase() Decimal
+  +cantidadBrutaEnBase() Decimal
+}
+class UnidadMedida {
+  <<enumeration>>
+  GRAMO
+  KILOGRAMO
+  MILILITRO
+  LITRO
+  UNIDAD
+  +dimension() Dimension
+  +factorABase() Decimal
+}
+class ComponenteInventario {
+  <<abstract>>
+  +nombre : String
+  +unidadBase : UnidadMedida
+  +activo : Boolean
+  +costoUnitario()* Decimal
+  +contiene(c : ComponenteInventario) Boolean
+}
+class Insumo {
+  +costoCompra : Decimal
+  +costoUnitario() Decimal
+}
+class ProductoIntermedio {
+  +costoUnitario() Decimal
+  +contiene(c : ComponenteInventario) Boolean
+}
+class RecetaBuilder {
+  +desde(receta : Receta) RecetaBuilder
+  +paraItem(item : ItemMenu) RecetaBuilder
+  +paraIntermedio(intermedio : ProductoIntermedio) RecetaBuilder
+  +agregarLinea(ComponenteInventario, Decimal, UnidadMedida, Decimal) RecetaBuilder
+  +conRendimiento(valor : Decimal) RecetaBuilder
+  +conInstrucciones(texto : String) RecetaBuilder
+  +build() Receta
+}
+class Existencia {
+  +cantidadActualEnBase : Decimal
+  +descontar(cantidad : Decimal) void
+}
+class MovimientoStock {
+  +tipo : TipoMovimiento
+  +cantidadEnBase : Decimal
+  +costoUnitario : Decimal
+  +fecha : DateTime
+  +motivo : String
+}
+Restaurante "1" *-- "*" Menu
+Restaurante "1" *-- "*" ItemMenu
+Restaurante "1" *-- "*" Categoria
+Restaurante "1" *-- "*" ComponenteInventario
+Menu "*" -- "*" ItemMenu
+Sucursal "*" --> "0..1" Menu : menú activo
+ItemMenu "*" --> "1" Categoria
+ItemMenu "1" -- "0..1" ModeloRA
+ItemMenu "0..1" -- "0..1" Receta
+ProductoIntermedio "0..1" -- "1" Receta : se elabora con
+note for Receta "{xor} pertenece a un ItemMenu o a un ProductoIntermedio.<br>rendimiento: porciones (ítem) o unidad base (intermedio)"
+Receta "1" *-- "1..*" LineaReceta
+RecetaBuilder ..> Receta : «create»
+RecetaBuilder ..> ComponenteInventario : valida contiene()
+LineaReceta "*" --> "1" ComponenteInventario
+LineaReceta ..> UnidadMedida
+ComponenteInventario ..> UnidadMedida
+ComponenteInventario <|-- Insumo
+ComponenteInventario <|-- ProductoIntermedio
+Insumo "1" -- "*" Existencia
+Existencia "*" --> "1" Sucursal
+note for Existencia "{única por insumo y sucursal}"
+Existencia "1" *-- "*" MovimientoStock
+MovimientoStock "*" --> "0..1" LineaPedido : origen
+MovimientoStock "*" --> "0..1" Empleado : registrado por

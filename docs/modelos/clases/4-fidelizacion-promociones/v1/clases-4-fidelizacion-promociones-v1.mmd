@@ -1,0 +1,71 @@
+classDiagram
+direction TB
+class Restaurante
+class Comensal
+class Menu
+class Pago
+class ProgramaFidelidad {
+  +puntosPorUnidadMonetaria
+  +activo
+  +calcularPuntos(monto)
+}
+class CuentaFidelidad {
+  +puntos
+  +cantidadVisitas
+  +montoAcumulado
+  +acreditar(pago)
+  +beneficiosDisponibles()
+}
+class MovimientoPuntos {
+  +tipo
+  +puntos
+  +fecha
+}
+class GrupoBeneficios {
+  +nombre
+  +habilitado
+}
+class Beneficio {
+  <<abstract>>
+  +nombre
+  +tipoDescuento
+  +valor
+  +vigenciaDesde
+  +vigenciaHasta
+  +stockDisponible
+  +activo
+  +estaVigente() bool
+  +aplicaA(cuenta, pago) bool*
+}
+class Recompensa
+class Promocion
+class CriterioElegibilidad {
+  <<interface>>
+  +esElegible(cuentaFidelidad) bool
+}
+class CriterioPorVisitas {
+  +visitasRequeridas
+}
+class CriterioPorMonto {
+  +montoRequerido
+}
+class CriterioPorPuntos {
+  +puntosRequeridos
+}
+class CriterioNuevoCliente {
+  +numeroVisita
+}
+Restaurante "1" *-- "1" ProgramaFidelidad
+Comensal "1" -- "*" CuentaFidelidad
+CuentaFidelidad "*" --> "1" Restaurante
+CuentaFidelidad "1" *-- "*" MovimientoPuntos
+MovimientoPuntos "*" --> "0..1" Pago
+GrupoBeneficios "0..1" o-- "*" Beneficio
+Beneficio <|-- Recompensa
+Beneficio <|-- Promocion
+Recompensa "*" --> "1" CriterioElegibilidad
+CriterioElegibilidad <|.. CriterioPorVisitas
+CriterioElegibilidad <|.. CriterioPorMonto
+CriterioElegibilidad <|.. CriterioPorPuntos
+CriterioElegibilidad <|.. CriterioNuevoCliente
+Promocion "*" --> "1" Menu

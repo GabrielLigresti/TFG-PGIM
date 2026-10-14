@@ -1,0 +1,132 @@
+@startuml cu-05-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor Staff as ST
+  participant ":Vista cola de pedidos" as V
+  participant ":PedidoController" as PC
+  participant ":Pedido" as P
+  participant ":EstadoPedido" as EP
+  participant ":Existencia" as E
+  participant ":MovimientoStock" as MS
+  participant ":BusEventos" as BUS
+end box
+
+ST -> V : Abre la cola de pedidos
+activate V
+V -> PC : obtenerCola(sucursalId)
+activate PC
+PC -> PC : consultarCola(sucursal)\n(pedidos no entregados de la sucursal\npor orden de llegada, con mesa, líneas\ny observaciones)
+PC --> V : cola FIFO de la sucursal
+deactivate PC
+V --> ST : Muestra la cola de pedidos
+note right of V : B. Pedido nuevo durante el servicio: llega PEDIDO_CONFIRMADO\npor NotificadorStaff y aparece al final de la cola sin recargar
+
+ST -> V : El cocinero pasa el primer pedido\na "En preparación"
+V -> PC : avanzarEstado(pedidoId)
+activate PC
+PC -> P : avanzarEstado()
+activate P
+P -> EP : avanzar(p)
+activate EP
+note right of EP : estado actual: PedidoConfirmado
+EP -> P : cambiarEstado(PedidoEnPreparacion)
+deactivate EP
+P --> PC : EN_PREPARACION
+deactivate P
+PC -> BUS : publicar(PEDIDO_CAMBIO_ESTADO)
+activate BUS
+deactivate BUS
+note left of BUS : NotificadorComensal muestra\nel cambio al comensal
+PC --> V : pedido EN_PREPARACION
+deactivate PC
+
+ST -> V : El cocinero marca el pedido como "Listo"
+V -> PC : avanzarEstado(pedidoId)
+activate PC
+PC -> P : avanzarEstado()
+activate P
+P --> PC : LISTO
+deactivate P
+PC -> BUS : publicar(PEDIDO_CAMBIO_ESTADO)
+activate BUS
+deactivate BUS
+note left of BUS : NotificadorStaff avisa al mozo y\nNotificadorComensal al comensal
+PC --> V : pedido LISTO
+deactivate PC
+
+ST -> V : El mozo entrega el pedido\ny lo marca como "Entregado"
+V -> PC : avanzarEstado(pedidoId)
+activate PC
+PC -> P : avanzarEstado()
+activate P
+P --> PC : ENTREGADO
+deactivate P
+PC -> BUS : publicar(PEDIDO_CAMBIO_ESTADO)
+activate BUS
+deactivate BUS
+PC --> V : pedido ENTREGADO
+deactivate PC
+V --> ST : Quita el pedido de la cola
+deactivate V
+
+note over V, EP : A. Cancelar un pedido CONFIRMADO: el staff indica el motivo
+ST -> V : Cancela el pedido e indica el motivo
+activate V
+V -> PC : cancelar(pedidoId, motivo)
+activate PC
+note over E, MS : Transacción única (cancelación + devolución de stock)
+PC -> P : cancelar(motivo)
+activate P
+P -> EP : cancelar(p, motivo)
+activate EP
+EP -> P : cambiarEstado(PedidoCancelado)
+deactivate EP
+P --> PC : CANCELADO
+deactivate P
+note right of EP : E1. Cancelación fuera de estado: desde\nEN_PREPARACION o posterior, la clase base\nrechaza la cancelación y se informa al staff
+note over E #D5E8D4 : por cada insumo descontado al confirmar
+PC -> E : ingresar(cantidad)
+activate E
+E -> MS : crear(DEVOLUCION_PEDIDO, cantidad, lineaPedido)
+activate MS
+MS --> E : movimiento registrado
+deactivate MS
+E --> PC : stock devuelto
+deactivate E
+PC -> BUS : publicar(PEDIDO_CANCELADO)
+activate BUS
+deactivate BUS
+note left of BUS : NotificadorComensal avisa\nal comensal
+PC --> V : pedido CANCELADO
+deactivate PC
+V --> ST : Quita el pedido de la cola
+deactivate V
+@enduml

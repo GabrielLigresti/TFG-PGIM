@@ -1,0 +1,113 @@
+@startuml cu-04-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y los ciclos van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor Comensal as C
+  participant ":Vista menú/carrito" as V
+  participant ":PedidoController" as PC
+  participant ":CuentaMesa" as CM
+  participant ":ItemMenu" as IM
+  participant ":Receta" as R
+  participant ":Existencia" as E
+  participant ":Pedido" as P
+  participant ":MovimientoStock" as MS
+  participant ":BusEventos" as BUS
+end box
+
+C -> V : Abre el menú de su mesa
+activate V
+V -> PC : obtenerMenu(reservaId)
+activate PC
+PC -> CM : estaAbierta()
+activate CM
+CM --> PC : true
+deactivate CM
+note over IM #D5E8D4 : por cada ítem del menú activo
+PC -> IM : hayStockEn(sucursal, 1)
+activate IM
+IM --> PC : disponible / sin stock
+deactivate IM
+PC --> V : ítems con disponibilidad
+deactivate PC
+V --> C : Muestra el menú\n(los ítems sin stock figuran como no disponibles)
+
+note right of V : 2a. Opcional: el Comensal ve un plato\nen realidad aumentada (CU-10)
+
+note over V #D5E8D4 : por cada ítem que elige
+C -> V : Agrega el ítem al carrito\n(ítem, cantidad, observaciones)
+V --> C : Muestra el carrito actualizado
+C -> V : Presiona "Confirmar pedido"
+V -> PC : confirmarPedido(cuentaId, carrito)
+activate PC
+
+note over IM #D5E8D4 : por cada línea del carrito
+PC -> IM : estaHuerfano()
+activate IM
+IM --> PC : false (tiene receta)
+deactivate IM
+note right of IM : 5b. Plato sin receta: publica\nPLATO_SIN_RECETA en el bus y la línea\nse confirma sin descontar stock
+PC -> R : insumosNecesarios(cantidad)
+activate R
+R -> R : insumosNecesarios(cantidad)\n(recursivo por cada ProductoIntermedio,\ncantidad bruta)
+R --> PC : Map<Insumo, cantidad>
+deactivate R
+
+note over E #D5E8D4 : por cada insumo requerido
+PC -> E : alcanza(cantidad)
+activate E
+E --> PC : true
+deactivate E
+note right of E : 5a. Stock insuficiente: publica\nSTOCK_INSUFICIENTE, rechaza el pedido\ne informa el ítem sin stock
+
+note over E, MS : Paso 6: transacción única\n(pedido + descuento de stock)
+PC -> P : crear(cuenta, sucursal, líneas con precio copiado)
+activate P
+P --> PC : pedido creado (PedidoConfirmado)
+deactivate P
+note over E #D5E8D4 : por cada insumo requerido
+PC -> E : descontar(cantidad)
+activate E
+E -> MS : crear(CONSUMO_PEDIDO, cantidad, lineaPedido)
+activate MS
+MS --> E : movimiento registrado
+deactivate MS
+E --> PC : stock descontado
+deactivate E
+note left of MS : 6a. Falla en la transacción: rollback,\nel carrito se conserva y se informa el error
+
+PC -> BUS : publicar(PEDIDO_CONFIRMADO)
+activate BUS
+deactivate BUS
+note left of BUS : NotificadorStaff lo agrega\na la cola de cocina (CU-05)
+PC --> V : pedido CONFIRMADO
+deactivate PC
+V --> C : Muestra la confirmación del pedido
+deactivate V
+@enduml

@@ -1,0 +1,34 @@
+@startuml act-5-asistente-de-apertura-y-turnos-v1-parte2
+' Diagrama de actividades, formato Vialia (sin carriles; el actor va en el texto).
+' Dividido en partes para el documento; los conectores (A), (B)... unen las partes.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+skinparam circledCharacter {
+  FontSize 12
+}
+
+(A)
+repeat
+  :Sistema: planifica los turnos de la semana
+  (borrador);
+  if (¿Falta personal?) then (Sí)
+    :Sistema: genera alerta de faltante de personal;
+  else (No)
+  endif
+  :Gerente: revisa la planificación;
+repeat while (¿Regenera con otros parámetros?) is (Sí) not (No)
+:Gerente: confirma la planificación;
+:Sistema: publica los turnos al staff;
+stop
+@enduml

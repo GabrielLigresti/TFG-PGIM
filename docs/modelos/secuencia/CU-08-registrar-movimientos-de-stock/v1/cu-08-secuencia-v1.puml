@@ -1,0 +1,69 @@
+@startuml cu-08-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor "Jefe de cocina /\nStaff con permiso" as U
+  participant ":Vista stock" as V
+  participant ":StockController" as SC
+  participant ":Insumo" as I
+  participant ":Existencia" as E
+  participant ":MovimientoStock" as MS
+end box
+
+U -> V : Elige el tipo de movimiento:\ningreso, merma o ajuste
+activate V
+V --> U : Solicita insumo, cantidad, unidad y motivo\n(en un ingreso, también el costo de compra)
+U -> V : Completa los datos y confirma
+V -> SC : registrarMovimiento(tipo, insumoId, cantidad,\nunidad, motivo, costoCompra)
+activate SC
+SC -> SC : convierte la cantidad a la unidad base\n(UnidadMedida.factorABase()) y valida la dimensión
+note right of SC : E1. Unidad de otra dimensión:\nindica el error y vuelve a pedir los datos
+SC -> I : actualizarCosto(costoCompra)
+activate I
+I --> SC : costo unitario vigente
+deactivate I
+note right of I : Solo en un ingreso
+SC -> E : ingresar(cantidad)
+activate E
+E -> MS : crear(INGRESO, cantidad, empleado,\ncostoUnitario, motivo)
+activate MS
+MS --> E : movimiento registrado
+deactivate MS
+E --> SC : existencia actualizada
+deactivate E
+note right of E : Merma: Existencia.descontar(cantidad) con\nun movimiento MERMA.\nE2. Existencia negativa: rechaza la merma o el\najuste e indica la existencia actual
+SC --> V : existencia resultante
+deactivate SC
+V --> U : Muestra la existencia resultante
+deactivate V
+
+note over V, MS : A. Merma de un producto intermedio: StockController pide Receta.insumosNecesarios(cantidad)\ndel intermedio y registra una merma (descontar + MovimientoStock MERMA) por cada insumo
+note over V, MS : B. Ajuste por conteo físico: el usuario ingresa la cantidad contada; Existencia.ajustar(cantidadContada)\ncalcula la diferencia y registra un MovimientoStock AJUSTE
+@enduml
