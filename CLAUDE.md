@@ -63,7 +63,12 @@ El porqué de cada decisión está en la wiki (sección 6).
 
 ## 6. Contexto: wiki del proyecto (vault privado)
 
-El porqué de las decisiones vive en una wiki privada, fuera de este repo, en `dominios/pgim/` del vault. Si la sesión tiene acceso al vault:
+El porqué de las decisiones vive en una wiki privada, fuera de este repo, en `dominios/pgim/` del vault.
+
+- **Ubicación:** el vault se clona al lado de este repo, así que la wiki está en `../personal-vault/dominios/pgim/`. Si no está ahí, la sesión no tiene acceso al vault.
+- Las reglas de la wiki están en el `CLAUDE.md` raíz del vault y en el de `dominios/pgim/`.
+
+Si la sesión tiene acceso al vault:
 
 - **Antes de implementar un módulo o tomar una decisión de diseño,** leer `dominios/pgim/index.md` y las páginas del módulo. No cargar la wiki entera.
 - **Si la wiki y `docs/modelos/` se contradicen,** prevalece el modelo: avisar a Gabriel.
