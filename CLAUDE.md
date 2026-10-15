@@ -20,10 +20,16 @@ Plataforma de gestión de restaurantes multi-sucursal (TFG de Ingeniería Inform
 ## 2. Estructura del monorepo
 
 ```
-apps/web/        ← frontend (pendiente de crear)
-apps/api/        ← backend (pendiente de crear)
-docs/modelos/    ← modelos UML y DER versionados (fuente de verdad del diseño)
+apps/web/         ← frontend (@pgim/web): React + Vite + Tailwind, ESM
+apps/api/         ← backend (@pgim/api): Express + Prisma + Socket.IO, CommonJS
+packages/shared/  ← @pgim/shared: tipos, esquemas zod y constantes que usan web y api
+docs/modelos/     ← modelos UML y DER versionados (fuente de verdad del diseño)
 ```
+
+- npm workspaces, Node 22 (`.nvmrc`). TypeScript 6.0: ts-jest todavía no soporta la 7.
+- `packages/shared` se compila con tsup a ESM (web) y CommonJS (api y Jest). Solo lleva tipos, zod y constantes; nunca Prisma, Express ni React. Los tipos que genera Prisma no van ahí.
+- Prisma 7 con `@prisma/adapter-pg`; el cliente se genera en `apps/api/src/generated/` (ignorado por git). La URL de la base está en `apps/api/prisma.config.ts`.
+- En desarrollo, Vite redirige `/api` y `/socket.io` a la API (puerto 3000).
 
 ## 3. Modelo de datos: fuente de verdad
 
@@ -81,4 +87,8 @@ Si la sesión no tiene acceso al vault, trabajar con `docs/modelos/` y preguntar
 - Ante un hueco de contexto o una ambigüedad, preguntar antes de asumir.
 - **Idioma del código:** términos del dominio en español, como en los diagramas (`Reserva`, `Pedido`, `CuentaMesa`); términos técnicos en inglés (`ReservaService`, `findById`, `controller`).
 - **Commits:** pequeños y descriptivos, con el mensaje en español.
-- Comandos de desarrollo: se completan cuando exista el scaffolding de `apps/`.
+- **Comandos de desarrollo** (desde la raíz):
+  - `npm run db:up` / `npm run db:down`: PostgreSQL en Docker.
+  - `npm run dev`: shared en watch, API (3000) y web (5173).
+  - `npm run typecheck`, `npm test`, `npm run build`, `npm run format`.
+  - `npm run db:migrate -w @pgim/api`: migración de Prisma en desarrollo; `db:generate` y `db:studio` también.

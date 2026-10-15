@@ -1,0 +1,12 @@
+// Deriva de los DER vigentes en docs/modelos/ (ver docs/modelos/HISTORIAL.md).
+// Tablas en snake_case con @@map; modelos y campos en camelCase, con @map.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "postgresql"
+}

@@ -1,0 +1,5 @@
+dist/
+coverage/
+apps/api/src/generated/
+docs/
+*.md

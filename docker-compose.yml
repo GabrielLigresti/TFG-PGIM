@@ -1,0 +1,21 @@
+# PostgreSQL para desarrollo local. Las credenciales son solo de desarrollo.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: pgim-db
+    environment:
+      POSTGRES_USER: pgim
+      POSTGRES_PASSWORD: pgim
+      POSTGRES_DB: pgim
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgim-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U pgim -d pgim']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pgim-db-data:
