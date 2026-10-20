@@ -13,3 +13,6 @@ apps/api/src/generated/
 
 .DS_Store
 *.log
+
+# Skills de agentes (se restauran desde skills-lock.json)
+.claude/skills/
