@@ -1,22 +1,44 @@
-import { useEffect, useState } from 'react';
-import { API_PREFIX, healthResponseSchema } from '@pgim/shared';
-
-type EstadoApi = 'verificando' | 'ok' | 'sin conexión';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router';
+import { RutaProtegida } from './auth/RutaProtegida';
+import { SesionProvider } from './auth/SesionProvider';
+import { InicioComensalPage } from './pages/InicioComensalPage';
+import { LoginPage } from './pages/LoginPage';
+import { PanelPage } from './pages/PanelPage';
+import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
 
 export default function App() {
-  const [estadoApi, setEstadoApi] = useState<EstadoApi>('verificando');
-
-  useEffect(() => {
-    fetch(`${API_PREFIX}/health`)
-      .then((res) => res.json())
-      .then((body) => setEstadoApi(healthResponseSchema.parse(body).status))
-      .catch(() => setEstadoApi('sin conexión'));
-  }, []);
-
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-2 bg-slate-50 px-4 text-slate-800">
-      <h1 className="text-3xl font-semibold">PGIM</h1>
-      <p className="text-sm text-slate-500">Estado de la API: {estadoApi}</p>
-    </main>
+    <SesionProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route
+            path="/sucursal"
+            element={
+              <RutaProtegida tipo="EMPLEADO">
+                <SeleccionarSucursalPage />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/panel"
+            element={
+              <RutaProtegida tipo="EMPLEADO" requiereSucursal>
+                <PanelPage />
+              </RutaProtegida>
+            }
+          />
+          <Route
+            path="/inicio"
+            element={
+              <RutaProtegida tipo="COMENSAL">
+                <InicioComensalPage />
+              </RutaProtegida>
+            }
+          />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </BrowserRouter>
+    </SesionProvider>
   );
 }
