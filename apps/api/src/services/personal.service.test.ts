@@ -4,7 +4,7 @@ import { createPersonalService } from './personal.service';
 
 const R = 'restaurante';
 
-const rolAdmin: RolAsignable = { id: 'admin', activo: true, permisos: ['rol.editar'] };
+const rolAdmin: RolAsignable = { id: 'admin', activo: true, permisos: ['rol.ver', 'rol.editar'] };
 const rolMozo: RolAsignable = { id: 'mozo', activo: true, permisos: ['pedido.ver'] };
 
 const ana: Empleado = {

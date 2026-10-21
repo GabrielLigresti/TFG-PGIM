@@ -1,5 +1,5 @@
 import {
-  PERMISO_GESTION_ROLES,
+  gestionaRoles as tienePermisosDeGestion,
   type Empleado,
   type EmpleadoAlta,
   type EmpleadoEdicion,
@@ -13,8 +13,7 @@ import {
 } from '../repositories/personal.repository';
 import { verificarGestorDeRoles } from './gestion-roles';
 
-const gestionaRoles = (rol: RolAsignable) =>
-  rol.activo && rol.permisos.includes(PERMISO_GESTION_ROLES);
+const gestionaRoles = (rol: RolAsignable) => rol.activo && tienePermisosDeGestion(rol.permisos);
 
 export function createPersonalService(repo: PersonalRepository) {
   async function obtener(restauranteId: string, usuarioId: string): Promise<Empleado> {

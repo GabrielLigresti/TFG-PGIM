@@ -1,4 +1,4 @@
-import { PERMISO_GESTION_ROLES } from '@pgim/shared';
+import { PERMISOS_GESTION_ROLES } from '@pgim/shared';
 import { prisma } from '../lib/prisma';
 
 export interface ExclusionGestores {
@@ -11,8 +11,8 @@ export type ContarGestoresDeRoles = (
   excluir: ExclusionGestores,
 ) => Promise<number>;
 
-// Usuarios activos del restaurante cuyo rol activo tiene el permiso de gestión
-// de roles, sin contar el rol o el usuario que se está por modificar (CU-02, E2).
+// Usuarios activos del restaurante cuyo rol activo tiene los permisos de gestión
+// de roles (ver y editar), sin contar el rol o el usuario que se está por modificar (CU-02, E2).
 export const contarGestoresDeRoles: ContarGestoresDeRoles = (restauranteId, excluir) =>
   prisma.usuario.count({
     where: {
@@ -24,7 +24,9 @@ export const contarGestoresDeRoles: ContarGestoresDeRoles = (restauranteId, excl
           rol: {
             activo: true,
             ...(excluir.rolId && { id: { not: excluir.rolId } }),
-            permisos: { some: { permiso: { codigo: PERMISO_GESTION_ROLES } } },
+            AND: PERMISOS_GESTION_ROLES.map((codigo) => ({
+              permisos: { some: { permiso: { codigo } } },
+            })),
           },
         },
       },

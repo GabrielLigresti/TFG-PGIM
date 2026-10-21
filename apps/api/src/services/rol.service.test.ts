@@ -55,6 +55,14 @@ describe('rolService', () => {
     expect(repo.actualizar).not.toHaveBeenCalled();
   });
 
+  it('E2: tampoco deja quitar rol.ver, porque sin él nadie abre la pantalla de roles', async () => {
+    const repo = repoFalso(admin, 0);
+
+    await expect(
+      createRolService(repo).actualizar(R, 'admin', input(admin, { permisos: ['rol.editar'] })),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
   it('E2: deja quitarlo si otro usuario conserva la gestión de roles', async () => {
     const repo = repoFalso(admin, 1);
 

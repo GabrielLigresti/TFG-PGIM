@@ -1,6 +1,6 @@
 import {
   PERMISOS,
-  PERMISO_GESTION_ROLES,
+  gestionaRoles as tienePermisosDeGestion,
   type GrupoPermisos,
   type Rol,
   type RolInput,
@@ -44,7 +44,7 @@ export function createRolService(repo: RolRepository) {
     }
   }
 
-  const gestionaRoles = (rol: Rol) => rol.activo && rol.permisos.includes(PERMISO_GESTION_ROLES);
+  const gestionaRoles = (rol: Rol) => rol.activo && tienePermisosDeGestion(rol.permisos);
 
   return {
     listar: (restauranteId: string) => repo.listar(restauranteId),
@@ -64,8 +64,7 @@ export function createRolService(repo: RolRepository) {
       if (seDesactiva) verificarSinEmpleados(actual);
 
       // E2: el cambio no puede dejar al restaurante sin nadie que gestione roles.
-      const sigueGestionando =
-        datos.activo !== false && datos.permisos.includes(PERMISO_GESTION_ROLES);
+      const sigueGestionando = datos.activo !== false && tienePermisosDeGestion(datos.permisos);
       if (gestionaRoles(actual) && !sigueGestionando) {
         await verificarGestorDeRoles(repo.contarGestoresDeRoles, restauranteId, { rolId: id });
       }
