@@ -14,7 +14,14 @@ export const personalRouter = Router();
 personalRouter.use(autenticar, tenant);
 
 personalRouter.get('/', requierePermiso('personal.ver'), async (req, res) => {
-  res.json(await personalService.listar(req.tenant!.restauranteId));
+  const { permisos, sucursales } = req.sesion!;
+  res.json(
+    await personalService.listar(
+      req.tenant!.restauranteId,
+      permisos,
+      sucursales.map((s) => s.id),
+    ),
+  );
 });
 
 personalRouter.get('/opciones', requierePermiso('personal.ver'), async (req, res) => {

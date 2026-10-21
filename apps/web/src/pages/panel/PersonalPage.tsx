@@ -1,5 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import type { Empleado, EmpleadoAlta, EmpleadoEdicion, OpcionesPersonal } from '@pgim/shared';
+import {
+  administraModulo,
+  type Empleado,
+  type EmpleadoAlta,
+  type EmpleadoEdicion,
+  type OpcionesPersonal,
+} from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { Lista } from '../../components/Lista';
 import {
@@ -13,13 +19,15 @@ import {
   Modal,
   claseInput,
 } from '../../components/ui';
-import { aNumero } from '../../lib/formato';
+import { aNumero, formatoLista } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
 // CU-15: alta de empleados con rol, sucursales y tope de horas semanales.
 export function PersonalPage() {
   const { sesion, tienePermiso, recargarSesion } = useSesion();
+  const acotado = !administraModulo(sesion?.permisos ?? [], 'personal');
+  const misSucursales = formatoLista(sesion?.sucursales.map((s) => s.nombre) ?? []);
   const personal = useRecurso<Empleado[]>('/personal');
   const opciones = useRecurso<OpcionesPersonal>('/personal/opciones');
   const [editando, setEditando] = useState<Empleado | 'nuevo' | null>(null);
@@ -42,7 +50,11 @@ export function PersonalPage() {
     <section>
       <EncabezadoPagina
         titulo="Personal"
-        descripcion="Empleados del restaurante, su rol y las sucursales donde trabajan."
+        descripcion={
+          acotado
+            ? `Mostrando el personal de ${misSucursales}.`
+            : 'Empleados del restaurante, su rol y las sucursales donde trabajan.'
+        }
         accion={
           tienePermiso('personal.crear') && (
             <Boton onClick={() => setEditando('nuevo')}>Nuevo empleado</Boton>

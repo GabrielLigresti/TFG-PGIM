@@ -8,7 +8,14 @@ export const sucursalesRouter = Router();
 sucursalesRouter.use(autenticar, tenant);
 
 sucursalesRouter.get('/', requierePermiso('sucursal.ver'), async (req, res) => {
-  res.json(await sucursalService.listar(req.tenant!.restauranteId));
+  const { permisos, sucursales } = req.sesion!;
+  res.json(
+    await sucursalService.listar(
+      req.tenant!.restauranteId,
+      permisos,
+      sucursales.map((s) => s.id),
+    ),
+  );
 });
 
 sucursalesRouter.post(

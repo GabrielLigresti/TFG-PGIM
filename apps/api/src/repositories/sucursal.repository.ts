@@ -4,7 +4,8 @@ import { aHora, deHora } from '../lib/hora';
 import { prisma } from '../lib/prisma';
 
 export interface SucursalRepository {
-  listar(restauranteId: string): Promise<Sucursal[]>;
+  // Con sucursalIds, solo esas (alcance de quien solo ve sus sucursales).
+  listar(restauranteId: string, sucursalIds?: string[]): Promise<Sucursal[]>;
   buscar(restauranteId: string, id: string): Promise<Sucursal | null>;
   existeNombre(restauranteId: string, nombre: string, excluirId?: string): Promise<boolean>;
   contarActivas(restauranteId: string): Promise<number>;
@@ -62,9 +63,9 @@ function horarios(datos: SucursalInput) {
 }
 
 export const sucursalRepository: SucursalRepository = {
-  async listar(restauranteId) {
+  async listar(restauranteId, sucursalIds) {
     const filas = await prisma.sucursal.findMany({
-      where: { restauranteId },
+      where: { restauranteId, ...(sucursalIds && { id: { in: sucursalIds } }) },
       select: seleccion,
       orderBy: [{ activa: 'desc' }, { nombre: 'asc' }],
     });

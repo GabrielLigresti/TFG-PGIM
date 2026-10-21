@@ -1,4 +1,9 @@
-import type { Sucursal, SucursalInput } from '@pgim/shared';
+import {
+  administraModulo,
+  type CodigoPermiso,
+  type Sucursal,
+  type SucursalInput,
+} from '@pgim/shared';
 import { AppError } from '../lib/errors';
 import { sucursalRepository, type SucursalRepository } from '../repositories/sucursal.repository';
 
@@ -22,7 +27,12 @@ export function createSucursalService(repo: SucursalRepository) {
   }
 
   return {
-    listar: (restauranteId: string) => repo.listar(restauranteId),
+    // Quien administra sucursales ve todas; quien solo las ve, las que tiene asignadas.
+    listar(restauranteId: string, permisos: readonly CodigoPermiso[], asignadas: string[]) {
+      return administraModulo(permisos, 'sucursal')
+        ? repo.listar(restauranteId)
+        : repo.listar(restauranteId, asignadas);
+    },
 
     async crear(restauranteId: string, empleadoId: string, datos: SucursalInput) {
       await verificarNombre(restauranteId, datos.nombre);

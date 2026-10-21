@@ -1,4 +1,6 @@
 import {
+  administraModulo,
+  type CodigoPermiso,
   gestionaRoles as tienePermisosDeGestion,
   type Empleado,
   type EmpleadoAlta,
@@ -67,7 +69,13 @@ export function createPersonalService(repo: PersonalRepository) {
   }
 
   return {
-    listar: (restauranteId: string) => repo.listar(restauranteId),
+    // Quien administra el personal ve a todos; quien solo lo ve, a los que
+    // comparten alguna sucursal con él.
+    listar(restauranteId: string, permisos: readonly CodigoPermiso[], asignadas: string[]) {
+      return administraModulo(permisos, 'personal')
+        ? repo.listar(restauranteId)
+        : repo.listar(restauranteId, asignadas);
+    },
 
     opciones: (restauranteId: string) => repo.opciones(restauranteId),
 

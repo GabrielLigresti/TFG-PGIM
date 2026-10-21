@@ -54,6 +54,22 @@ function repoFalso(gestores = 1): jest.Mocked<PersonalRepository> {
 }
 
 describe('personalService', () => {
+  it('quien administra el personal ve a todos', async () => {
+    const repo = repoFalso();
+
+    await createPersonalService(repo).listar(R, ['personal.ver', 'personal.crear'], ['centro']);
+
+    expect(repo.listar).toHaveBeenCalledWith(R);
+  });
+
+  it('quien solo ve el personal ve a los de sus sucursales', async () => {
+    const repo = repoFalso();
+
+    await createPersonalService(repo).listar(R, ['personal.ver'], ['centro']);
+
+    expect(repo.listar).toHaveBeenCalledWith(R, ['centro']);
+  });
+
   it('da de alta guardando la contraseña hasheada', async () => {
     const repo = repoFalso();
 

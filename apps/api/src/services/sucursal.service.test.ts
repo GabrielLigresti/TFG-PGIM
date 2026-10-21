@@ -31,6 +31,22 @@ function repoFalso(cambios: Partial<SucursalRepository> = {}): jest.Mocked<Sucur
 }
 
 describe('sucursalService', () => {
+  it('quien administra sucursales ve todas', async () => {
+    const repo = repoFalso();
+
+    await createSucursalService(repo).listar(R, ['sucursal.ver', 'sucursal.editar'], ['centro']);
+
+    expect(repo.listar).toHaveBeenCalledWith(R);
+  });
+
+  it('quien solo ve sucursales ve las que tiene asignadas', async () => {
+    const repo = repoFalso();
+
+    await createSucursalService(repo).listar(R, ['sucursal.ver'], ['centro']);
+
+    expect(repo.listar).toHaveBeenCalledWith(R, ['centro']);
+  });
+
   it('crea la sucursal asignándola a quien la da de alta', async () => {
     const repo = repoFalso();
 

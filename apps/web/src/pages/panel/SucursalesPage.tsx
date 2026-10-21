@@ -1,5 +1,11 @@
 import { useState, type FormEvent } from 'react';
-import { FRANJAS, type Franja, type Sucursal, type SucursalInput } from '@pgim/shared';
+import {
+  FRANJAS,
+  administraModulo,
+  type Franja,
+  type Sucursal,
+  type SucursalInput,
+} from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { Lista } from '../../components/Lista';
 import {
@@ -32,7 +38,8 @@ function horarios(s: Sucursal) {
 
 // CU-13: sucursales y horarios de servicio (el menú activo llega con los menús).
 export function SucursalesPage() {
-  const { tienePermiso, recargarSesion } = useSesion();
+  const { sesion, tienePermiso, recargarSesion } = useSesion();
+  const acotada = !administraModulo(sesion?.permisos ?? [], 'sucursal');
   const { datos, cargando, error, recargar } = useRecurso<Sucursal[]>('/sucursales');
   const [editando, setEditando] = useState<Sucursal | 'nueva' | null>(null);
   const baja = useGuardar();
@@ -53,7 +60,11 @@ export function SucursalesPage() {
     <section>
       <EncabezadoPagina
         titulo="Sucursales"
-        descripcion="Locales del restaurante, su horario y los horarios de almuerzo y cena."
+        descripcion={
+          acotada
+            ? 'Mostrando las sucursales que tenés asignadas.'
+            : 'Locales del restaurante, su horario y los horarios de almuerzo y cena.'
+        }
         accion={
           tienePermiso('sucursal.crear') && (
             <Boton onClick={() => setEditando('nueva')}>Nueva sucursal</Boton>

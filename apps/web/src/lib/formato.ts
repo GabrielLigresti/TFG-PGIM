@@ -8,6 +8,10 @@ const pesos = new Intl.NumberFormat('es-AR', {
 
 const numero = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 3 });
 
+const lista = new Intl.ListFormat('es', { type: 'conjunction' });
+
+export const formatoLista = (elementos: string[]) => lista.format(elementos);
+
 export const formatoPesos = (valor: number) => pesos.format(valor);
 
 export const formatoCantidad = (valor: number, unidad?: UnidadMedida) =>
