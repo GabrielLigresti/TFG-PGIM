@@ -16,7 +16,8 @@ export interface RolAsignable {
 }
 
 export interface PersonalRepository {
-  // Con sucursalIds, solo quienes trabajan en alguna de ellas.
+  // Con sucursalIds, solo quienes trabajan en alguna de ellas, y de cada uno
+  // solo esas sucursales.
   listar(restauranteId: string, sucursalIds?: string[]): Promise<Empleado[]>;
   opciones(restauranteId: string): Promise<OpcionesPersonal>;
   buscar(restauranteId: string, usuarioId: string): Promise<Empleado | null>;
@@ -70,12 +71,12 @@ const asignaciones = (ids: string[]) => ({
 
 export const personalRepository: PersonalRepository = {
   async listar(restauranteId, sucursalIds) {
+    const enSucursales = sucursalIds && { sucursalId: { in: sucursalIds } };
     const filas = await prisma.empleado.findMany({
-      where: {
-        restauranteId,
-        ...(sucursalIds && { sucursales: { some: { sucursalId: { in: sucursalIds } } } }),
-      },
-      select: seleccion,
+      where: { restauranteId, ...(enSucursales && { sucursales: { some: enSucursales } }) },
+      select: enSucursales
+        ? { ...seleccion, sucursales: { ...seleccion.sucursales, where: enSucursales } }
+        : seleccion,
       orderBy: [{ usuario: { activo: 'desc' } }, { nombreCompleto: 'asc' }],
     });
     return filas.map(aEmpleado);
