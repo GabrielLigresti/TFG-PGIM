@@ -67,6 +67,7 @@ export function RolesPage() {
   const roles = useRecurso<Rol[]>('/roles');
   const catalogo = useRecurso<GrupoPermisos[]>('/roles/permisos');
   const [editando, setEditando] = useState<Rol | 'nuevo' | null>(null);
+  const [viendo, setViendo] = useState<Rol | null>(null);
   const baja = useGuardar();
 
   async function guardado() {
@@ -85,7 +86,7 @@ export function RolesPage() {
     <section>
       <EncabezadoPagina
         titulo="Roles"
-        descripcion="Cada rol define qué puede hacer el personal que lo tiene."
+        descripcion="Cada rol define qué puede hacer el personal que lo tiene. Tocá un rol para ver sus permisos."
         accion={
           tienePermiso('rol.crear') && <Boton onClick={() => setEditando('nuevo')}>Nuevo rol</Boton>
         }
@@ -99,6 +100,8 @@ export function RolesPage() {
           filas={roles.datos}
           clave={(r) => r.id}
           inactiva={(r) => !r.activo}
+          onSeleccionar={(r) => setViendo(r)}
+          etiquetaSeleccion={(r) => `Ver los permisos de ${r.nombre}`}
           columnas={[
             {
               titulo: 'Rol',
@@ -129,6 +132,10 @@ export function RolesPage() {
             </span>
           )}
         />
+      )}
+
+      {viendo && catalogo.datos && (
+        <PermisosDelRol rol={viendo} catalogo={catalogo.datos} onCerrar={() => setViendo(null)} />
       )}
 
       {editando && catalogo.datos && (
@@ -246,6 +253,52 @@ function FormularioRol({
           </Boton>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+// Vista de solo lectura: los permisos del rol agrupados por módulo.
+function PermisosDelRol({
+  rol,
+  catalogo,
+  onCerrar,
+}: {
+  rol: Rol;
+  catalogo: GrupoPermisos[];
+  onCerrar(): void;
+}) {
+  const grupos = catalogo
+    .map((grupo) => ({
+      ...grupo,
+      permisos: grupo.permisos.filter((p) => rol.permisos.includes(p.codigo)),
+    }))
+    .filter((grupo) => grupo.permisos.length > 0);
+
+  return (
+    <Modal titulo={`Permisos de ${rol.nombre}`} onCerrar={onCerrar}>
+      <p className="mb-3 text-sm text-slate-500">
+        {NOMBRE_ARQUETIPO[rol.arquetipo]} · {rol.permisos.length} permisos · {rol.cantidadEmpleados}{' '}
+        empleado(s)
+      </p>
+      <dl className="divide-y divide-slate-100">
+        {grupos.map((grupo) => (
+          <div key={grupo.modulo} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
+            <dt className="font-medium text-slate-800">
+              {NOMBRE_MODULO[grupo.modulo] ?? grupo.modulo}
+            </dt>
+            <dd className="flex flex-wrap justify-end gap-1">
+              {grupo.permisos.map((p) => (
+                <Etiqueta key={p.codigo}>{NOMBRE_ACCION[p.accion] ?? p.accion}</Etiqueta>
+              ))}
+            </dd>
+          </div>
+        ))}
+      </dl>
+      <div className="mt-4 flex justify-end">
+        <Boton variante="secundario" onClick={onCerrar}>
+          Cerrar
+        </Boton>
+      </div>
     </Modal>
   );
 }

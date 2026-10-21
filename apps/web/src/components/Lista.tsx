@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
 
 export interface Columna<T> {
   titulo: string;
@@ -13,11 +13,44 @@ interface Props<T> {
   clave(fila: T): string;
   acciones?(fila: T): ReactNode;
   inactiva?(fila: T): boolean;
+  // Hace clickeable la fila (o la tarjeta), también con el teclado.
+  onSeleccionar?(fila: T): void;
+  etiquetaSeleccion?(fila: T): string;
   vacio?: string;
 }
 
+function propsSeleccion<T>(fila: T, onSeleccionar?: (fila: T) => void, etiqueta?: string) {
+  if (!onSeleccionar) return {};
+  return {
+    role: 'button',
+    tabIndex: 0,
+    'aria-label': etiqueta,
+    onClick: () => onSeleccionar(fila),
+    onKeyDown: (e: KeyboardEvent) => {
+      if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return;
+      e.preventDefault();
+      onSeleccionar(fila);
+    },
+  };
+}
+
+// Los botones de acción no disparan la selección de la fila.
+const frenar = (e: MouseEvent | KeyboardEvent) => e.stopPropagation();
+
 // Tabla en la PC y tarjetas en el celular, con las mismas columnas.
-export function Lista<T>({ filas, columnas, clave, acciones, inactiva, vacio }: Props<T>) {
+export function Lista<T>({
+  filas,
+  columnas,
+  clave,
+  acciones,
+  inactiva,
+  onSeleccionar,
+  etiquetaSeleccion,
+  vacio,
+}: Props<T>) {
+  const clickeable = onSeleccionar
+    ? 'cursor-pointer hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-slate-500'
+    : '';
   if (filas.length === 0) {
     return <p className="text-sm text-slate-500">{vacio ?? 'Todavía no hay registros.'}</p>;
   }
@@ -41,7 +74,8 @@ export function Lista<T>({ filas, columnas, clave, acciones, inactiva, vacio }: 
             {filas.map((fila) => (
               <tr
                 key={clave(fila)}
-                className={inactiva?.(fila) ? 'text-slate-400' : 'text-slate-700'}
+                {...propsSeleccion(fila, onSeleccionar, etiquetaSeleccion?.(fila))}
+                className={`${inactiva?.(fila) ? 'text-slate-400' : 'text-slate-700'} ${clickeable}`}
               >
                 {columnas.map((c) => (
                   <td key={c.titulo} className={`px-4 py-2 align-top ${c.className ?? ''}`}>
@@ -49,7 +83,13 @@ export function Lista<T>({ filas, columnas, clave, acciones, inactiva, vacio }: 
                   </td>
                 ))}
                 {acciones && (
-                  <td className="px-4 py-2 text-right whitespace-nowrap">{acciones(fila)}</td>
+                  <td
+                    className="px-4 py-2 text-right whitespace-nowrap"
+                    onClick={frenar}
+                    onKeyDown={frenar}
+                  >
+                    {acciones(fila)}
+                  </td>
                 )}
               </tr>
             ))}
@@ -61,7 +101,8 @@ export function Lista<T>({ filas, columnas, clave, acciones, inactiva, vacio }: 
         {filas.map((fila) => (
           <li
             key={clave(fila)}
-            className={`rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 ${inactiva?.(fila) ? 'opacity-60' : ''}`}
+            {...propsSeleccion(fila, onSeleccionar, etiquetaSeleccion?.(fila))}
+            className={`rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 ${inactiva?.(fila) ? 'opacity-60' : ''} ${clickeable}`}
           >
             <div className="font-medium text-slate-800">{principal?.valor(fila)}</div>
             <dl className="mt-2 space-y-1 text-sm">
@@ -72,7 +113,11 @@ export function Lista<T>({ filas, columnas, clave, acciones, inactiva, vacio }: 
                 </div>
               ))}
             </dl>
-            {acciones && <div className="mt-3 flex flex-wrap gap-2">{acciones(fila)}</div>}
+            {acciones && (
+              <div className="mt-3 flex flex-wrap gap-2" onClick={frenar} onKeyDown={frenar}>
+                {acciones(fila)}
+              </div>
+            )}
           </li>
         ))}
       </ul>

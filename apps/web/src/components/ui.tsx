@@ -1,7 +1,9 @@
 import {
   cloneElement,
   isValidElement,
+  useEffect,
   useId,
+  useRef,
   type ButtonHTMLAttributes,
   type ReactElement,
   type ReactNode,
@@ -157,16 +159,38 @@ export function Modal({
   children: ReactNode;
   ancho?: string;
 }) {
+  const dialogo = useRef<HTMLDivElement>(null);
+  // onCerrar suele llegar como función nueva en cada render: se guarda en un
+  // ref para que el efecto corra una sola vez y no le robe el foco a un campo.
+  const cerrar = useRef(onCerrar);
+  useEffect(() => {
+    cerrar.current = onCerrar;
+  });
+
+  // Al abrir, el foco pasa al diálogo; al cerrar, vuelve a donde estaba.
+  // Escape cierra desde cualquier lugar de la página.
+  useEffect(() => {
+    const anterior = document.activeElement as HTMLElement | null;
+    dialogo.current?.focus();
+    const alPresionar = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') cerrar.current();
+    };
+    document.addEventListener('keydown', alPresionar);
+    return () => {
+      document.removeEventListener('keydown', alPresionar);
+      anterior?.focus();
+    };
+  }, []);
+
   return (
-    <div
-      className="fixed inset-0 z-20 flex items-stretch justify-center bg-slate-900/40 sm:items-center sm:p-4"
-      onKeyDown={(e) => e.key === 'Escape' && onCerrar()}
-    >
+    <div className="fixed inset-0 z-20 flex items-stretch justify-center bg-slate-900/40 sm:items-center sm:p-4">
       <div
+        ref={dialogo}
         role="dialog"
         aria-modal="true"
         aria-label={titulo}
-        className={`flex max-h-full w-full flex-col bg-white shadow-lg sm:rounded-xl ${ancho}`}
+        tabIndex={-1}
+        className={`flex max-h-full w-full flex-col bg-white shadow-lg outline-none sm:rounded-xl ${ancho}`}
       >
         <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
           <h2 className="font-semibold text-slate-800">{titulo}</h2>
