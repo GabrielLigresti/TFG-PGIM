@@ -7,3 +7,5 @@ export * from './comun';
 export * from './sucursal';
 export * from './rol';
 export * from './personal';
+export * from './inventario';
+export * from './menu';

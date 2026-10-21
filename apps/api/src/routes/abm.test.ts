@@ -12,6 +12,9 @@ const ABM: { ruta: string; modulo: string }[] = [
   { ruta: '/api/sucursales', modulo: 'sucursal' },
   { ruta: '/api/roles', modulo: 'rol' },
   { ruta: '/api/personal', modulo: 'personal' },
+  { ruta: '/api/insumos', modulo: 'insumo' },
+  { ruta: '/api/categorias', modulo: 'menu' },
+  { ruta: '/api/platos', modulo: 'menu' },
 ];
 
 const ID = '01900000-0000-7000-8000-000000000011';
@@ -65,5 +68,35 @@ describe.each(ABM)('$ruta', ({ ruta, modulo }) => {
       .set('Cookie', cookieConPermisos([permiso('ver'), permiso('editar')]));
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe('/api/recetas', () => {
+  const app = createApp();
+
+  it('sin receta.ver responde 403', async () => {
+    const res = await request(app)
+      .get('/api/recetas')
+      .set('Cookie', cookieConPermisos(['insumo.ver']));
+
+    expect(res.status).toBe(403);
+  });
+
+  it('crear un intermedio pide receta.crear', async () => {
+    const res = await request(app)
+      .post('/api/recetas/intermedios')
+      .set('Cookie', cookieConPermisos(['receta.ver', 'receta.editar']))
+      .send({});
+
+    expect(res.status).toBe(403);
+  });
+
+  it('guardar una receta con datos inválidos responde 400', async () => {
+    const res = await request(app)
+      .put(`/api/recetas/plato/${ID}`)
+      .set('Cookie', cookieConPermisos(['receta.crear']))
+      .send({ lineas: 'no' });
+
+    expect(res.status).toBe(400);
   });
 });
