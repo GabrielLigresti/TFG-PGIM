@@ -17,12 +17,21 @@ const ROLES_STAFF: RolPredeterminado[] = [
   {
     nombre: 'Mozo',
     arquetipo: 'MOZO',
-    permisos: ['reserva.ver', 'reserva.activar', 'pedido.avanzar', 'mesa.cerrar'],
+    permisos: [
+      'reserva.ver',
+      'reserva.activar',
+      'mesa.cerrar',
+      'pedido.ver',
+      'pedido.avanzar',
+      'pago.ver',
+      'menu.ver',
+      'turno.ver',
+    ],
   },
   {
     nombre: 'Cocinero',
     arquetipo: 'COCINERO',
-    permisos: ['stock.registrar', 'pedido.avanzar'],
+    permisos: ['stock.registrar', 'pedido.ver', 'pedido.avanzar', 'turno.ver'],
   },
 ];
 

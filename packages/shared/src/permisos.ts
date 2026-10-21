@@ -17,13 +17,16 @@ const MODULOS_ABM = [
 const PERMISOS_OPERATIVOS = [
   'reserva.ver',
   'reserva.activar',
+  'turno.ver',
   'turno.planificar',
   'apertura.consultar',
   'metrica.ver',
   'stock.registrar',
+  'pedido.ver',
   'pedido.gestionar_cola',
   'pedido.avanzar',
   'mesa.cerrar',
+  'pago.ver',
 ] as const;
 
 type ModuloAbm = (typeof MODULOS_ABM)[number];
@@ -59,6 +62,8 @@ export interface RolPredeterminado {
   permisos: readonly CodigoPermiso[];
 }
 
+// Permisos por defecto según la matriz de actores del Anexo (sección 4.1): quien
+// opera o consulta un módulo recibe también su permiso de lectura.
 export const ROLES_PREDETERMINADOS: readonly RolPredeterminado[] = [
   {
     nombre: 'Administrador',
@@ -69,23 +74,35 @@ export const ROLES_PREDETERMINADOS: readonly RolPredeterminado[] = [
     nombre: 'Gerente de sucursal',
     arquetipo: 'OTRO',
     permisos: [
+      'sucursal.ver',
+      'rol.ver',
+      'personal.ver',
       'reserva.ver',
       'reserva.activar',
+      'mesa.cerrar',
+      'pedido.ver',
+      'pago.ver',
+      'beneficio.ver',
+      'menu.ver',
+      'insumo.ver',
+      'receta.ver',
       'turno.planificar',
       'apertura.consultar',
       'metrica.ver',
-      'mesa.cerrar',
     ],
   },
   {
     nombre: 'Jefe de cocina',
     arquetipo: 'COCINERO',
     permisos: [
+      ...abm('menu'),
       ...abm('insumo'),
       ...abm('receta'),
       'stock.registrar',
+      'pedido.ver',
       'pedido.gestionar_cola',
       'pedido.avanzar',
+      'apertura.consultar',
     ],
   },
 ];
