@@ -3,3 +3,7 @@
 export * from './api';
 export * from './permisos';
 export * from './auth';
+export * from './comun';
+export * from './sucursal';
+export * from './rol';
+export * from './personal';

@@ -43,3 +43,11 @@ export function validar(schema: z.ZodType): RequestHandler {
     next();
   };
 }
+
+// Los ids de la URL son uuid: sin validarlos, Prisma rechaza el formato con un 500.
+export function validarParams(schema: z.ZodType): RequestHandler {
+  return (req, _res, next) => {
+    schema.parse(req.params);
+    next();
+  };
+}

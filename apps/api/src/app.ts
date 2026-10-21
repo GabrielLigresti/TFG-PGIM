@@ -3,6 +3,9 @@ import cookieParser from 'cookie-parser';
 import { API_PREFIX } from '@pgim/shared';
 import { authRouter } from './routes/auth';
 import { healthRouter } from './routes/health';
+import { personalRouter } from './routes/personal';
+import { rolesRouter } from './routes/roles';
+import { sucursalesRouter } from './routes/sucursales';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 
 export function createApp() {
@@ -17,6 +20,9 @@ export function createApp() {
 
   app.use(`${API_PREFIX}/health`, healthRouter);
   app.use(`${API_PREFIX}/auth`, authRouter);
+  app.use(`${API_PREFIX}/sucursales`, sucursalesRouter);
+  app.use(`${API_PREFIX}/roles`, rolesRouter);
+  app.use(`${API_PREFIX}/personal`, personalRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
