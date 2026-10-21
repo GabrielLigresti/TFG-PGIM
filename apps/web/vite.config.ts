@@ -8,6 +8,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
+    // Escucha en la red local para poder abrir la app desde un celular.
+    host: true,
     // En desarrollo, la API y Socket.IO se sirven por el mismo origen que el front.
     proxy: {
       '/api': API_URL,
