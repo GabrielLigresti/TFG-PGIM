@@ -39,3 +39,9 @@ export interface Empleado {
   horasSemanalesMax: number;
   activo: boolean;
 }
+
+// Roles y sucursales activos para el formulario de personal (no exige rol.ver ni sucursal.ver).
+export interface OpcionesPersonal {
+  roles: Referencia[];
+  sucursales: Referencia[];
+}

@@ -1,4 +1,10 @@
-import type { CodigoPermiso, Empleado, EmpleadoAlta, EmpleadoEdicion } from '@pgim/shared';
+import type {
+  CodigoPermiso,
+  Empleado,
+  EmpleadoAlta,
+  EmpleadoEdicion,
+  OpcionesPersonal,
+} from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
 import { contarGestoresDeRoles, type ContarGestoresDeRoles } from './gestores-roles';
@@ -11,6 +17,7 @@ export interface RolAsignable {
 
 export interface PersonalRepository {
   listar(restauranteId: string): Promise<Empleado[]>;
+  opciones(restauranteId: string): Promise<OpcionesPersonal>;
   buscar(restauranteId: string, usuarioId: string): Promise<Empleado | null>;
   emailRegistrado(email: string): Promise<boolean>;
   buscarRol(restauranteId: string, rolId: string): Promise<RolAsignable | null>;
@@ -68,6 +75,22 @@ export const personalRepository: PersonalRepository = {
       orderBy: [{ usuario: { activo: 'desc' } }, { nombreCompleto: 'asc' }],
     });
     return filas.map(aEmpleado);
+  },
+
+  async opciones(restauranteId) {
+    const [roles, sucursales] = await Promise.all([
+      prisma.rol.findMany({
+        where: { restauranteId, activo: true },
+        select: { id: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      }),
+      prisma.sucursal.findMany({
+        where: { restauranteId, activa: true },
+        select: { id: true, nombre: true },
+        orderBy: { nombre: 'asc' },
+      }),
+    ]);
+    return { roles, sucursales };
   },
 
   async buscar(restauranteId, usuarioId) {

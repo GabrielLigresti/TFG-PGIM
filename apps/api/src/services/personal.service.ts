@@ -30,9 +30,16 @@ export function createPersonalService(repo: PersonalRepository) {
     return rol;
   }
 
-  async function verificarSucursales(restauranteId: string, ids: string[]) {
+  // Las sucursales nuevas tienen que estar activas; una asignación que ya tenía
+  // se conserva aunque la sucursal se haya dado de baja después.
+  async function verificarSucursales(
+    restauranteId: string,
+    ids: string[],
+    actuales: string[] = [],
+  ) {
     const unicas = [...new Set(ids)];
-    if ((await repo.contarSucursalesActivas(restauranteId, unicas)) !== unicas.length) {
+    const nuevas = unicas.filter((id) => !actuales.includes(id));
+    if ((await repo.contarSucursalesActivas(restauranteId, nuevas)) !== nuevas.length) {
       throw new AppError(409, 'Alguna de las sucursales no existe o está dada de baja');
     }
     return unicas;
@@ -63,6 +70,8 @@ export function createPersonalService(repo: PersonalRepository) {
   return {
     listar: (restauranteId: string) => repo.listar(restauranteId),
 
+    opciones: (restauranteId: string) => repo.opciones(restauranteId),
+
     async crear(restauranteId: string, datos: EmpleadoAlta) {
       if (await repo.emailRegistrado(datos.email)) {
         throw new AppError(409, 'Ya existe una cuenta con ese email');
@@ -82,7 +91,11 @@ export function createPersonalService(repo: PersonalRepository) {
       const actual = await obtener(restauranteId, usuarioId);
       if (datos.activo === false) verificarNoEsElMismo(usuarioActualId, usuarioId);
       const rolNuevo = await obtenerRolActivo(restauranteId, datos.rolId);
-      const sucursalIds = await verificarSucursales(restauranteId, datos.sucursalIds);
+      const sucursalIds = await verificarSucursales(
+        restauranteId,
+        datos.sucursalIds,
+        actual.sucursales.map((s) => s.id),
+      );
       await verificarGestion(
         restauranteId,
         actual,

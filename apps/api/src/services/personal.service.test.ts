@@ -41,6 +41,7 @@ function repoFalso(gestores = 1): jest.Mocked<PersonalRepository> {
   ]);
   return {
     listar: jest.fn(),
+    opciones: jest.fn(),
     buscar: jest.fn().mockResolvedValue(ana),
     emailRegistrado: jest.fn().mockResolvedValue(false),
     buscarRol: jest.fn(async (_r: string, id: string) => roles.get(id) ?? null),
@@ -85,6 +86,18 @@ describe('personalService', () => {
     await expect(createPersonalService(repo).crear(R, alta)).rejects.toMatchObject({
       status: 409,
     });
+  });
+
+  it('conserva una sucursal ya asignada aunque esté dada de baja', async () => {
+    const repo = repoFalso();
+    repo.contarSucursalesActivas.mockImplementation(
+      async (_r, ids) => ids.filter((id) => id !== 'centro').length,
+    );
+
+    await createPersonalService(repo).actualizar(R, 'otro', 'ana', edicion());
+
+    expect(repo.contarSucursalesActivas).toHaveBeenCalledWith(R, []);
+    expect(repo.actualizar).toHaveBeenCalled();
   });
 
   it('no deja darse de baja a uno mismo', async () => {

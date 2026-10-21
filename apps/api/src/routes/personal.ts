@@ -17,6 +17,10 @@ personalRouter.get('/', requierePermiso('personal.ver'), async (req, res) => {
   res.json(await personalService.listar(req.tenant!.restauranteId));
 });
 
+personalRouter.get('/opciones', requierePermiso('personal.ver'), async (req, res) => {
+  res.json(await personalService.opciones(req.tenant!.restauranteId));
+});
+
 personalRouter.post(
   '/',
   requierePermiso('personal.crear'),
