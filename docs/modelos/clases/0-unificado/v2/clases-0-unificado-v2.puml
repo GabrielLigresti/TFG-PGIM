@@ -63,6 +63,7 @@ package "1. Organización, acceso y personal" as P1 {
     -horarioApertura : Time
     -horarioCierre : Time
     -toleranciaNoShowMin : Integer
+    -activa : Boolean
     +buscarMesaDisponible(inicio : DateTime, personas : Integer) : Mesa
   }
   class HorarioServicio {
@@ -638,7 +639,7 @@ EstadoPago <|-- PagoRechazado
 note bottom of EstadoPago
   Cada estado acepta solo sus transiciones válidas;
   las demás las rechaza la clase base. Se persiste
-  por nombre() en la columna estado (DER sin cambios).
+  por nombre() en la columna estado (tipo enumerado).
 end note
 
 ' Relaciones — Observer

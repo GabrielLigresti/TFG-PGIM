@@ -34,7 +34,7 @@ erDiagram
         uuid id PK
         uuid comensal_id FK
         uuid restaurante_id FK "UK con comensal_id"
-        int puntos
+        int puntos "nunca negativo"
         int cantidad_visitas
         numeric monto_acumulado
     }
@@ -47,8 +47,8 @@ erDiagram
     MOVIMIENTO_PUNTOS {
         uuid id PK
         uuid cuenta_fidelidad_id FK
-        uuid pago_id FK
-        varchar tipo "ACREDITACION | CANJE | AJUSTE"
+        uuid pago_id FK "null en AJUSTE"
+        TipoMovimientoPuntos tipo "ACREDITACION | CANJE | AJUSTE"
         int puntos
         timestamptz fecha
     }
@@ -61,21 +61,21 @@ erDiagram
     BENEFICIO {
         uuid id PK
         uuid restaurante_id FK
-        uuid grupo_id FK
+        uuid grupo_id FK "null si no esta agrupado"
         varchar nombre
-        varchar clase "RECOMPENSA | PROMOCION"
-        uuid menu_id FK "solo PROMOCION"
-        varchar criterio_tipo "solo RECOMPENSA; VISITAS | MONTO | PUNTOS | NUEVO_CLIENTE"
-        numeric criterio_valor "solo RECOMPENSA; parametro del criterio (Strategy)"
-        varchar tipo_descuento "PORCENTAJE | MONTO_FIJO"
+        ClaseBeneficio clase "RECOMPENSA | PROMOCION"
+        uuid menu_id FK "solo PROMOCION, obligatorio en ella"
+        TipoCriterio criterio_tipo "solo RECOMPENSA, obligatorio en ella; VISITAS | MONTO | PUNTOS | NUEVO_CLIENTE"
+        numeric criterio_valor "solo RECOMPENSA, obligatorio en ella; parametro del criterio (Strategy)"
+        TipoDescuento tipo_descuento "PORCENTAJE | MONTO_FIJO"
         numeric valor
-        timestamptz vigencia_desde
-        timestamptz vigencia_hasta
-        int stock_disponible
+        timestamptz vigencia_desde "null si no tiene limite"
+        timestamptz vigencia_hasta "null si no tiene limite"
+        int stock_disponible "null si no tiene limite; nunca negativo"
         bool activo
     }
     BENEFICIO_APLICADO {
-        uuid pago_id PK, FK
+        uuid pago_id PK, FK "se registra con el pago PENDIENTE; vale solo si el pago queda APROBADO"
         uuid beneficio_id PK, FK
         numeric monto_descontado
     }
@@ -89,21 +89,21 @@ erDiagram
         uuid id PK
         uuid sucursal_id FK
         date semana_desde "UK con sucursal_id"
-        varchar estado "BORRADOR | CONFIRMADA"
+        EstadoPlanificacion estado "BORRADOR | CONFIRMADA"
         timestamptz generada_en
-        timestamptz confirmada_en
+        timestamptz confirmada_en "solo CONFIRMADA"
     }
     PRONOSTICO {
         uuid id PK
         uuid sucursal_id FK
         date fecha_servicio
-        varchar franja "ALMUERZO | CENA"
+        FranjaServicio franja "ALMUERZO | CENA"
         int cubiertos_estimados
         int limite_inferior
         int limite_superior
         numeric ingreso_estimado
         numeric error_mape
-        varchar metodo "PROMEDIO_MOVIL_PONDERADO | NAIVE_ESTACIONAL | REGRESION_ESTACIONAL"
+        MetodoPronostico metodo "PROMEDIO_MOVIL_PONDERADO | NAIVE_ESTACIONAL | REGRESION_ESTACIONAL"
         timestamptz generado_en
     }
     DEMANDA_ITEM {
@@ -114,17 +114,17 @@ erDiagram
     ALERTA {
         uuid id PK
         uuid sucursal_id FK
-        uuid pronostico_id FK
+        uuid pronostico_id FK "null si no la genera un pronostico"
         uuid planificacion_id FK "solo FALTANTE_PERSONAL"
-        uuid existencia_id FK
-        uuid item_menu_id FK
-        varchar tipo "TipoAlerta, incluye STOCK_INSUFICIENTE"
-        varchar severidad "INFO | ADVERTENCIA | CRITICA"
+        uuid existencia_id FK "null si no aplica al tipo"
+        uuid item_menu_id FK "null si no aplica al tipo"
+        TipoAlerta tipo "PLATO_SIN_RECETA | STOCK_INSUFICIENTE | FALTANTE_STOCK_PREVISTO | FALTANTE_PERSONAL | CAPACIDAD_MESAS"
+        Severidad severidad "INFO | ADVERTENCIA | CRITICA"
         text descripcion
-        date fecha_servicio
-        varchar franja "ALMUERZO | CENA"
-        varchar arquetipo "solo FALTANTE_PERSONAL"
-        int cantidad
+        date fecha_servicio "null si no aplica al tipo"
+        FranjaServicio franja "ALMUERZO | CENA; null si no aplica al tipo"
+        Arquetipo arquetipo "solo FALTANTE_PERSONAL"
+        int cantidad "null si no aplica al tipo"
         timestamptz creada_en
         bool resuelta
     }

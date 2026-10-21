@@ -40,12 +40,13 @@ erDiagram
         time horario_cierre
         int tolerancia_no_show_min
         uuid menu_activo_id FK "null si no tiene menu asignado"
+        bool activa "baja logica"
     }
     USUARIO {
         uuid id PK
         varchar email UK
         varchar password_hash
-        varchar tipo "EMPLEADO | COMENSAL"
+        TipoUsuario tipo "EMPLEADO | COMENSAL; un solo tipo por cuenta"
         bool activo
     }
     CREDENCIAL_BIOMETRICA {
@@ -53,7 +54,7 @@ erDiagram
         uuid usuario_id FK
         varchar credential_id UK
         text clave_publica
-        varchar dispositivo
+        varchar dispositivo "null si no se informa"
         int contador_firmas
     }
     EMPLEADO {
@@ -61,20 +62,20 @@ erDiagram
         uuid restaurante_id FK
         uuid rol_id FK
         varchar nombre_completo
-        varchar foto_url
+        varchar foto_url "null si no tiene foto"
         int horas_semanales_max
     }
     COMENSAL {
         uuid usuario_id PK, FK
         varchar nombre
-        varchar telefono
+        varchar telefono "null si no lo informa"
     }
     ROL {
         uuid id PK
         uuid restaurante_id FK
-        varchar nombre
+        varchar nombre "UK con restaurante_id"
         bool predeterminado
-        varchar arquetipo "MOZO | COCINERO | OTRO"
+        Arquetipo arquetipo "MOZO | COCINERO | OTRO"
         bool activo
     }
     PERMISO {
@@ -94,7 +95,7 @@ erDiagram
     HORARIO_SERVICIO {
         uuid id PK
         uuid sucursal_id FK
-        varchar franja "ALMUERZO | CENA; UK con sucursal_id"
+        FranjaServicio franja "ALMUERZO | CENA; UK con sucursal_id"
         time hora_inicio
         time hora_fin
     }
@@ -104,7 +105,7 @@ erDiagram
         uuid empleado_id FK
         uuid sucursal_id FK
         date fecha
-        varchar franja "ALMUERZO | CENA; UK con empleado_id y fecha"
+        FranjaServicio franja "ALMUERZO | CENA; UK con empleado_id y fecha"
     }
     MESA {
         uuid id PK
@@ -122,23 +123,23 @@ erDiagram
         uuid comensal_id FK
         timestamptz inicio "hora en punto; fin = inicio + 1 h; UK parcial con mesa_id si PENDIENTE o ACTIVA"
         int cantidad_personas
-        varchar modo_asignacion "MANUAL | AUTOMATICA"
-        varchar estado "PENDIENTE | ACTIVA | FINALIZADA | CANCELADA | VENCIDA (State)"
+        ModoAsignacion modo_asignacion "MANUAL | AUTOMATICA"
+        EstadoReserva estado "PENDIENTE | ACTIVA | FINALIZADA | CANCELADA | VENCIDA (State)"
     }
     CUENTA_MESA {
         uuid id PK
         uuid reserva_id FK, UK
         timestamptz abierta_en
-        timestamptz cerrada_en
-        varchar estado "ABIERTA | CERRADA"
+        timestamptz cerrada_en "null si ABIERTA"
+        EstadoCuenta estado "ABIERTA | CERRADA"
     }
     PEDIDO {
         uuid id PK
         uuid cuenta_mesa_id FK
         uuid sucursal_id FK "redundante; cola de cocina por sucursal"
-        int numero
+        int numero "correlativo por sucursal; UK con sucursal_id"
         timestamptz creado_en
-        varchar estado "CONFIRMADO | EN_PREPARACION | LISTO | ENTREGADO | CANCELADO (State)"
+        EstadoPedido estado "CONFIRMADO | EN_PREPARACION | LISTO | ENTREGADO | CANCELADO (State)"
         varchar motivo_cancelacion "solo CANCELADO"
     }
     LINEA_PEDIDO {
@@ -147,22 +148,22 @@ erDiagram
         uuid item_menu_id FK
         int cantidad
         numeric precio_unitario "copia del precio vigente"
-        varchar observaciones
+        varchar observaciones "null si no hay"
     }
     PAGO {
         uuid id PK
         uuid cuenta_mesa_id FK
-        uuid comensal_id FK
-        numeric monto
-        varchar metodo "TARJETA | BILLETERA_VIRTUAL"
-        varchar estado "PENDIENTE | APROBADO | RECHAZADO (State)"
-        varchar referencia_externa UK "id de Mercado Pago"
+        uuid comensal_id FK "titular de la reserva"
+        numeric monto "monto final, con los descuentos aplicados"
+        MetodoPago metodo "TARJETA | BILLETERA_VIRTUAL"
+        EstadoPago estado "PENDIENTE | APROBADO | RECHAZADO (State)"
+        varchar referencia_externa UK "id de Mercado Pago; null hasta la notificacion"
         timestamptz fecha
     }
     COMPROBANTE {
         uuid id PK
         uuid pago_id FK, UK
-        varchar numero
+        varchar numero UK "correlativo"
         timestamptz fecha_emision
         numeric total
     }

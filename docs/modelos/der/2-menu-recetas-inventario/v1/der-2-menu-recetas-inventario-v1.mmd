@@ -23,9 +23,9 @@ erDiagram
         uuid id PK
         uuid restaurante_id FK
         varchar nombre
-        text descripcion
+        text descripcion "null si no tiene"
         date vigencia_desde
-        date vigencia_hasta
+        date vigencia_hasta "null si no vence"
     }
     MENU_ITEM {
         uuid menu_id PK, FK
@@ -34,7 +34,7 @@ erDiagram
     CATEGORIA {
         uuid id PK
         uuid restaurante_id FK
-        varchar nombre
+        varchar nombre "UK con restaurante_id"
         bool requiere_receta
     }
     ITEM_MENU {
@@ -42,9 +42,9 @@ erDiagram
         uuid restaurante_id FK
         uuid categoria_id FK
         varchar nombre
-        text descripcion
+        text descripcion "null si no tiene"
         numeric precio
-        varchar foto_url
+        varchar foto_url "null si no tiene foto"
         bool disponible
         bool activo
     }
@@ -52,48 +52,48 @@ erDiagram
         uuid id PK
         uuid item_menu_id FK, UK
         varchar url_modelo "glb"
-        varchar url_modelo_ios "usdz"
+        varchar url_modelo_ios "usdz; null si se genera desde el glb"
         numeric escala_real
         int porcion_gramos
     }
     COMPONENTE_INVENTARIO {
         uuid id PK
         uuid restaurante_id FK
-        varchar tipo "INSUMO | INTERMEDIO"
+        TipoComponente tipo "INSUMO | INTERMEDIO"
         varchar nombre
-        varchar unidad_base "GRAMO | MILILITRO | UNIDAD"
+        UnidadMedida unidad_base "solo GRAMO | MILILITRO | UNIDAD"
         numeric costo_compra "por unidad base, solo INSUMO"
         bool activo
     }
     RECETA {
         uuid id PK
-        uuid item_menu_id FK, UK "exclusivo con intermedio"
+        uuid item_menu_id FK, UK "exclusivo con intermedio; null si es de intermedio"
         uuid producto_intermedio_id FK, UK "exclusivo con item; obligatoria para INTERMEDIO (se valida en la app)"
-        numeric rendimiento
-        text instrucciones
+        numeric rendimiento "mayor a 0"
+        text instrucciones "null si no tiene"
     }
     LINEA_RECETA {
         uuid id PK
         uuid receta_id FK
-        uuid componente_id FK
-        numeric cantidad
-        varchar unidad "misma dimension que unidad_base"
-        numeric porcentaje_merma "0 a 100, default 0"
+        uuid componente_id FK "UK con receta_id"
+        numeric cantidad "mayor a 0"
+        UnidadMedida unidad "misma dimension que unidad_base"
+        numeric porcentaje_merma "0 a menos de 100, default 0"
     }
     EXISTENCIA {
         uuid id PK
         uuid sucursal_id FK
         uuid componente_id FK "UK con sucursal_id, solo INSUMO"
-        numeric cantidad_actual "en unidad base"
+        numeric cantidad_actual "en unidad base; nunca negativa"
     }
     MOVIMIENTO_STOCK {
         uuid id PK
         uuid existencia_id FK
-        varchar tipo "INGRESO | CONSUMO_PEDIDO | DEVOLUCION_PEDIDO | MERMA | AJUSTE"
-        numeric cantidad "en unidad base"
+        TipoMovimiento tipo "INGRESO | CONSUMO_PEDIDO | DEVOLUCION_PEDIDO | MERMA | AJUSTE"
+        numeric cantidad "en unidad base, con signo: + suma, - resta"
         numeric costo_unitario "costo vigente al registrar"
         timestamptz fecha
-        varchar motivo
+        varchar motivo "null si no se informa"
         uuid linea_pedido_id FK "solo CONSUMO_PEDIDO o DEVOLUCION_PEDIDO"
         uuid empleado_id FK "null en CONSUMO_PEDIDO"
     }
