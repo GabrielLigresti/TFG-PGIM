@@ -1,5 +1,8 @@
-// Deriva de los DER vigentes en docs/modelos/ (ver docs/modelos/HISTORIAL.md).
+// Deriva de los DER vigentes en docs/modelos/ (ver docs/modelos/HISTORIAL.md)
+// y de las reglas de docs/modelos/der/convenciones.md.
 // Tablas en snake_case con @@map; modelos y campos en camelCase, con @map.
+// Las restricciones CHECK y el índice único parcial de reserva no se pueden
+// expresar acá: se crean a mano en la migración inicial.
 
 generator client {
   provider     = "prisma-client"
@@ -9,4 +12,881 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ─── Enumerados ──────────────────────────────────────────────────────────────
+
+enum TipoUsuario {
+  EMPLEADO
+  COMENSAL
+
+  @@map("tipo_usuario")
+}
+
+enum Arquetipo {
+  MOZO
+  COCINERO
+  OTRO
+
+  @@map("arquetipo")
+}
+
+enum FranjaServicio {
+  ALMUERZO
+  CENA
+
+  @@map("franja_servicio")
+}
+
+enum ModoAsignacion {
+  MANUAL
+  AUTOMATICA
+
+  @@map("modo_asignacion")
+}
+
+enum EstadoReserva {
+  PENDIENTE
+  ACTIVA
+  FINALIZADA
+  CANCELADA
+  VENCIDA
+
+  @@map("estado_reserva")
+}
+
+enum EstadoCuenta {
+  ABIERTA
+  CERRADA
+
+  @@map("estado_cuenta")
+}
+
+enum EstadoPedido {
+  CONFIRMADO
+  EN_PREPARACION
+  LISTO
+  ENTREGADO
+  CANCELADO
+
+  @@map("estado_pedido")
+}
+
+enum MetodoPago {
+  TARJETA
+  BILLETERA_VIRTUAL
+
+  @@map("metodo_pago")
+}
+
+enum EstadoPago {
+  PENDIENTE
+  APROBADO
+  RECHAZADO
+
+  @@map("estado_pago")
+}
+
+enum TipoComponente {
+  INSUMO
+  INTERMEDIO
+
+  @@map("tipo_componente")
+}
+
+enum UnidadMedida {
+  GRAMO
+  KILOGRAMO
+  MILILITRO
+  LITRO
+  UNIDAD
+
+  @@map("unidad_medida")
+}
+
+enum TipoMovimiento {
+  INGRESO
+  CONSUMO_PEDIDO
+  DEVOLUCION_PEDIDO
+  MERMA
+  AJUSTE
+
+  @@map("tipo_movimiento")
+}
+
+enum TipoMovimientoPuntos {
+  ACREDITACION
+  CANJE
+  AJUSTE
+
+  @@map("tipo_movimiento_puntos")
+}
+
+enum ClaseBeneficio {
+  RECOMPENSA
+  PROMOCION
+
+  @@map("clase_beneficio")
+}
+
+enum TipoCriterio {
+  VISITAS
+  MONTO
+  PUNTOS
+  NUEVO_CLIENTE
+
+  @@map("tipo_criterio")
+}
+
+enum TipoDescuento {
+  PORCENTAJE
+  MONTO_FIJO
+
+  @@map("tipo_descuento")
+}
+
+enum EstadoPlanificacion {
+  BORRADOR
+  CONFIRMADA
+
+  @@map("estado_planificacion")
+}
+
+enum MetodoPronostico {
+  PROMEDIO_MOVIL_PONDERADO
+  NAIVE_ESTACIONAL
+  REGRESION_ESTACIONAL
+
+  @@map("metodo_pronostico")
+}
+
+enum TipoAlerta {
+  PLATO_SIN_RECETA
+  STOCK_INSUFICIENTE
+  FALTANTE_STOCK_PREVISTO
+  FALTANTE_PERSONAL
+  CAPACIDAD_MESAS
+
+  @@map("tipo_alerta")
+}
+
+enum Severidad {
+  INFO
+  ADVERTENCIA
+  CRITICA
+
+  @@map("severidad")
+}
+
+// ─── DER 1: organización, acceso y personal ──────────────────────────────────
+
+model Restaurante {
+  id     String @id @default(uuid(7)) @db.Uuid
+  nombre String
+  cuit   String @unique
+
+  sucursales            Sucursal[]
+  roles                 Rol[]
+  empleados             Empleado[]
+  menus                 Menu[]
+  itemsMenu             ItemMenu[]
+  categorias            Categoria[]
+  componentesInventario ComponenteInventario[]
+  programaFidelidad     ProgramaFidelidad?
+  cuentasFidelidad      CuentaFidelidad[]
+  gruposBeneficios      GrupoBeneficios[]
+  beneficios            Beneficio[]
+
+  @@map("restaurante")
+}
+
+model Sucursal {
+  id                  String   @id @default(uuid(7)) @db.Uuid
+  restauranteId       String   @map("restaurante_id") @db.Uuid
+  nombre              String
+  direccion           String
+  horarioApertura     DateTime @map("horario_apertura") @db.Time(0)
+  horarioCierre       DateTime @map("horario_cierre") @db.Time(0)
+  toleranciaNoShowMin Int      @map("tolerancia_no_show_min")
+  menuActivoId        String?  @map("menu_activo_id") @db.Uuid
+  activa              Boolean  @default(true)
+
+  restaurante           Restaurante            @relation(fields: [restauranteId], references: [id])
+  menuActivo            Menu?                  @relation(fields: [menuActivoId], references: [id])
+  empleados             EmpleadoSucursal[]
+  horariosServicio      HorarioServicio[]
+  turnos                Turno[]
+  mesas                 Mesa[]
+  reservas              Reserva[]
+  pedidos               Pedido[]
+  existencias           Existencia[]
+  configuracionApertura ConfiguracionApertura?
+  planificacionesTurnos PlanificacionTurnos[]
+  pronosticos           Pronostico[]
+  alertas               Alerta[]
+
+  @@index([restauranteId])
+  @@map("sucursal")
+}
+
+model Usuario {
+  id           String      @id @default(uuid(7)) @db.Uuid
+  email        String      @unique
+  passwordHash String      @map("password_hash")
+  tipo         TipoUsuario
+  activo       Boolean     @default(true)
+
+  empleado                Empleado?
+  comensal                Comensal?
+  credencialesBiometricas CredencialBiometrica[]
+
+  @@map("usuario")
+}
+
+model CredencialBiometrica {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  usuarioId      String  @map("usuario_id") @db.Uuid
+  credentialId   String  @unique @map("credential_id")
+  clavePublica   String  @map("clave_publica") @db.Text
+  dispositivo    String?
+  contadorFirmas Int     @default(0) @map("contador_firmas")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@map("credencial_biometrica")
+}
+
+model Empleado {
+  usuarioId         String  @id @map("usuario_id") @db.Uuid
+  restauranteId     String  @map("restaurante_id") @db.Uuid
+  rolId             String  @map("rol_id") @db.Uuid
+  nombreCompleto    String  @map("nombre_completo")
+  fotoUrl           String? @map("foto_url")
+  horasSemanalesMax Int     @map("horas_semanales_max")
+
+  usuario          Usuario            @relation(fields: [usuarioId], references: [id])
+  restaurante      Restaurante        @relation(fields: [restauranteId], references: [id])
+  rol              Rol                @relation(fields: [rolId], references: [id])
+  sucursales       EmpleadoSucursal[]
+  turnos           Turno[]
+  movimientosStock MovimientoStock[]
+
+  @@index([restauranteId])
+  @@index([rolId])
+  @@map("empleado")
+}
+
+model Comensal {
+  usuarioId String  @id @map("usuario_id") @db.Uuid
+  nombre    String
+  telefono  String?
+
+  usuario             Usuario             @relation(fields: [usuarioId], references: [id])
+  reservas            Reserva[]
+  pagos               Pago[]
+  mediosPagoGuardados MedioPagoGuardado[]
+  cuentasFidelidad    CuentaFidelidad[]
+
+  @@map("comensal")
+}
+
+model Rol {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  restauranteId  String    @map("restaurante_id") @db.Uuid
+  nombre         String
+  predeterminado Boolean   @default(false)
+  arquetipo      Arquetipo
+  activo         Boolean   @default(true)
+
+  restaurante Restaurante  @relation(fields: [restauranteId], references: [id])
+  permisos    RolPermiso[]
+  empleados   Empleado[]
+
+  @@unique([restauranteId, nombre])
+  @@map("rol")
+}
+
+model Permiso {
+  id     String @id @default(uuid(7)) @db.Uuid
+  codigo String @unique
+  modulo String
+  accion String
+
+  roles RolPermiso[]
+
+  @@map("permiso")
+}
+
+model RolPermiso {
+  rolId     String @map("rol_id") @db.Uuid
+  permisoId String @map("permiso_id") @db.Uuid
+
+  rol     Rol     @relation(fields: [rolId], references: [id], onDelete: Cascade)
+  permiso Permiso @relation(fields: [permisoId], references: [id])
+
+  @@id([rolId, permisoId])
+  @@index([permisoId])
+  @@map("rol_permiso")
+}
+
+model EmpleadoSucursal {
+  empleadoId String @map("empleado_id") @db.Uuid
+  sucursalId String @map("sucursal_id") @db.Uuid
+
+  empleado Empleado @relation(fields: [empleadoId], references: [usuarioId], onDelete: Cascade)
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
+
+  @@id([empleadoId, sucursalId])
+  @@index([sucursalId])
+  @@map("empleado_sucursal")
+}
+
+model HorarioServicio {
+  id         String         @id @default(uuid(7)) @db.Uuid
+  sucursalId String         @map("sucursal_id") @db.Uuid
+  franja     FranjaServicio
+  horaInicio DateTime       @map("hora_inicio") @db.Time(0)
+  horaFin    DateTime       @map("hora_fin") @db.Time(0)
+
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+
+  @@unique([sucursalId, franja])
+  @@map("horario_servicio")
+}
+
+model Turno {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  planificacionId String         @map("planificacion_id") @db.Uuid
+  empleadoId      String         @map("empleado_id") @db.Uuid
+  sucursalId      String         @map("sucursal_id") @db.Uuid
+  fecha           DateTime       @db.Date
+  franja          FranjaServicio
+
+  planificacion PlanificacionTurnos @relation(fields: [planificacionId], references: [id], onDelete: Cascade)
+  empleado      Empleado            @relation(fields: [empleadoId], references: [usuarioId])
+  sucursal      Sucursal            @relation(fields: [sucursalId], references: [id])
+
+  @@unique([empleadoId, fecha, franja])
+  @@index([planificacionId])
+  @@index([sucursalId, fecha])
+  @@map("turno")
+}
+
+// ─── DER 1: salón, reservas, consumo y pago ──────────────────────────────────
+
+model Mesa {
+  id         String  @id @default(uuid(7)) @db.Uuid
+  sucursalId String  @map("sucursal_id") @db.Uuid
+  numero     Int
+  capacidad  Int
+  posX       Decimal @map("pos_x") @db.Decimal(8, 2)
+  posY       Decimal @map("pos_y") @db.Decimal(8, 2)
+  activa     Boolean @default(true)
+
+  sucursal Sucursal  @relation(fields: [sucursalId], references: [id])
+  reservas Reserva[]
+
+  @@unique([sucursalId, numero])
+  @@map("mesa")
+}
+
+// Índice único parcial (mesa_id, inicio) para PENDIENTE o ACTIVA: en la migración.
+model Reserva {
+  id               String         @id @default(uuid(7)) @db.Uuid
+  sucursalId       String         @map("sucursal_id") @db.Uuid
+  mesaId           String         @map("mesa_id") @db.Uuid
+  comensalId       String         @map("comensal_id") @db.Uuid
+  inicio           DateTime       @db.Timestamptz(6)
+  cantidadPersonas Int            @map("cantidad_personas")
+  modoAsignacion   ModoAsignacion @map("modo_asignacion")
+  estado           EstadoReserva  @default(PENDIENTE)
+
+  sucursal   Sucursal    @relation(fields: [sucursalId], references: [id])
+  mesa       Mesa        @relation(fields: [mesaId], references: [id])
+  comensal   Comensal    @relation(fields: [comensalId], references: [usuarioId])
+  cuentaMesa CuentaMesa?
+
+  @@index([sucursalId, inicio])
+  @@index([mesaId])
+  @@index([comensalId])
+  @@map("reserva")
+}
+
+model CuentaMesa {
+  id        String       @id @default(uuid(7)) @db.Uuid
+  reservaId String       @unique @map("reserva_id") @db.Uuid
+  abiertaEn DateTime     @default(now()) @map("abierta_en") @db.Timestamptz(6)
+  cerradaEn DateTime?    @map("cerrada_en") @db.Timestamptz(6)
+  estado    EstadoCuenta @default(ABIERTA)
+
+  reserva Reserva  @relation(fields: [reservaId], references: [id])
+  pedidos Pedido[]
+  pagos   Pago[]
+  visitas Visita[]
+
+  @@map("cuenta_mesa")
+}
+
+model Pedido {
+  id                String       @id @default(uuid(7)) @db.Uuid
+  cuentaMesaId      String       @map("cuenta_mesa_id") @db.Uuid
+  sucursalId        String       @map("sucursal_id") @db.Uuid
+  numero            Int
+  creadoEn          DateTime     @default(now()) @map("creado_en") @db.Timestamptz(6)
+  estado            EstadoPedido @default(CONFIRMADO)
+  motivoCancelacion String?      @map("motivo_cancelacion")
+
+  cuentaMesa CuentaMesa    @relation(fields: [cuentaMesaId], references: [id])
+  sucursal   Sucursal      @relation(fields: [sucursalId], references: [id])
+  lineas     LineaPedido[]
+
+  @@unique([sucursalId, numero])
+  @@index([sucursalId, estado, creadoEn])
+  @@index([cuentaMesaId])
+  @@map("pedido")
+}
+
+model LineaPedido {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  pedidoId       String  @map("pedido_id") @db.Uuid
+  itemMenuId     String  @map("item_menu_id") @db.Uuid
+  cantidad       Int
+  precioUnitario Decimal @map("precio_unitario") @db.Decimal(12, 2)
+  observaciones  String?
+
+  pedido           Pedido            @relation(fields: [pedidoId], references: [id])
+  itemMenu         ItemMenu          @relation(fields: [itemMenuId], references: [id])
+  movimientosStock MovimientoStock[]
+
+  @@index([pedidoId])
+  @@index([itemMenuId])
+  @@map("linea_pedido")
+}
+
+model Pago {
+  id                String     @id @default(uuid(7)) @db.Uuid
+  cuentaMesaId      String     @map("cuenta_mesa_id") @db.Uuid
+  comensalId        String     @map("comensal_id") @db.Uuid
+  monto             Decimal    @db.Decimal(12, 2)
+  metodo            MetodoPago
+  estado            EstadoPago @default(PENDIENTE)
+  referenciaExterna String?    @unique @map("referencia_externa")
+  fecha             DateTime   @default(now()) @db.Timestamptz(6)
+
+  cuentaMesa          CuentaMesa          @relation(fields: [cuentaMesaId], references: [id])
+  comensal            Comensal            @relation(fields: [comensalId], references: [usuarioId])
+  comprobante         Comprobante?
+  beneficiosAplicados BeneficioAplicado[]
+  movimientosPuntos   MovimientoPuntos[]
+
+  @@index([cuentaMesaId])
+  @@index([comensalId])
+  @@map("pago")
+}
+
+model Comprobante {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  pagoId       String   @unique @map("pago_id") @db.Uuid
+  numero       String   @unique
+  fechaEmision DateTime @default(now()) @map("fecha_emision") @db.Timestamptz(6)
+  total        Decimal  @db.Decimal(12, 2)
+
+  pago Pago @relation(fields: [pagoId], references: [id])
+
+  @@map("comprobante")
+}
+
+model MedioPagoGuardado {
+  id            String @id @default(uuid(7)) @db.Uuid
+  comensalId    String @map("comensal_id") @db.Uuid
+  tokenPasarela String @map("token_pasarela")
+  marca         String
+  ultimos4      String @db.Char(4)
+
+  comensal Comensal @relation(fields: [comensalId], references: [usuarioId])
+
+  @@index([comensalId])
+  @@map("medio_pago_guardado")
+}
+
+// ─── DER 2: menú, recetas e inventario ───────────────────────────────────────
+
+model Menu {
+  id            String    @id @default(uuid(7)) @db.Uuid
+  restauranteId String    @map("restaurante_id") @db.Uuid
+  nombre        String
+  descripcion   String?   @db.Text
+  vigenciaDesde DateTime  @map("vigencia_desde") @db.Date
+  vigenciaHasta DateTime? @map("vigencia_hasta") @db.Date
+
+  restaurante       Restaurante @relation(fields: [restauranteId], references: [id])
+  items             MenuItem[]
+  sucursalesActivas Sucursal[]
+  promociones       Beneficio[]
+
+  @@index([restauranteId])
+  @@map("menu")
+}
+
+model MenuItem {
+  menuId     String @map("menu_id") @db.Uuid
+  itemMenuId String @map("item_menu_id") @db.Uuid
+
+  menu     Menu     @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  itemMenu ItemMenu @relation(fields: [itemMenuId], references: [id])
+
+  @@id([menuId, itemMenuId])
+  @@index([itemMenuId])
+  @@map("menu_item")
+}
+
+model Categoria {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  restauranteId  String  @map("restaurante_id") @db.Uuid
+  nombre         String
+  requiereReceta Boolean @default(false) @map("requiere_receta")
+
+  restaurante Restaurante @relation(fields: [restauranteId], references: [id])
+  items       ItemMenu[]
+
+  @@unique([restauranteId, nombre])
+  @@map("categoria")
+}
+
+model ItemMenu {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  restauranteId String  @map("restaurante_id") @db.Uuid
+  categoriaId   String  @map("categoria_id") @db.Uuid
+  nombre        String
+  descripcion   String? @db.Text
+  precio        Decimal @db.Decimal(12, 2)
+  fotoUrl       String? @map("foto_url")
+  disponible    Boolean @default(true)
+  activo        Boolean @default(true)
+
+  restaurante  Restaurante   @relation(fields: [restauranteId], references: [id])
+  categoria    Categoria     @relation(fields: [categoriaId], references: [id])
+  menus        MenuItem[]
+  modeloRa     ModeloRA?
+  receta       Receta?
+  lineasPedido LineaPedido[]
+  demandasItem DemandaItem[]
+  alertas      Alerta[]
+
+  @@index([restauranteId])
+  @@index([categoriaId])
+  @@map("item_menu")
+}
+
+model ModeloRA {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  itemMenuId    String  @unique @map("item_menu_id") @db.Uuid
+  urlModelo     String  @map("url_modelo")
+  urlModeloIos  String? @map("url_modelo_ios")
+  escalaReal    Decimal @map("escala_real") @db.Decimal(10, 4)
+  porcionGramos Int     @map("porcion_gramos")
+
+  itemMenu ItemMenu @relation(fields: [itemMenuId], references: [id], onDelete: Cascade)
+
+  @@map("modelo_ra")
+}
+
+// CHECK unidad_base en GRAMO, MILILITRO o UNIDAD: en la migración.
+model ComponenteInventario {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  restauranteId String         @map("restaurante_id") @db.Uuid
+  tipo          TipoComponente
+  nombre        String
+  unidadBase    UnidadMedida   @map("unidad_base")
+  costoCompra   Decimal?       @map("costo_compra") @db.Decimal(14, 4)
+  activo        Boolean        @default(true)
+
+  restaurante  Restaurante   @relation(fields: [restauranteId], references: [id])
+  receta       Receta?
+  lineasReceta LineaReceta[]
+  existencias  Existencia[]
+
+  @@index([restauranteId])
+  @@map("componente_inventario")
+}
+
+// CHECK de exclusividad item/intermedio y rendimiento > 0: en la migración.
+model Receta {
+  id                   String  @id @default(uuid(7)) @db.Uuid
+  itemMenuId           String? @unique @map("item_menu_id") @db.Uuid
+  productoIntermedioId String? @unique @map("producto_intermedio_id") @db.Uuid
+  rendimiento          Decimal @db.Decimal(14, 3)
+  instrucciones        String? @db.Text
+
+  itemMenu           ItemMenu?             @relation(fields: [itemMenuId], references: [id], onDelete: Cascade)
+  productoIntermedio ComponenteInventario? @relation(fields: [productoIntermedioId], references: [id], onDelete: Cascade)
+  lineas             LineaReceta[]
+
+  @@map("receta")
+}
+
+// CHECK cantidad > 0 y merma de 0 a menos de 100: en la migración.
+model LineaReceta {
+  id              String       @id @default(uuid(7)) @db.Uuid
+  recetaId        String       @map("receta_id") @db.Uuid
+  componenteId    String       @map("componente_id") @db.Uuid
+  cantidad        Decimal      @db.Decimal(14, 3)
+  unidad          UnidadMedida
+  porcentajeMerma Decimal      @default(0) @map("porcentaje_merma") @db.Decimal(5, 2)
+
+  receta     Receta               @relation(fields: [recetaId], references: [id], onDelete: Cascade)
+  componente ComponenteInventario @relation(fields: [componenteId], references: [id])
+
+  @@unique([recetaId, componenteId])
+  @@index([componenteId])
+  @@map("linea_receta")
+}
+
+// CHECK cantidad_actual >= 0: en la migración.
+model Existencia {
+  id             String  @id @default(uuid(7)) @db.Uuid
+  sucursalId     String  @map("sucursal_id") @db.Uuid
+  componenteId   String  @map("componente_id") @db.Uuid
+  cantidadActual Decimal @default(0) @map("cantidad_actual") @db.Decimal(14, 3)
+
+  sucursal    Sucursal             @relation(fields: [sucursalId], references: [id])
+  componente  ComponenteInventario @relation(fields: [componenteId], references: [id])
+  movimientos MovimientoStock[]
+  alertas     Alerta[]
+
+  @@unique([sucursalId, componenteId])
+  @@index([componenteId])
+  @@map("existencia")
+}
+
+model MovimientoStock {
+  id            String         @id @default(uuid(7)) @db.Uuid
+  existenciaId  String         @map("existencia_id") @db.Uuid
+  tipo          TipoMovimiento
+  cantidad      Decimal        @db.Decimal(14, 3)
+  costoUnitario Decimal        @map("costo_unitario") @db.Decimal(14, 4)
+  fecha         DateTime       @default(now()) @db.Timestamptz(6)
+  motivo        String?
+  lineaPedidoId String?        @map("linea_pedido_id") @db.Uuid
+  empleadoId    String?        @map("empleado_id") @db.Uuid
+
+  existencia  Existencia   @relation(fields: [existenciaId], references: [id])
+  lineaPedido LineaPedido? @relation(fields: [lineaPedidoId], references: [id])
+  empleado    Empleado?    @relation(fields: [empleadoId], references: [usuarioId])
+
+  @@index([existenciaId, fecha])
+  @@index([lineaPedidoId])
+  @@index([empleadoId])
+  @@map("movimiento_stock")
+}
+
+// ─── DER 3: fidelización y promociones ───────────────────────────────────────
+
+model ProgramaFidelidad {
+  id              String  @id @default(uuid(7)) @db.Uuid
+  restauranteId   String  @unique @map("restaurante_id") @db.Uuid
+  puntosPorUnidad Decimal @map("puntos_por_unidad") @db.Decimal(10, 4)
+  activo          Boolean @default(true)
+
+  restaurante Restaurante @relation(fields: [restauranteId], references: [id])
+
+  @@map("programa_fidelidad")
+}
+
+// CHECK puntos >= 0: en la migración.
+model CuentaFidelidad {
+  id              String  @id @default(uuid(7)) @db.Uuid
+  comensalId      String  @map("comensal_id") @db.Uuid
+  restauranteId   String  @map("restaurante_id") @db.Uuid
+  puntos          Int     @default(0)
+  cantidadVisitas Int     @default(0) @map("cantidad_visitas")
+  montoAcumulado  Decimal @default(0) @map("monto_acumulado") @db.Decimal(12, 2)
+
+  comensal    Comensal           @relation(fields: [comensalId], references: [usuarioId])
+  restaurante Restaurante        @relation(fields: [restauranteId], references: [id])
+  visitas     Visita[]
+  movimientos MovimientoPuntos[]
+
+  @@unique([comensalId, restauranteId])
+  @@index([restauranteId])
+  @@map("cuenta_fidelidad")
+}
+
+model Visita {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  cuentaFidelidadId String   @map("cuenta_fidelidad_id") @db.Uuid
+  cuentaMesaId      String   @map("cuenta_mesa_id") @db.Uuid
+  fecha             DateTime @default(now()) @db.Timestamptz(6)
+
+  cuentaFidelidad CuentaFidelidad @relation(fields: [cuentaFidelidadId], references: [id])
+  cuentaMesa      CuentaMesa      @relation(fields: [cuentaMesaId], references: [id])
+
+  @@unique([cuentaFidelidadId, cuentaMesaId])
+  @@index([cuentaMesaId])
+  @@map("visita")
+}
+
+model MovimientoPuntos {
+  id                String               @id @default(uuid(7)) @db.Uuid
+  cuentaFidelidadId String               @map("cuenta_fidelidad_id") @db.Uuid
+  pagoId            String?              @map("pago_id") @db.Uuid
+  tipo              TipoMovimientoPuntos
+  puntos            Int
+  fecha             DateTime             @default(now()) @db.Timestamptz(6)
+
+  cuentaFidelidad CuentaFidelidad @relation(fields: [cuentaFidelidadId], references: [id])
+  pago            Pago?           @relation(fields: [pagoId], references: [id])
+
+  @@index([cuentaFidelidadId, fecha])
+  @@index([pagoId])
+  @@map("movimiento_puntos")
+}
+
+model GrupoBeneficios {
+  id            String  @id @default(uuid(7)) @db.Uuid
+  restauranteId String  @map("restaurante_id") @db.Uuid
+  nombre        String
+  habilitado    Boolean @default(true)
+
+  restaurante Restaurante @relation(fields: [restauranteId], references: [id])
+  beneficios  Beneficio[]
+
+  @@index([restauranteId])
+  @@map("grupo_beneficios")
+}
+
+// CHECK de campos según la clase y stock_disponible >= 0: en la migración.
+model Beneficio {
+  id              String         @id @default(uuid(7)) @db.Uuid
+  restauranteId   String         @map("restaurante_id") @db.Uuid
+  grupoId         String?        @map("grupo_id") @db.Uuid
+  nombre          String
+  clase           ClaseBeneficio
+  menuId          String?        @map("menu_id") @db.Uuid
+  criterioTipo    TipoCriterio?  @map("criterio_tipo")
+  criterioValor   Decimal?       @map("criterio_valor") @db.Decimal(12, 2)
+  tipoDescuento   TipoDescuento  @map("tipo_descuento")
+  valor           Decimal        @db.Decimal(12, 2)
+  vigenciaDesde   DateTime?      @map("vigencia_desde") @db.Timestamptz(6)
+  vigenciaHasta   DateTime?      @map("vigencia_hasta") @db.Timestamptz(6)
+  stockDisponible Int?           @map("stock_disponible")
+  activo          Boolean        @default(true)
+
+  restaurante  Restaurante         @relation(fields: [restauranteId], references: [id])
+  grupo        GrupoBeneficios?    @relation(fields: [grupoId], references: [id])
+  menu         Menu?               @relation(fields: [menuId], references: [id])
+  aplicaciones BeneficioAplicado[]
+
+  @@index([restauranteId])
+  @@index([grupoId])
+  @@index([menuId])
+  @@map("beneficio")
+}
+
+model BeneficioAplicado {
+  pagoId          String  @map("pago_id") @db.Uuid
+  beneficioId     String  @map("beneficio_id") @db.Uuid
+  montoDescontado Decimal @map("monto_descontado") @db.Decimal(12, 2)
+
+  pago      Pago      @relation(fields: [pagoId], references: [id])
+  beneficio Beneficio @relation(fields: [beneficioId], references: [id])
+
+  @@id([pagoId, beneficioId])
+  @@index([beneficioId])
+  @@map("beneficio_aplicado")
+}
+
+// ─── DER 3: simulador de apertura y alertas ──────────────────────────────────
+
+model ConfiguracionApertura {
+  sucursalId             String  @id @map("sucursal_id") @db.Uuid
+  semanasHistoricoMinimo Int     @default(8) @map("semanas_historico_minimo")
+  cubiertosPorMozo       Decimal @map("cubiertos_por_mozo") @db.Decimal(10, 4)
+  platosPorCocineroHora  Decimal @map("platos_por_cocinero_hora") @db.Decimal(10, 4)
+
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
+
+  @@map("configuracion_apertura")
+}
+
+model PlanificacionTurnos {
+  id           String              @id @default(uuid(7)) @db.Uuid
+  sucursalId   String              @map("sucursal_id") @db.Uuid
+  semanaDesde  DateTime            @map("semana_desde") @db.Date
+  estado       EstadoPlanificacion @default(BORRADOR)
+  generadaEn   DateTime            @default(now()) @map("generada_en") @db.Timestamptz(6)
+  confirmadaEn DateTime?           @map("confirmada_en") @db.Timestamptz(6)
+
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id])
+  turnos   Turno[]
+  alertas  Alerta[]
+
+  @@unique([sucursalId, semanaDesde])
+  @@map("planificacion_turnos")
+}
+
+model Pronostico {
+  id                 String           @id @default(uuid(7)) @db.Uuid
+  sucursalId         String           @map("sucursal_id") @db.Uuid
+  fechaServicio      DateTime         @map("fecha_servicio") @db.Date
+  franja             FranjaServicio
+  cubiertosEstimados Int              @map("cubiertos_estimados")
+  limiteInferior     Int              @map("limite_inferior")
+  limiteSuperior     Int              @map("limite_superior")
+  ingresoEstimado    Decimal          @map("ingreso_estimado") @db.Decimal(12, 2)
+  errorMape          Decimal          @map("error_mape") @db.Decimal(5, 2)
+  metodo             MetodoPronostico
+  generadoEn         DateTime         @default(now()) @map("generado_en") @db.Timestamptz(6)
+
+  sucursal     Sucursal      @relation(fields: [sucursalId], references: [id])
+  demandasItem DemandaItem[]
+  alertas      Alerta[]
+
+  @@index([sucursalId, fechaServicio, franja])
+  @@map("pronostico")
+}
+
+model DemandaItem {
+  pronosticoId     String @map("pronostico_id") @db.Uuid
+  itemMenuId       String @map("item_menu_id") @db.Uuid
+  cantidadEstimada Int    @map("cantidad_estimada")
+
+  pronostico Pronostico @relation(fields: [pronosticoId], references: [id], onDelete: Cascade)
+  itemMenu   ItemMenu   @relation(fields: [itemMenuId], references: [id])
+
+  @@id([pronosticoId, itemMenuId])
+  @@index([itemMenuId])
+  @@map("demanda_item")
+}
+
+model Alerta {
+  id              String          @id @default(uuid(7)) @db.Uuid
+  sucursalId      String          @map("sucursal_id") @db.Uuid
+  pronosticoId    String?         @map("pronostico_id") @db.Uuid
+  planificacionId String?         @map("planificacion_id") @db.Uuid
+  existenciaId    String?         @map("existencia_id") @db.Uuid
+  itemMenuId      String?         @map("item_menu_id") @db.Uuid
+  tipo            TipoAlerta
+  severidad       Severidad
+  descripcion     String          @db.Text
+  fechaServicio   DateTime?       @map("fecha_servicio") @db.Date
+  franja          FranjaServicio?
+  arquetipo       Arquetipo?
+  cantidad        Int?
+  creadaEn        DateTime        @default(now()) @map("creada_en") @db.Timestamptz(6)
+  resuelta        Boolean         @default(false)
+
+  sucursal      Sucursal             @relation(fields: [sucursalId], references: [id])
+  pronostico    Pronostico?          @relation(fields: [pronosticoId], references: [id])
+  planificacion PlanificacionTurnos? @relation(fields: [planificacionId], references: [id], onDelete: Cascade)
+  existencia    Existencia?          @relation(fields: [existenciaId], references: [id])
+  itemMenu      ItemMenu?            @relation(fields: [itemMenuId], references: [id])
+
+  @@index([sucursalId, resuelta, creadaEn])
+  @@index([pronosticoId])
+  @@index([planificacionId])
+  @@index([existenciaId])
+  @@index([itemMenuId])
+  @@map("alerta")
 }

@@ -39,6 +39,7 @@ Las columnas cuyo tipo es un nombre en PascalCase (`EstadoReserva`, `FranjaServi
 Se agregan a mano en la migración porque Prisma no las genera:
 
 - Índice único parcial en `reserva (mesa_id, inicio)` cuando el estado es PENDIENTE o ACTIVA.
+- `reserva.inicio` a la hora en punto.
 - `receta`: exactamente una de `item_menu_id` y `producto_intermedio_id` tiene valor.
 - `existencia.cantidad_actual >= 0`, `cuenta_fidelidad.puntos >= 0` y `beneficio.stock_disponible >= 0`.
 - `linea_receta.porcentaje_merma` entre 0 y menos de 100; `linea_receta.cantidad > 0` y `receta.rendimiento > 0`.
