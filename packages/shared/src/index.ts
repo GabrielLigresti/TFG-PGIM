@@ -2,3 +2,4 @@
 // constantes: nada de Prisma, Express ni React.
 export * from './api';
 export * from './permisos';
+export * from './auth';
