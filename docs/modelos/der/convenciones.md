@@ -10,6 +10,10 @@ Toda columna es obligatoria (`NOT NULL`) salvo que su comentario diga:
 - `solo X`: obligatoria cuando el registro es de la clase o el tipo X y nula en los demás.
 - `exclusivo con …`: una de las dos columnas tiene valor y la otra es nula.
 
+## Texto
+
+Las columnas `varchar` del DER no fijan longitud, así que se implementan como `text` (en PostgreSQL son equivalentes). `char` conserva su longitud (`medio_pago_guardado.ultimos4` es `char(4)`).
+
 ## Tipos enumerados
 
 Las columnas cuyo tipo es un nombre en PascalCase (`EstadoReserva`, `FranjaServicio`, etc.) son tipos `ENUM` de PostgreSQL. El nombre y los valores coinciden con la enumeración del diagrama de clases. Los cuatro enumerados que no están en el diagrama de clases son discriminadores de herencia o de estrategia:
