@@ -11,6 +11,17 @@ import {
 
 // Piezas visuales comunes de las pantallas de gestión.
 
+// Campo decimal: texto con teclado numérico. Un input type="number" rechaza la
+// coma, y el teclado en español del celular (sobre todo en iPhone) la usa como
+// separador decimal; aNumero acepta los dos.
+export const propsDecimal = {
+  type: 'text',
+  inputMode: 'decimal',
+  autoComplete: 'off',
+  pattern: '[0-9]*[.,]?[0-9]+',
+  title: 'Usá números; para los decimales, coma o punto',
+} as const;
+
 export const claseInput =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-base focus:border-slate-500 focus:outline-none disabled:bg-slate-100';
 
@@ -198,7 +209,7 @@ export function Modal({
             type="button"
             onClick={onCerrar}
             aria-label="Cerrar"
-            className="rounded-lg px-2 py-1 text-slate-500 hover:bg-slate-100"
+            className="flex size-10 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100"
           >
             ✕
           </button>

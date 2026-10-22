@@ -214,6 +214,7 @@ function FormularioSucursal({
         <Campo etiqueta="Tolerancia de no-show (minutos)">
           <input
             type="number"
+            inputMode="numeric"
             min={0}
             max={240}
             required

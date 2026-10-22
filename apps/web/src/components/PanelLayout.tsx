@@ -72,7 +72,7 @@ export function PanelLayout() {
                 aria-label="Sucursal de trabajo"
                 value={sesion.sucursalActiva?.id}
                 onChange={(e) => seleccionarSucursal(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm"
+                className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-base sm:py-1.5 sm:text-sm"
               >
                 {sesion.sucursales.map((s) => (
                   <option key={s.id} value={s.id}>
@@ -86,7 +86,7 @@ export function PanelLayout() {
             <button
               type="button"
               onClick={logout}
-              className="rounded-lg px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+              className="rounded-lg px-3 py-2.5 text-sm text-slate-600 hover:bg-slate-100 sm:py-1.5"
             >
               Cerrar sesión
             </button>

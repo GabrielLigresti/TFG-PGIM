@@ -12,6 +12,7 @@ import {
   Etiqueta,
   Modal,
   claseInput,
+  propsDecimal,
 } from '../../components/ui';
 import { NOMBRE_UNIDAD, aNumero, formatoCantidad, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
@@ -168,11 +169,8 @@ function FormularioInsumo({
         </Campo>
         <Campo etiqueta={`Costo de compra ${COSTO_POR[unidadBase]}`} ayuda="En pesos">
           <input
-            type="number"
-            min={0}
-            step="any"
+            {...propsDecimal}
             required
-            inputMode="decimal"
             value={costo}
             onChange={(e) => setCosto(e.target.value)}
             className={claseInput}

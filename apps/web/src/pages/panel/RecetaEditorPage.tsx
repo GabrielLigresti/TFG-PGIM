@@ -13,7 +13,7 @@ import {
   type UnidadMedida,
 } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
-import { Aviso, Boton, Campo, EstadoCarga, claseInput } from '../../components/ui';
+import { Aviso, Boton, Campo, EstadoCarga, claseInput, propsDecimal } from '../../components/ui';
 import { NOMBRE_UNIDAD, aNumero, formatoCantidad, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
@@ -39,7 +39,10 @@ export function RecetaEditorPage() {
   const listo = componentes.datos && (esNuevo || detalle.datos);
   return (
     <section>
-      <Link to="/panel/recetas" className="text-sm text-slate-500 hover:text-slate-700">
+      <Link
+        to="/panel/recetas"
+        className="inline-block py-2 text-sm text-slate-500 hover:text-slate-700"
+      >
         ← Volver a recetas
       </Link>
       <EstadoCarga
@@ -264,10 +267,7 @@ function Editor({
                 </Campo>
                 <Campo etiqueta="Cantidad">
                   <input
-                    type="number"
-                    step="any"
-                    min={0}
-                    inputMode="decimal"
+                    {...propsDecimal}
                     required
                     value={l.cantidad}
                     onChange={(e) => cambiarLinea(l.clave, { cantidad: e.target.value })}
@@ -291,11 +291,7 @@ function Editor({
                 </Campo>
                 <Campo etiqueta="Merma %">
                   <input
-                    type="number"
-                    step="any"
-                    min={0}
-                    max={99.99}
-                    inputMode="decimal"
+                    {...propsDecimal}
                     value={l.merma}
                     onChange={(e) => cambiarLinea(l.clave, { merma: e.target.value })}
                     className={claseInput}
@@ -321,10 +317,7 @@ function Editor({
       <fieldset disabled={!puedeGuardar} className="grid gap-3 sm:grid-cols-[12rem_1fr]">
         <Campo etiqueta={`Rendimiento (${unidadRendimiento})`}>
           <input
-            type="number"
-            step="any"
-            min={0}
-            inputMode="decimal"
+            {...propsDecimal}
             required
             value={rendimiento}
             onChange={(e) => setRendimiento(e.target.value)}

@@ -13,6 +13,7 @@ import {
   Etiqueta,
   Modal,
   claseInput,
+  propsDecimal,
 } from '../../components/ui';
 import { aNumero, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
@@ -91,7 +92,10 @@ export function PlatosPage() {
                 titulo: 'Receta',
                 valor: (p) =>
                   tienePermiso('receta.ver') && (p.tieneReceta || tienePermiso('receta.crear')) ? (
-                    <Link to={`/panel/recetas/plato/${p.id}`} className="text-slate-700 underline">
+                    <Link
+                      to={`/panel/recetas/plato/${p.id}`}
+                      className="inline-block py-2 text-slate-700 underline md:py-0"
+                    >
                       {p.tieneReceta ? 'Ver receta' : 'Cargar receta'}
                     </Link>
                   ) : p.tieneReceta ? (
@@ -264,10 +268,7 @@ function FormularioPlato({
           </Campo>
           <Campo etiqueta="Precio ($)">
             <input
-              type="number"
-              min={0}
-              step="any"
-              inputMode="decimal"
+              {...propsDecimal}
               required
               value={precio}
               onChange={(e) => setPrecio(e.target.value)}

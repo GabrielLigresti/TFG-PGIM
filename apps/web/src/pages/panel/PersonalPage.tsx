@@ -243,6 +243,7 @@ function FormularioEmpleado({
           <Campo etiqueta="Horas semanales máx.">
             <input
               type="number"
+              inputMode="numeric"
               min={1}
               max={84}
               required
