@@ -3,6 +3,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { API_PREFIX } from '@pgim/shared';
 import { authRouter } from './routes/auth';
+import { comensalRouter } from './routes/comensal';
 import { healthRouter } from './routes/health';
 import { insumosRouter } from './routes/insumos';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
@@ -60,6 +61,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/categorias`, categoriasRouter);
   app.use(`${API_PREFIX}/platos`, platosRouter);
   app.use(`${API_PREFIX}/menus`, menusRouter);
+  app.use(`${API_PREFIX}/comensal`, comensalRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
