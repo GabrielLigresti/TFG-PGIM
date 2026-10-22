@@ -34,7 +34,7 @@ interface Diagnostico {
 
 export function PruebaRaPage() {
   const visor = useRef<ModelViewerElement>(null);
-  const [escala, setEscala] = useState(0.3);
+  const [escala, setEscala] = useState(1);
   const [diag, setDiag] = useState<Diagnostico | null>(null);
   const [eventos, setEventos] = useState<string[]>([]);
 
@@ -84,7 +84,7 @@ export function PruebaRaPage() {
         <input
           type="text"
           inputMode="decimal"
-          defaultValue="0,3"
+          defaultValue="1"
           onChange={(e) => {
             const valor = Number(e.target.value.replace(',', '.'));
             if (valor > 0) setEscala(valor);
