@@ -5,25 +5,6 @@ import { useEffect, useRef, useState } from 'react';
 // Prueba corta (spike) de RA: un modelo .glb servido por la propia app, con
 // escala ajustable. Se reemplaza por el visor de CU-10.
 
-declare module 'react' {
-  namespace JSX {
-    interface IntrinsicElements {
-      'model-viewer': React.DetailedHTMLProps<
-        React.HTMLAttributes<ModelViewerElement>,
-        ModelViewerElement
-      > & {
-        src?: string;
-        alt?: string;
-        ar?: boolean;
-        'ar-modes'?: string;
-        'ar-scale'?: string;
-        'camera-controls'?: boolean;
-        scale?: string;
-      };
-    }
-  }
-}
-
 const MODELO = '/modelos-demo/burger-cheese.glb';
 
 interface Diagnostico {
