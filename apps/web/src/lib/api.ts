@@ -4,6 +4,7 @@ export class ApiError extends Error {
   constructor(
     readonly status: number,
     message: string,
+    readonly detalles?: unknown,
   ) {
     super(message);
     this.name = 'ApiError';
@@ -25,7 +26,9 @@ export async function api<T>(ruta: string, opciones: { method?: string; body?: u
       datos && typeof datos === 'object' && 'error' in datos && typeof datos.error === 'string'
         ? datos.error
         : 'No se pudo conectar con el servidor';
-    throw new ApiError(res.status, mensaje);
+    const detalles =
+      datos && typeof datos === 'object' && 'detalles' in datos ? datos.detalles : undefined;
+    throw new ApiError(res.status, mensaje, detalles);
   }
   return datos as T;
 }

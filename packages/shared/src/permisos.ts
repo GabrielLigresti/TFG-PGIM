@@ -54,6 +54,15 @@ export const PERMISOS: readonly Permiso[] = CODIGOS_PERMISO.map((codigo) => {
   return { codigo, modulo, accion };
 });
 
+// Quien puede crear, editar o dar de baja en un módulo lo administra para todo
+// el restaurante; quien solo lo ve, lo ve acotado a sus sucursales (por ahora,
+// en sucursales y personal).
+export function administraModulo(permisos: readonly CodigoPermiso[], modulo: ModuloAbm): boolean {
+  return (['crear', 'editar', 'eliminar'] as const).some((accion) =>
+    permisos.includes(`${modulo}.${accion}`),
+  );
+}
+
 export type Arquetipo = 'MOZO' | 'COCINERO' | 'OTRO';
 
 export interface RolPredeterminado {

@@ -12,9 +12,12 @@ import { authService } from '../services/auth.service';
 
 export const authRouter = Router();
 
+// Cuentan solo los intentos fallidos: frena la fuerza bruta sin bloquear a
+// quien entra y sale varias veces (por ejemplo, al probar distintos roles).
 const limiteLogin = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
+  skipSuccessfulRequests: true,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'Demasiados intentos. Probá de nuevo en unos minutos.' },

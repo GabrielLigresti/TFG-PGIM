@@ -16,6 +16,9 @@ interface SesionContexto {
   login(email: string, password: string): Promise<Sesion>;
   logout(): Promise<void>;
   seleccionarSucursal(sucursalId: string): Promise<Sesion>;
+  // Vuelve a leer la sesión: después de cambiar roles, personal o sucursales,
+  // los permisos y las sucursales del propio usuario pueden haber cambiado.
+  recargarSesion(): Promise<void>;
   tienePermiso(codigo: CodigoPermiso): boolean;
 }
 
@@ -25,15 +28,18 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   const [sesion, setSesion] = useState<Sesion | null>(null);
   const [cargando, setCargando] = useState(true);
 
-  useEffect(() => {
-    api<unknown>('/auth/sesion')
-      .then((datos) => setSesion(sesionSchema.parse(datos)))
-      .catch((error: unknown) => {
-        if (!(error instanceof ApiError && error.status === 401)) console.error(error);
-        setSesion(null);
-      })
-      .finally(() => setCargando(false));
+  const recargarSesion = useCallback(async () => {
+    try {
+      setSesion(sesionSchema.parse(await api<unknown>('/auth/sesion')));
+    } catch (error) {
+      if (!(error instanceof ApiError && error.status === 401)) console.error(error);
+      setSesion(null);
+    }
   }, []);
+
+  useEffect(() => {
+    recargarSesion().finally(() => setCargando(false));
+  }, [recargarSesion]);
 
   const guardar = useCallback((datos: unknown) => {
     const nueva = sesionSchema.parse(datos);
@@ -53,9 +59,10 @@ export function SesionProvider({ children }: { children: ReactNode }) {
       },
       seleccionarSucursal: async (sucursalId) =>
         guardar(await api('/auth/sucursal', { method: 'POST', body: { sucursalId } })),
+      recargarSesion,
       tienePermiso: (codigo) => sesion?.permisos.includes(codigo) ?? false,
     }),
-    [sesion, cargando, guardar],
+    [sesion, cargando, guardar, recargarSesion],
   );
 
   return <Contexto value={valor}>{children}</Contexto>;
