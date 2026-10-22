@@ -10,6 +10,7 @@ import { PanelPage } from './pages/PanelPage';
 import { PruebaRaPage } from './pages/PruebaRaPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
 import { InsumosPage } from './pages/panel/InsumosPage';
+import { MenusPage } from './pages/panel/MenusPage';
 import { PersonalPage } from './pages/panel/PersonalPage';
 import { PlatosPage } from './pages/panel/PlatosPage';
 import { RecetaEditorPage } from './pages/panel/RecetaEditorPage';
@@ -60,6 +61,7 @@ export default function App() {
               element={conPermiso('receta.ver', <RecetaEditorPage />)}
             />
             <Route path="platos" element={conPermiso('menu.ver', <PlatosPage />)} />
+            <Route path="menus" element={conPermiso('menu.ver', <MenusPage />)} />
           </Route>
           <Route
             path="/inicio"

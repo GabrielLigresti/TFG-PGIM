@@ -29,3 +29,6 @@ export const NOMBRE_UNIDAD: Record<UnidadMedida, string> = {
   LITRO: 'Litros (l)',
   UNIDAD: 'Unidades',
 };
+
+// "AAAA-MM-DD" → "21/09/2026", sin pasar por Date para que la zona horaria no corra el día.
+export const formatoFecha = (fecha: string) => fecha.split('-').reverse().join('/');
