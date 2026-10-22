@@ -15,9 +15,10 @@ export function createApp() {
   const app = express();
 
   app.disable('x-powered-by');
-  // Detrás del proxy de Vite (y de un túnel más adelante), para que el rate
-  // limit vea la IP real del cliente.
-  app.set('trust proxy', 1);
+  // Se confía solo en los proxies locales (Vite y cloudflared): así el rate
+  // limit ve la IP real tanto por la red local como por el túnel, y un
+  // X-Forwarded-For inventado por el cliente no la reemplaza.
+  app.set('trust proxy', 'loopback');
   app.use(express.json());
   app.use(cookieParser());
 

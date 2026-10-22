@@ -13,9 +13,10 @@ export default defineConfig({
     // Quick tunnel de Cloudflare (HTTPS): la URL cambia en cada arranque.
     allowedHosts: ['.trycloudflare.com'],
     // En desarrollo, la API y Socket.IO se sirven por el mismo origen que el front.
+    // xfwd agrega la IP del cliente a X-Forwarded-For para que la API la vea.
     proxy: {
-      '/api': API_URL,
-      '/socket.io': { target: API_URL, ws: true },
+      '/api': { target: API_URL, xfwd: true },
+      '/socket.io': { target: API_URL, ws: true, xfwd: true },
     },
   },
 });

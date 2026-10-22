@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import type { CookieOptions } from 'express';
+import type { CookieOptions, Request } from 'express';
 import { env } from '../config/env';
 
 export const COOKIE_SESION = 'sesion';
@@ -32,10 +32,14 @@ export function verificarToken(token: string): TokenSesion | null {
   }
 }
 
-export const opcionesCookie: CookieOptions = {
-  httpOnly: true,
-  sameSite: 'lax',
-  secure: env.NODE_ENV === 'production',
-  path: '/',
-  maxAge: DURACION_SEGUNDOS * 1000,
-};
+// `secure` sigue al request: por el túnel (HTTPS) la cookie viaja solo
+// cifrada, y por HTTP en la red local se sigue pudiendo iniciar sesión.
+export function opcionesCookie(req: Request): CookieOptions {
+  return {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: req.secure,
+    path: '/',
+    maxAge: DURACION_SEGUNDOS * 1000,
+  };
+}

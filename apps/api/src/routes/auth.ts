@@ -26,7 +26,7 @@ const limiteLogin = rateLimit({
 authRouter.post('/login', limiteLogin, validar(loginRequestSchema), async (req, res) => {
   const { email, password } = req.body as LoginRequest;
   const { token, sesion } = await authService.iniciarSesion(email, password);
-  res.cookie(COOKIE_SESION, token, opcionesCookie).json(sesion);
+  res.cookie(COOKIE_SESION, token, opcionesCookie(req)).json(sesion);
 });
 
 authRouter.post('/sucursal', autenticar, validar(seleccionarSucursalSchema), async (req, res) => {
@@ -35,14 +35,14 @@ authRouter.post('/sucursal', autenticar, validar(seleccionarSucursalSchema), asy
     req.sesion!.usuario.id,
     sucursalId,
   );
-  res.cookie(COOKIE_SESION, token, opcionesCookie).json(sesion);
+  res.cookie(COOKIE_SESION, token, opcionesCookie(req)).json(sesion);
 });
 
 authRouter.get('/sesion', autenticar, (req, res) => {
   res.json(req.sesion);
 });
 
-authRouter.post('/logout', (_req, res) => {
-  const { maxAge: _maxAge, ...opciones } = opcionesCookie;
+authRouter.post('/logout', (req, res) => {
+  const { maxAge: _maxAge, ...opciones } = opcionesCookie(req);
   res.clearCookie(COOKIE_SESION, opciones).status(204).end();
 });
