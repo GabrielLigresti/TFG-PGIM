@@ -6,6 +6,10 @@ import {
   type CodigoPermiso,
   type RolPredeterminado,
 } from '@pgim/shared';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { CARPETA_MODELOS, borrarModelo, guardarModelo } from '../src/lib/archivos-modelo';
 import { prisma } from '../src/lib/prisma';
 import { hashPassword } from '../src/lib/password';
 import type { Prisma } from '../src/generated/prisma/client';
@@ -417,10 +421,44 @@ async function seedMenus(
   return ids[0]!;
 }
 
+// Modelos de demo (Kenney, CC0; ver modelos-demo/LICENCIA.md), ya a escala
+// real. El resto de los platos queda sin modelo, para ver el menú sin "Ver en RA".
+const MODELOS_RA = [
+  { plato: 'Flan casero', archivo: 'flan.glb', porcionGramos: 120 },
+  { plato: 'Bife de chorizo con papas', archivo: 'bife.glb', porcionGramos: 400 },
+];
+
+// Fuera de la transacción porque escribe archivos. Si el plato ya tiene su
+// modelo y el archivo existe, lo deja como está.
+async function seedModelosRa(restauranteId: string): Promise<void> {
+  for (const modelo of MODELOS_RA) {
+    const plato = await prisma.itemMenu.findFirstOrThrow({
+      where: { restauranteId, nombre: modelo.plato },
+      include: { modeloRa: true },
+    });
+    const actual = plato.modeloRa?.urlModelo;
+    if (actual && existsSync(path.join(CARPETA_MODELOS, path.basename(actual)))) continue;
+
+    const archivo = await readFile(path.join(__dirname, 'modelos-demo', modelo.archivo));
+    const datos = {
+      urlModelo: await guardarModelo(archivo, 'glb'),
+      urlModeloIos: null,
+      escalaReal: 1,
+      porcionGramos: modelo.porcionGramos,
+    };
+    await prisma.modeloRA.upsert({
+      where: { itemMenuId: plato.id },
+      update: datos,
+      create: { itemMenuId: plato.id, ...datos },
+    });
+    await borrarModelo(actual);
+  }
+}
+
 async function main(): Promise<void> {
   const passwordHash = await hashPassword(PASSWORD_DEMO);
 
-  await prisma.$transaction(async (tx) => {
+  const restauranteId = await prisma.$transaction(async (tx) => {
     const permisoIds = await seedPermisos(tx);
 
     const restaurante = await tx.restaurante.upsert({
@@ -510,7 +548,9 @@ async function main(): Promise<void> {
       update: { nombre: 'Carlos Comensal' },
       create: { usuarioId: comensal.id, nombre: 'Carlos Comensal' },
     });
+    return restaurante.id;
   });
+  await seedModelosRa(restauranteId);
 
   const [permisos, roles, sucursales, usuarios, componentes, platos, movimientos] =
     await Promise.all([

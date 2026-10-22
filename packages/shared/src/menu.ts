@@ -30,6 +30,22 @@ export const platoInputSchema = z.object({
 
 export type PlatoInput = z.infer<typeof platoInputSchema>;
 
+// Datos del modelo RA de un plato (CU-16). Los archivos .glb y .usdz se suben aparte.
+export const modeloRaInputSchema = z.object({
+  // Factor que lleva el modelo a tamaño real (1 si ya está en metros reales).
+  escalaReal: z.number().positive('La escala tiene que ser mayor a 0').max(1000),
+  porcionGramos: z.number().int().positive('La porción tiene que ser mayor a 0').max(10000),
+});
+
+export type ModeloRaInput = z.infer<typeof modeloRaInputSchema>;
+
+export interface ModeloRa extends ModeloRaInput {
+  urlModelo: string;
+  urlModeloIos: string | null;
+}
+
+export const LIMITE_MODELO_MB = 20;
+
 export interface Plato {
   id: string;
   nombre: string;
@@ -42,6 +58,7 @@ export interface Plato {
   tieneReceta: boolean;
   // La categoría pide receta y el plato no la tiene (anticipa PLATO_SIN_RECETA).
   sinReceta: boolean;
+  modeloRa: ModeloRa | null;
 }
 
 // Un menú agrupa platos del restaurante con una vigencia; cada sucursal elige

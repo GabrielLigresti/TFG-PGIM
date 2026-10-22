@@ -1,8 +1,15 @@
-import type { CategoriaInput, MenuInput, PlatoInput } from '@pgim/shared';
+import type { CategoriaInput, MenuInput, ModeloRaInput, PlatoInput } from '@pgim/shared';
+import * as archivosModelo from '../lib/archivos-modelo';
+import type { FormatoModelo } from '../lib/archivos-modelo';
 import { AppError } from '../lib/errors';
 import { menuRepository, type MenuRepository } from '../repositories/menu.repository';
 
-export function createMenuService(repo: MenuRepository) {
+export type ArchivosModelo = Pick<
+  typeof archivosModelo,
+  'validarGlb' | 'validarUsdz' | 'guardarModelo' | 'borrarModelo'
+>;
+
+export function createMenuService(repo: MenuRepository, archivos: ArchivosModelo = archivosModelo) {
   async function obtenerCategoria(restauranteId: string, id: string) {
     const categoria = await repo.buscarCategoria(restauranteId, id);
     if (!categoria) throw new AppError(404, 'La categoría no existe');
@@ -92,6 +99,57 @@ export function createMenuService(repo: MenuRepository) {
     async desactivarPlato(restauranteId: string, id: string) {
       await obtenerPlato(restauranteId, id);
       await repo.desactivarPlato(restauranteId, id);
+    },
+
+    // CU-16: el .glb es obligatorio y trae la escala y la porción; el .usdz
+    // (iOS) es opcional y solo se suma a un modelo existente. El archivo nuevo
+    // se guarda antes que la fila y el viejo se borra al final.
+    async subirModelo(
+      restauranteId: string,
+      id: string,
+      formato: FormatoModelo,
+      archivo: Buffer,
+      datos?: ModeloRaInput,
+    ) {
+      const plato = await obtenerPlato(restauranteId, id);
+      const actual = plato.modeloRa;
+      if (formato === 'glb') archivos.validarGlb(archivo);
+      else archivos.validarUsdz(archivo);
+      if (formato === 'usdz' && !actual) {
+        throw new AppError(409, 'Primero subí el modelo .glb del plato');
+      }
+      if (formato === 'glb' && !datos) {
+        throw new AppError(400, 'Indicá la escala y la porción del modelo');
+      }
+
+      const url = await archivos.guardarModelo(archivo, formato);
+      const nuevo =
+        formato === 'glb'
+          ? { urlModelo: url, urlModeloIos: actual?.urlModeloIos ?? null, ...datos! }
+          : { ...actual!, urlModeloIos: url };
+      try {
+        await repo.guardarModeloRa(id, nuevo);
+      } catch (e) {
+        await archivos.borrarModelo(url);
+        throw e;
+      }
+      await archivos.borrarModelo(formato === 'glb' ? actual?.urlModelo : actual?.urlModeloIos);
+      return obtenerPlato(restauranteId, id);
+    },
+
+    async actualizarDatosModelo(restauranteId: string, id: string, datos: ModeloRaInput) {
+      const { modeloRa } = await obtenerPlato(restauranteId, id);
+      if (!modeloRa) throw new AppError(409, 'El plato no tiene modelo RA');
+      await repo.guardarModeloRa(id, { ...modeloRa, ...datos });
+      return obtenerPlato(restauranteId, id);
+    },
+
+    async quitarModelo(restauranteId: string, id: string) {
+      const { modeloRa } = await obtenerPlato(restauranteId, id);
+      if (!modeloRa) return;
+      await repo.borrarModeloRa(id);
+      await archivos.borrarModelo(modeloRa.urlModelo);
+      await archivos.borrarModelo(modeloRa.urlModeloIos);
     },
 
     listarMenus: (restauranteId: string) => repo.listarMenus(restauranteId),

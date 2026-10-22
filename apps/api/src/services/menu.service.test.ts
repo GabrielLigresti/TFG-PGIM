@@ -4,12 +4,46 @@ import {
   type Categoria,
   type Menu,
   type MenuInput,
+  type Plato,
   type PlatoInput,
 } from '@pgim/shared';
 import type { MenuRepository } from '../repositories/menu.repository';
-import { createMenuService } from './menu.service';
+import { createMenuService, type ArchivosModelo } from './menu.service';
 
 const R = 'restaurante';
+
+function archivosFalsos(): jest.Mocked<ArchivosModelo> {
+  return {
+    validarGlb: jest.fn(),
+    validarUsdz: jest.fn(),
+    guardarModelo: jest.fn().mockResolvedValue('/api/uploads/modelos/nuevo.glb'),
+    borrarModelo: jest.fn(),
+  };
+}
+
+const platoBase: Plato = {
+  id: 'bife',
+  nombre: 'Bife',
+  descripcion: null,
+  precio: 1000,
+  fotoUrl: null,
+  disponible: true,
+  activo: true,
+  categoria: { id: 'principales', nombre: 'Principales', requiereReceta: true },
+  tieneReceta: true,
+  sinReceta: false,
+  modeloRa: null,
+};
+
+const conModelo: Plato = {
+  ...platoBase,
+  modeloRa: {
+    urlModelo: '/api/uploads/modelos/viejo.glb',
+    urlModeloIos: '/api/uploads/modelos/viejo.usdz',
+    escalaReal: 1,
+    porcionGramos: 400,
+  },
+};
 
 const principales: Categoria = {
   id: 'principales',
@@ -49,6 +83,8 @@ function repoFalso(categoria: Categoria | null = principales): jest.Mocked<MenuR
     crearPlato: jest.fn(),
     actualizarPlato: jest.fn(),
     desactivarPlato: jest.fn(),
+    guardarModeloRa: jest.fn(),
+    borrarModeloRa: jest.fn(),
     listarMenus: jest.fn(),
     buscarMenu: jest.fn().mockResolvedValue(primavera),
     existeMenu: jest.fn().mockResolvedValue(false),
@@ -148,6 +184,75 @@ describe('menuService', () => {
     await createMenuService(repo).borrarMenu(R, 'primavera');
 
     expect(repo.borrarMenu).toHaveBeenCalledWith(R, 'primavera');
+  });
+});
+
+describe('modelo RA del plato', () => {
+  const datos = { escalaReal: 0.5, porcionGramos: 350 };
+
+  it('sube el .glb, guarda la fila y borra el archivo anterior', async () => {
+    const repo = repoFalso();
+    repo.buscarPlato.mockResolvedValue(conModelo);
+    const archivos = archivosFalsos();
+
+    await createMenuService(repo, archivos).subirModelo(R, 'bife', 'glb', Buffer.from('x'), datos);
+
+    expect(archivos.validarGlb).toHaveBeenCalled();
+    expect(repo.guardarModeloRa).toHaveBeenCalledWith('bife', {
+      urlModelo: '/api/uploads/modelos/nuevo.glb',
+      urlModeloIos: '/api/uploads/modelos/viejo.usdz',
+      ...datos,
+    });
+    expect(archivos.borrarModelo).toHaveBeenCalledWith('/api/uploads/modelos/viejo.glb');
+  });
+
+  it('no acepta un .usdz si el plato no tiene .glb', async () => {
+    const repo = repoFalso();
+    repo.buscarPlato.mockResolvedValue(platoBase);
+    const archivos = archivosFalsos();
+
+    await expect(
+      createMenuService(repo, archivos).subirModelo(R, 'bife', 'usdz', Buffer.from('x')),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(archivos.guardarModelo).not.toHaveBeenCalled();
+  });
+
+  it('no guarda nada si el archivo no es válido', async () => {
+    const repo = repoFalso();
+    repo.buscarPlato.mockResolvedValue(platoBase);
+    const archivos = archivosFalsos();
+    archivos.validarGlb.mockImplementation(() => {
+      throw new Error('no es un modelo .glb');
+    });
+
+    await expect(
+      createMenuService(repo, archivos).subirModelo(R, 'bife', 'glb', Buffer.from('x'), datos),
+    ).rejects.toThrow('no es un modelo .glb');
+    expect(archivos.guardarModelo).not.toHaveBeenCalled();
+  });
+
+  it('si falla la base, borra el archivo recién guardado', async () => {
+    const repo = repoFalso();
+    repo.buscarPlato.mockResolvedValue(platoBase);
+    repo.guardarModeloRa.mockRejectedValue(new Error('base caída'));
+    const archivos = archivosFalsos();
+
+    await expect(
+      createMenuService(repo, archivos).subirModelo(R, 'bife', 'glb', Buffer.from('x'), datos),
+    ).rejects.toThrow('base caída');
+    expect(archivos.borrarModelo).toHaveBeenCalledWith('/api/uploads/modelos/nuevo.glb');
+  });
+
+  it('quitar el modelo borra la fila y los dos archivos', async () => {
+    const repo = repoFalso();
+    repo.buscarPlato.mockResolvedValue(conModelo);
+    const archivos = archivosFalsos();
+
+    await createMenuService(repo, archivos).quitarModelo(R, 'bife');
+
+    expect(repo.borrarModeloRa).toHaveBeenCalledWith('bife');
+    expect(archivos.borrarModelo).toHaveBeenCalledWith('/api/uploads/modelos/viejo.glb');
+    expect(archivos.borrarModelo).toHaveBeenCalledWith('/api/uploads/modelos/viejo.usdz');
   });
 });
 

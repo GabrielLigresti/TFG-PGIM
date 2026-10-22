@@ -1,4 +1,12 @@
-import type { Categoria, CategoriaInput, Menu, MenuInput, Plato, PlatoInput } from '@pgim/shared';
+import type {
+  Categoria,
+  CategoriaInput,
+  Menu,
+  MenuInput,
+  ModeloRa,
+  Plato,
+  PlatoInput,
+} from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
 
@@ -16,6 +24,9 @@ export interface MenuRepository {
   crearPlato(restauranteId: string, datos: PlatoInput): Promise<Plato>;
   actualizarPlato(restauranteId: string, id: string, datos: PlatoInput): Promise<Plato>;
   desactivarPlato(restauranteId: string, id: string): Promise<void>;
+  // El plato tiene que ser del restaurante: el servicio lo verifica antes.
+  guardarModeloRa(platoId: string, datos: ModeloRa): Promise<void>;
+  borrarModeloRa(platoId: string): Promise<void>;
 
   listarMenus(restauranteId: string): Promise<Menu[]>;
   buscarMenu(restauranteId: string, id: string): Promise<Menu | null>;
@@ -51,13 +62,17 @@ const seleccionPlato = {
   activo: true,
   categoria: { select: { id: true, nombre: true, requiereReceta: true } },
   receta: { select: { id: true } },
+  modeloRa: {
+    select: { urlModelo: true, urlModeloIos: true, escalaReal: true, porcionGramos: true },
+  },
 } satisfies Prisma.ItemMenuSelect;
 
 type FilaPlato = Prisma.ItemMenuGetPayload<{ select: typeof seleccionPlato }>;
 
-function aPlato({ receta, ...fila }: FilaPlato): Plato {
+function aPlato({ receta, modeloRa, ...fila }: FilaPlato): Plato {
   return {
     ...fila,
+    modeloRa: modeloRa && { ...modeloRa, escalaReal: Number(modeloRa.escalaReal) },
     precio: Number(fila.precio),
     tieneReceta: receta !== null,
     sinReceta: fila.categoria.requiereReceta && receta === null,
@@ -213,6 +228,18 @@ export const menuRepository: MenuRepository = {
 
   async desactivarPlato(restauranteId, id) {
     await prisma.itemMenu.update({ where: { id, restauranteId }, data: { activo: false } });
+  },
+
+  async guardarModeloRa(platoId, datos) {
+    await prisma.modeloRA.upsert({
+      where: { itemMenuId: platoId },
+      update: datos,
+      create: { itemMenuId: platoId, ...datos },
+    });
+  },
+
+  async borrarModeloRa(platoId) {
+    await prisma.modeloRA.deleteMany({ where: { itemMenuId: platoId } });
   },
 
   async listarMenus(restauranteId) {
