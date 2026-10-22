@@ -25,6 +25,7 @@ import {
 import { aNumero } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { QrMenuModal } from './QrMenuModal';
 
 const NOMBRE_FRANJA: Record<Franja, string> = { ALMUERZO: 'Almuerzo', CENA: 'Cena' };
 
@@ -45,6 +46,7 @@ export function SucursalesPage() {
   const acotada = !administraModulo(sesion?.permisos ?? [], 'sucursal');
   const { datos, cargando, error, recargar } = useRecurso<Sucursal[]>('/sucursales');
   const [editando, setEditando] = useState<Sucursal | 'nueva' | null>(null);
+  const [qr, setQr] = useState<Sucursal | null>(null);
   const baja = useGuardar();
 
   async function guardado() {
@@ -100,6 +102,11 @@ export function SucursalesPage() {
           ]}
           acciones={(s) => (
             <span className="inline-flex gap-2">
+              {s.activa && (
+                <Boton variante="secundario" onClick={() => setQr(s)}>
+                  QR del menú
+                </Boton>
+              )}
               {tienePermiso('sucursal.editar') && (
                 <Boton variante="secundario" onClick={() => setEditando(s)}>
                   Editar
@@ -115,6 +122,7 @@ export function SucursalesPage() {
         />
       )}
 
+      {qr && <QrMenuModal sucursal={qr} onCerrar={() => setQr(null)} />}
       {editando && (
         <FormularioSucursal
           sucursal={editando === 'nueva' ? null : editando}
