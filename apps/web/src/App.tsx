@@ -7,6 +7,7 @@ import { PanelLayout } from './components/PanelLayout';
 import { InicioComensalPage } from './pages/InicioComensalPage';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/PanelPage';
+import { PruebaRaPage } from './pages/PruebaRaPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
 import { InsumosPage } from './pages/panel/InsumosPage';
 import { PersonalPage } from './pages/panel/PersonalPage';
@@ -31,6 +32,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/prueba-ra" element={<PruebaRaPage />} />
           <Route
             path="/sucursal"
             element={
