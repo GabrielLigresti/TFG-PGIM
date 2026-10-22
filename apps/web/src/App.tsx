@@ -4,10 +4,12 @@ import type { CodigoPermiso } from '@pgim/shared';
 import { RutaProtegida } from './auth/RutaProtegida';
 import { SesionProvider } from './auth/SesionProvider';
 import { PanelLayout } from './components/PanelLayout';
-import { InicioComensalPage } from './pages/InicioComensalPage';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/PanelPage';
 import { PruebaRaPage } from './pages/PruebaRaPage';
+import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
+import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
+import { PlatoPage } from './pages/comensal/PlatoPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
 import { InsumosPage } from './pages/panel/InsumosPage';
 import { MenusPage } from './pages/panel/MenusPage';
@@ -25,6 +27,10 @@ function conPermiso(permiso: CodigoPermiso, pagina: ReactNode) {
       {pagina}
     </RutaProtegida>
   );
+}
+
+function paraComensal(pagina: ReactNode) {
+  return <RutaProtegida tipo="COMENSAL">{pagina}</RutaProtegida>;
 }
 
 export default function App() {
@@ -63,14 +69,9 @@ export default function App() {
             <Route path="platos" element={conPermiso('menu.ver', <PlatosPage />)} />
             <Route path="menus" element={conPermiso('menu.ver', <MenusPage />)} />
           </Route>
-          <Route
-            path="/inicio"
-            element={
-              <RutaProtegida tipo="COMENSAL">
-                <InicioComensalPage />
-              </RutaProtegida>
-            }
-          />
+          <Route path="/inicio" element={paraComensal(<InicioComensalPage />)} />
+          <Route path="/s/:sucursalId/menu" element={paraComensal(<MenuSucursalPage />)} />
+          <Route path="/s/:sucursalId/platos/:id" element={paraComensal(<PlatoPage />)} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

@@ -1,19 +1,33 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useNavigate } from 'react-router';
+import { Navigate, useLocation, useNavigate } from 'react-router';
+import type { Sesion } from '@pgim/shared';
 import { ApiError } from '../lib/api';
 import { rutaInicio, useSesion } from '../auth/SesionProvider';
 import { Cargando } from '../components/Cargando';
 
+// La página que pidió el login (RutaProtegida la deja en el state), si es para
+// el mismo tipo de usuario que entró.
+interface Destino {
+  desde?: string;
+  tipo?: Sesion['usuario']['tipo'];
+}
+
+function destino(sesion: Sesion, state: unknown): string {
+  const { desde, tipo } = (state ?? {}) as Destino;
+  return desde && tipo === sesion.usuario.tipo ? desde : rutaInicio(sesion);
+}
+
 export function LoginPage() {
   const { sesion, cargando, login } = useSesion();
   const navigate = useNavigate();
+  const { state } = useLocation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   if (cargando) return <Cargando />;
-  if (sesion) return <Navigate to={rutaInicio(sesion)} replace />;
+  if (sesion) return <Navigate to={destino(sesion, state)} replace />;
 
   async function onSubmit(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
@@ -21,7 +35,7 @@ export function LoginPage() {
     setEnviando(true);
     try {
       const nueva = await login(email, password);
-      navigate(rutaInicio(nueva), { replace: true });
+      navigate(destino(nueva, state), { replace: true });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo iniciar sesión');
       setEnviando(false);
