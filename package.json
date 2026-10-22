@@ -12,6 +12,7 @@
   "scripts": {
     "postinstall": "npm run build -w @pgim/shared",
     "dev": "concurrently -n shared,api,web -c blue,green,magenta \"npm run dev -w @pgim/shared\" \"npm run dev -w @pgim/api\" \"npm run dev -w @pgim/web\"",
+    "tunnel": "cloudflared tunnel --url http://localhost:5173",
     "build": "npm run build -w @pgim/shared && npm run build -w @pgim/api && npm run build -w @pgim/web",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
