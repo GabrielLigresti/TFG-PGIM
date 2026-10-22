@@ -4,7 +4,7 @@ import { API_PREFIX } from '@pgim/shared';
 import { authRouter } from './routes/auth';
 import { healthRouter } from './routes/health';
 import { insumosRouter } from './routes/insumos';
-import { categoriasRouter, platosRouter } from './routes/menu';
+import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
 import { personalRouter } from './routes/personal';
 import { recetasRouter } from './routes/recetas';
 import { rolesRouter } from './routes/roles';
@@ -31,6 +31,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/recetas`, recetasRouter);
   app.use(`${API_PREFIX}/categorias`, categoriasRouter);
   app.use(`${API_PREFIX}/platos`, platosRouter);
+  app.use(`${API_PREFIX}/menus`, menusRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

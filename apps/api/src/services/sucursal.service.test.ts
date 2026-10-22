@@ -13,6 +13,7 @@ const centro: Sucursal = {
   toleranciaNoShowMin: 15,
   activa: true,
   horariosServicio: [],
+  menuActivo: null,
 };
 
 const datos: SucursalInput = { ...centro, horariosServicio: [] };
@@ -23,6 +24,7 @@ function repoFalso(cambios: Partial<SucursalRepository> = {}): jest.Mocked<Sucur
     buscar: jest.fn().mockResolvedValue(centro),
     existeNombre: jest.fn().mockResolvedValue(false),
     contarActivas: jest.fn().mockResolvedValue(2),
+    existeMenu: jest.fn().mockResolvedValue(true),
     crear: jest.fn().mockResolvedValue(centro),
     actualizar: jest.fn().mockResolvedValue(centro),
     desactivar: jest.fn(),
@@ -94,5 +96,15 @@ describe('sucursalService', () => {
     await expect(createSucursalService(repo).desactivar(R, 'ajena')).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it('rechaza un menú activo de otro restaurante', async () => {
+    const repo = repoFalso({ existeMenu: jest.fn().mockResolvedValue(false) });
+    const conMenu = { ...datos, menuActivoId: '01900000-0000-7000-8000-000000000099' };
+
+    await expect(
+      createSucursalService(repo).actualizar(R, 'centro', conMenu),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(repo.actualizar).not.toHaveBeenCalled();
   });
 });

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { horaSchema, minutosFin, minutosInicio, nombreSchema } from './comun';
+import { horaSchema, minutosFin, minutosInicio, nombreSchema, type Referencia } from './comun';
 
 export const FRANJAS = ['ALMUERZO', 'CENA'] as const;
 export type Franja = (typeof FRANJAS)[number];
@@ -17,7 +17,7 @@ export const horarioServicioSchema = z
 
 export type HorarioServicio = z.infer<typeof horarioServicioSchema>;
 
-// CU-13 (sin menú activo, que llega con los menús).
+// CU-13.
 export const sucursalInputSchema = z
   .object({
     nombre: nombreSchema,
@@ -26,6 +26,7 @@ export const sucursalInputSchema = z
     horarioCierre: horaSchema,
     toleranciaNoShowMin: z.number().int().min(0).max(240),
     horariosServicio: z.array(horarioServicioSchema).max(FRANJAS.length),
+    menuActivoId: z.uuid().nullish(),
     activa: z.boolean().optional(),
   })
   .refine((s) => minutosInicio(s.horarioApertura) < minutosFin(s.horarioCierre), {
@@ -63,4 +64,5 @@ export interface Sucursal {
   toleranciaNoShowMin: number;
   activa: boolean;
   horariosServicio: HorarioServicio[];
+  menuActivo: Referencia | null;
 }

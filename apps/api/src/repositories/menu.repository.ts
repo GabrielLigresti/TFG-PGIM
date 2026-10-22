@@ -1,4 +1,4 @@
-import type { Categoria, CategoriaInput, Plato, PlatoInput } from '@pgim/shared';
+import type { Categoria, CategoriaInput, Menu, MenuInput, Plato, PlatoInput } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
 
@@ -16,6 +16,16 @@ export interface MenuRepository {
   crearPlato(restauranteId: string, datos: PlatoInput): Promise<Plato>;
   actualizarPlato(restauranteId: string, id: string, datos: PlatoInput): Promise<Plato>;
   desactivarPlato(restauranteId: string, id: string): Promise<void>;
+
+  listarMenus(restauranteId: string): Promise<Menu[]>;
+  buscarMenu(restauranteId: string, id: string): Promise<Menu | null>;
+  existeMenu(restauranteId: string, nombre: string, excluirId?: string): Promise<boolean>;
+  // Cuántos de esos platos son del restaurante y están activos.
+  contarPlatosActivos(restauranteId: string, platoIds: string[]): Promise<number>;
+  contarPromociones(restauranteId: string, menuId: string): Promise<number>;
+  crearMenu(restauranteId: string, datos: MenuInput): Promise<Menu>;
+  actualizarMenu(restauranteId: string, id: string, datos: MenuInput): Promise<Menu>;
+  borrarMenu(restauranteId: string, id: string): Promise<void>;
 }
 
 const seleccionCategoria = {
@@ -64,6 +74,42 @@ function columnasPlato(datos: PlatoInput) {
     disponible: datos.disponible,
   };
 }
+
+const seleccionMenu = {
+  id: true,
+  nombre: true,
+  descripcion: true,
+  vigenciaDesde: true,
+  vigenciaHasta: true,
+  items: { select: { itemMenuId: true } },
+  sucursalesActivas: { select: { id: true, nombre: true }, orderBy: { nombre: 'asc' } },
+} satisfies Prisma.MenuSelect;
+
+type FilaMenu = Prisma.MenuGetPayload<{ select: typeof seleccionMenu }>;
+
+// Las columnas date llegan como Date a medianoche UTC: se toma la parte de la fecha.
+const aFecha = (fecha: Date) => fecha.toISOString().slice(0, 10);
+const deFecha = (fecha: string) => new Date(`${fecha}T00:00:00.000Z`);
+
+function aMenu({ items, ...fila }: FilaMenu): Menu {
+  return {
+    ...fila,
+    vigenciaDesde: aFecha(fila.vigenciaDesde),
+    vigenciaHasta: fila.vigenciaHasta && aFecha(fila.vigenciaHasta),
+    platoIds: items.map((i) => i.itemMenuId),
+  };
+}
+
+function columnasMenu(datos: MenuInput) {
+  return {
+    nombre: datos.nombre,
+    descripcion: datos.descripcion || null,
+    vigenciaDesde: deFecha(datos.vigenciaDesde),
+    vigenciaHasta: datos.vigenciaHasta ? deFecha(datos.vigenciaHasta) : null,
+  };
+}
+
+const itemsMenu = (platoIds: string[]) => platoIds.map((itemMenuId) => ({ itemMenuId }));
 
 const nombreIgual = (nombre: string) => ({ equals: nombre, mode: 'insensitive' as const });
 
@@ -167,5 +213,69 @@ export const menuRepository: MenuRepository = {
 
   async desactivarPlato(restauranteId, id) {
     await prisma.itemMenu.update({ where: { id, restauranteId }, data: { activo: false } });
+  },
+
+  async listarMenus(restauranteId) {
+    const filas = await prisma.menu.findMany({
+      where: { restauranteId },
+      select: seleccionMenu,
+      orderBy: [{ vigenciaDesde: 'desc' }, { nombre: 'asc' }],
+    });
+    return filas.map(aMenu);
+  },
+
+  async buscarMenu(restauranteId, id) {
+    const fila = await prisma.menu.findFirst({
+      where: { id, restauranteId },
+      select: seleccionMenu,
+    });
+    return fila && aMenu(fila);
+  },
+
+  async existeMenu(restauranteId, nombre, excluirId) {
+    const cantidad = await prisma.menu.count({
+      where: {
+        restauranteId,
+        nombre: nombreIgual(nombre),
+        ...(excluirId && { id: { not: excluirId } }),
+      },
+    });
+    return cantidad > 0;
+  },
+
+  contarPlatosActivos(restauranteId, platoIds) {
+    return prisma.itemMenu.count({ where: { restauranteId, activo: true, id: { in: platoIds } } });
+  },
+
+  contarPromociones(restauranteId, menuId) {
+    return prisma.beneficio.count({ where: { restauranteId, menuId } });
+  },
+
+  async crearMenu(restauranteId, datos) {
+    const fila = await prisma.menu.create({
+      data: {
+        restauranteId,
+        ...columnasMenu(datos),
+        items: { create: itemsMenu(datos.platoIds) },
+      },
+      select: seleccionMenu,
+    });
+    return aMenu(fila);
+  },
+
+  async actualizarMenu(restauranteId, id, datos) {
+    const fila = await prisma.menu.update({
+      where: { id, restauranteId },
+      data: {
+        ...columnasMenu(datos),
+        items: { deleteMany: {}, create: itemsMenu(datos.platoIds) },
+      },
+      select: seleccionMenu,
+    });
+    return aMenu(fila);
+  },
+
+  async borrarMenu(restauranteId, id) {
+    await prisma.menu.delete({ where: { id, restauranteId } });
   },
 };

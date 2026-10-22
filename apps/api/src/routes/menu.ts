@@ -2,14 +2,16 @@ import { Router } from 'express';
 import {
   categoriaInputSchema,
   idParamSchema,
+  menuInputSchema,
   platoInputSchema,
   type CategoriaInput,
+  type MenuInput,
   type PlatoInput,
 } from '@pgim/shared';
 import { autenticar, requierePermiso, tenant, validar, validarParams } from '../middleware/auth';
 import { menuService } from '../services/menu.service';
 
-// Categorías y platos comparten los permisos menu.* (el Jefe de cocina tiene el ABM completo).
+// Categorías, platos y menús comparten los permisos menu.* (el Jefe de cocina tiene el ABM completo).
 
 export const categoriasRouter = Router();
 
@@ -99,6 +101,46 @@ platosRouter.delete(
   validarParams(idParamSchema),
   async (req, res) => {
     await menuService.desactivarPlato(req.tenant!.restauranteId, req.params.id as string);
+    res.status(204).end();
+  },
+);
+
+export const menusRouter = Router();
+
+menusRouter.use(autenticar, tenant);
+
+menusRouter.get('/', requierePermiso('menu.ver'), async (req, res) => {
+  res.json(await menuService.listarMenus(req.tenant!.restauranteId));
+});
+
+menusRouter.post('/', requierePermiso('menu.crear'), validar(menuInputSchema), async (req, res) => {
+  res
+    .status(201)
+    .json(await menuService.crearMenu(req.tenant!.restauranteId, req.body as MenuInput));
+});
+
+menusRouter.put(
+  '/:id',
+  requierePermiso('menu.editar'),
+  validarParams(idParamSchema),
+  validar(menuInputSchema),
+  async (req, res) => {
+    res.json(
+      await menuService.actualizarMenu(
+        req.tenant!.restauranteId,
+        req.params.id as string,
+        req.body as MenuInput,
+      ),
+    );
+  },
+);
+
+menusRouter.delete(
+  '/:id',
+  requierePermiso('menu.eliminar'),
+  validarParams(idParamSchema),
+  async (req, res) => {
+    await menuService.borrarMenu(req.tenant!.restauranteId, req.params.id as string);
     res.status(204).end();
   },
 );

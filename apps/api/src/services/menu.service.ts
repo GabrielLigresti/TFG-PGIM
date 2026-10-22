@@ -1,4 +1,4 @@
-import type { CategoriaInput, PlatoInput } from '@pgim/shared';
+import type { CategoriaInput, MenuInput, PlatoInput } from '@pgim/shared';
 import { AppError } from '../lib/errors';
 import { menuRepository, type MenuRepository } from '../repositories/menu.repository';
 
@@ -30,6 +30,24 @@ export function createMenuService(repo: MenuRepository) {
     if (await repo.existePlato(restauranteId, datos.nombre, excluirId)) {
       throw new AppError(409, `Ya existe un plato llamado "${datos.nombre}"`);
     }
+  }
+
+  async function obtenerMenu(restauranteId: string, id: string) {
+    const menu = await repo.buscarMenu(restauranteId, id);
+    if (!menu) throw new AppError(404, 'El menú no existe');
+    return menu;
+  }
+
+  // Sin platos repetidos y todos del restaurante y activos.
+  async function normalizarMenu(restauranteId: string, datos: MenuInput, excluirId?: string) {
+    if (await repo.existeMenu(restauranteId, datos.nombre, excluirId)) {
+      throw new AppError(409, `Ya existe un menú llamado "${datos.nombre}"`);
+    }
+    const platoIds = [...new Set(datos.platoIds)];
+    if ((await repo.contarPlatosActivos(restauranteId, platoIds)) !== platoIds.length) {
+      throw new AppError(400, 'El menú solo puede tener platos activos del restaurante');
+    }
+    return { ...datos, platoIds };
   }
 
   return {
@@ -74,6 +92,33 @@ export function createMenuService(repo: MenuRepository) {
     async desactivarPlato(restauranteId: string, id: string) {
       await obtenerPlato(restauranteId, id);
       await repo.desactivarPlato(restauranteId, id);
+    },
+
+    listarMenus: (restauranteId: string) => repo.listarMenus(restauranteId),
+
+    async crearMenu(restauranteId: string, datos: MenuInput) {
+      return repo.crearMenu(restauranteId, await normalizarMenu(restauranteId, datos));
+    },
+
+    async actualizarMenu(restauranteId: string, id: string, datos: MenuInput) {
+      await obtenerMenu(restauranteId, id);
+      return repo.actualizarMenu(restauranteId, id, await normalizarMenu(restauranteId, datos, id));
+    },
+
+    // La tabla no tiene baja lógica: se borra solo si nada lo usa.
+    async borrarMenu(restauranteId: string, id: string) {
+      const menu = await obtenerMenu(restauranteId, id);
+      if (menu.sucursalesActivas.length > 0) {
+        const sucursales = menu.sucursalesActivas.map((s) => s.nombre).join(', ');
+        throw new AppError(
+          409,
+          `El menú "${menu.nombre}" está activo en ${sucursales}: elegí otro menú para esas sucursales antes de borrarlo`,
+        );
+      }
+      if ((await repo.contarPromociones(restauranteId, id)) > 0) {
+        throw new AppError(409, `El menú "${menu.nombre}" tiene promociones asociadas`);
+      }
+      await repo.borrarMenu(restauranteId, id);
     },
   };
 }

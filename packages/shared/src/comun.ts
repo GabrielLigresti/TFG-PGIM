@@ -25,3 +25,17 @@ export function minutosInicio(hora: string): number {
 export function minutosFin(hora: string): number {
   return hora === '00:00' ? 24 * 60 : minutosInicio(hora);
 }
+
+// Fechas "AAAA-MM-DD" (columnas date). El día se toma en hora de Argentina,
+// como fija la convención del DER.
+export const fechaSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha inválida: usá el formato AAAA-MM-DD');
+
+const formatoFecha = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+});
+
+export function hoyArgentina(ahora: Date = new Date()): string {
+  return formatoFecha.format(ahora);
+}

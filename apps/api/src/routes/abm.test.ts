@@ -15,6 +15,7 @@ const ABM: { ruta: string; modulo: string }[] = [
   { ruta: '/api/insumos', modulo: 'insumo' },
   { ruta: '/api/categorias', modulo: 'menu' },
   { ruta: '/api/platos', modulo: 'menu' },
+  { ruta: '/api/menus', modulo: 'menu' },
 ];
 
 const ID = '01900000-0000-7000-8000-000000000011';

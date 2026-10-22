@@ -297,7 +297,7 @@ async function seedMenuEInventario(
   restauranteId: string,
   centroId: string,
   adminId: string,
-): Promise<void> {
+): Promise<string[]> {
   const categoriaIds = new Map<NombreCategoria, string>();
   for (const { nombre, requiereReceta } of CATEGORIAS) {
     const categoria = await tx.categoria.upsert({
@@ -352,6 +352,7 @@ async function seedMenuEInventario(
   componentes.set('Salsa criolla', salsaId);
   await seedReceta(tx, { productoIntermedioId: salsaId }, SALSA_CRIOLLA, componentes);
 
+  const platoIds: string[] = [];
   for (const plato of PLATOS) {
     const datos = {
       categoriaId: categoriaIds.get(plato.categoria)!,
@@ -369,7 +370,51 @@ async function seedMenuEInventario(
 
     if (plato.receta) await seedReceta(tx, { itemMenuId: item.id }, plato.receta, componentes);
     else await tx.receta.deleteMany({ where: { itemMenuId: item.id } });
+    platoIds.push(item.id);
   }
+  return platoIds;
+}
+
+// "Carta principal" queda vigente y activa en Centro; "Menú de invierno" ya
+// venció, para ver cómo se marca en el panel.
+const MENUS = [
+  {
+    nombre: 'Carta principal',
+    descripcion: 'La carta de todo el año.',
+    vigenciaDesde: '2026-10-01',
+    vigenciaHasta: null,
+  },
+  {
+    nombre: 'Menú de invierno',
+    descripcion: 'Platos de olla y guisos.',
+    vigenciaDesde: '2026-06-21',
+    vigenciaHasta: '2026-09-20',
+  },
+] as const;
+
+async function seedMenus(
+  tx: Prisma.TransactionClient,
+  restauranteId: string,
+  platoIds: string[],
+): Promise<string> {
+  const ids: string[] = [];
+  for (const menu of MENUS) {
+    const datos = {
+      descripcion: menu.descripcion,
+      vigenciaDesde: new Date(`${menu.vigenciaDesde}T00:00:00.000Z`),
+      vigenciaHasta: menu.vigenciaHasta && new Date(`${menu.vigenciaHasta}T00:00:00.000Z`),
+    };
+    const existente = await tx.menu.findFirst({ where: { restauranteId, nombre: menu.nombre } });
+    const fila = existente
+      ? await tx.menu.update({ where: { id: existente.id }, data: datos })
+      : await tx.menu.create({ data: { restauranteId, nombre: menu.nombre, ...datos } });
+    await tx.menuItem.deleteMany({ where: { menuId: fila.id } });
+    await tx.menuItem.createMany({
+      data: platoIds.map((itemMenuId) => ({ menuId: fila.id, itemMenuId })),
+    });
+    ids.push(fila.id);
+  }
+  return ids[0]!;
 }
 
 async function main(): Promise<void> {
@@ -443,7 +488,17 @@ async function main(): Promise<void> {
     }
 
     const admin = await tx.usuario.findUniqueOrThrow({ where: { email: 'admin@demo.pgim.test' } });
-    await seedMenuEInventario(tx, restaurante.id, sucursalIds.get('Centro')!, admin.id);
+    const platoIds = await seedMenuEInventario(
+      tx,
+      restaurante.id,
+      sucursalIds.get('Centro')!,
+      admin.id,
+    );
+    const cartaId = await seedMenus(tx, restaurante.id, platoIds);
+    await tx.sucursal.update({
+      where: { id: sucursalIds.get('Centro')! },
+      data: { menuActivoId: cartaId },
+    });
 
     const comensal = await tx.usuario.upsert({
       where: { email: 'comensal@demo.pgim.test' },
