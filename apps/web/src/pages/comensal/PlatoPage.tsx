@@ -1,6 +1,7 @@
 import { useParams } from 'react-router';
 import type { DetallePlato } from '@pgim/shared';
 import { LayoutComensal } from '../../components/LayoutComensal';
+import { VisorRA } from '../../components/VisorRA';
 import { EstadoCarga } from '../../components/ui';
 import { formatoCantidad, formatoPesos } from '../../lib/formato';
 import { useRecurso } from '../../lib/useRecurso';
@@ -38,6 +39,9 @@ export function PlatoPage() {
               </p>
             )}
           </div>
+          {plato.modeloRa && (
+            <VisorRA modelo={plato.modeloRa} nombre={plato.nombre} fotoUrl={plato.fotoUrl} />
+          )}
         </article>
       )}
     </LayoutComensal>

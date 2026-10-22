@@ -3,15 +3,7 @@ import { LIMITE_MODELO_MB, type ModeloRaInput, type Plato } from '@pgim/shared';
 import { Aviso, Boton, Campo, Modal, claseInput, propsDecimal } from '../../components/ui';
 import { ApiError, api, subirArchivo } from '../../lib/api';
 import { aNumero, formatoCantidad } from '../../lib/formato';
-
-// model-viewer pesa: se carga recién cuando se abre una vista previa.
-export function useModelViewer() {
-  const [listo, setListo] = useState(false);
-  useEffect(() => {
-    void import('@google/model-viewer').then(() => setListo(true));
-  }, []);
-  return listo;
-}
+import { useModelViewer } from '../../lib/useModelViewer';
 
 function verificarArchivo(archivo: File, extension: string): string | null {
   if (!archivo.name.toLowerCase().endsWith(extension)) return `Elegí un archivo ${extension}`;
