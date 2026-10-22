@@ -198,7 +198,7 @@ describe('modelo RA del plato', () => {
     await createMenuService(repo, archivos).subirModelo(R, 'bife', 'glb', Buffer.from('x'), datos);
 
     expect(archivos.validarGlb).toHaveBeenCalled();
-    expect(repo.guardarModeloRa).toHaveBeenCalledWith('bife', {
+    expect(repo.guardarModeloRa).toHaveBeenCalledWith(R, 'bife', {
       urlModelo: '/api/uploads/modelos/nuevo.glb',
       urlModeloIos: '/api/uploads/modelos/viejo.usdz',
       ...datos,
@@ -250,7 +250,7 @@ describe('modelo RA del plato', () => {
 
     await createMenuService(repo, archivos).quitarModelo(R, 'bife');
 
-    expect(repo.borrarModeloRa).toHaveBeenCalledWith('bife');
+    expect(repo.borrarModeloRa).toHaveBeenCalledWith(R, 'bife');
     expect(archivos.borrarModelo).toHaveBeenCalledWith('/api/uploads/modelos/viejo.glb');
     expect(archivos.borrarModelo).toHaveBeenCalledWith('/api/uploads/modelos/viejo.usdz');
   });

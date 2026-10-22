@@ -128,7 +128,7 @@ export function createMenuService(repo: MenuRepository, archivos: ArchivosModelo
           ? { urlModelo: url, urlModeloIos: actual?.urlModeloIos ?? null, ...datos! }
           : { ...actual!, urlModeloIos: url };
       try {
-        await repo.guardarModeloRa(id, nuevo);
+        await repo.guardarModeloRa(restauranteId, id, nuevo);
       } catch (e) {
         await archivos.borrarModelo(url);
         throw e;
@@ -140,14 +140,14 @@ export function createMenuService(repo: MenuRepository, archivos: ArchivosModelo
     async actualizarDatosModelo(restauranteId: string, id: string, datos: ModeloRaInput) {
       const { modeloRa } = await obtenerPlato(restauranteId, id);
       if (!modeloRa) throw new AppError(409, 'El plato no tiene modelo RA');
-      await repo.guardarModeloRa(id, { ...modeloRa, ...datos });
+      await repo.guardarModeloRa(restauranteId, id, { ...modeloRa, ...datos });
       return obtenerPlato(restauranteId, id);
     },
 
     async quitarModelo(restauranteId: string, id: string) {
       const { modeloRa } = await obtenerPlato(restauranteId, id);
       if (!modeloRa) return;
-      await repo.borrarModeloRa(id);
+      await repo.borrarModeloRa(restauranteId, id);
       await archivos.borrarModelo(modeloRa.urlModelo);
       await archivos.borrarModelo(modeloRa.urlModeloIos);
     },

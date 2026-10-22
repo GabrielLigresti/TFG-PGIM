@@ -24,9 +24,8 @@ export interface MenuRepository {
   crearPlato(restauranteId: string, datos: PlatoInput): Promise<Plato>;
   actualizarPlato(restauranteId: string, id: string, datos: PlatoInput): Promise<Plato>;
   desactivarPlato(restauranteId: string, id: string): Promise<void>;
-  // El plato tiene que ser del restaurante: el servicio lo verifica antes.
-  guardarModeloRa(platoId: string, datos: ModeloRa): Promise<void>;
-  borrarModeloRa(platoId: string): Promise<void>;
+  guardarModeloRa(restauranteId: string, platoId: string, datos: ModeloRa): Promise<void>;
+  borrarModeloRa(restauranteId: string, platoId: string): Promise<void>;
 
   listarMenus(restauranteId: string): Promise<Menu[]>;
   buscarMenu(restauranteId: string, id: string): Promise<Menu | null>;
@@ -230,16 +229,18 @@ export const menuRepository: MenuRepository = {
     await prisma.itemMenu.update({ where: { id, restauranteId }, data: { activo: false } });
   },
 
-  async guardarModeloRa(platoId, datos) {
-    await prisma.modeloRA.upsert({
-      where: { itemMenuId: platoId },
-      update: datos,
-      create: { itemMenuId: platoId, ...datos },
+  // ModeloRA no tiene restaurante_id: se escribe a través del plato, filtrado por tenant.
+  async guardarModeloRa(restauranteId, platoId, datos) {
+    await prisma.itemMenu.update({
+      where: { id: platoId, restauranteId },
+      data: { modeloRa: { upsert: { create: datos, update: datos } } },
     });
   },
 
-  async borrarModeloRa(platoId) {
-    await prisma.modeloRA.deleteMany({ where: { itemMenuId: platoId } });
+  async borrarModeloRa(restauranteId, platoId) {
+    await prisma.modeloRA.deleteMany({
+      where: { itemMenuId: platoId, itemMenu: { restauranteId } },
+    });
   },
 
   async listarMenus(restauranteId) {
