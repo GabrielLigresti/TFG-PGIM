@@ -64,7 +64,7 @@ class ReservaPendiente extends EstadoBase {
     if (!puedeActivarse(ctx)) {
       throw new AppError(
         409,
-        'La reserva se puede activar desde 30 minutos antes del inicio hasta el fin de la tolerancia de llegada',
+        `La reserva se puede activar desde ${MINUTOS_ANTES_ACTIVACION} minutos antes del inicio hasta el fin de la tolerancia de llegada`,
       );
     }
     return 'ACTIVA';
