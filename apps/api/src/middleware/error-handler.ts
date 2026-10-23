@@ -46,6 +46,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
     return;
   }
   if (esRegistroInexistente(err)) {
+    // Normalmente es una carrera (el registro desapareció entre la búsqueda y
+    // la escritura); se deja en el log para que un where mal armado no pase
+    // inadvertido como un 404 más.
+    console.warn('Registro inexistente al escribir', err);
     res.status(404).json({ error: 'Recurso no encontrado' });
     return;
   }

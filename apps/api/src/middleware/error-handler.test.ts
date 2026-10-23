@@ -12,11 +12,16 @@ function appQueFalla(error: unknown) {
 }
 
 describe('errorHandler', () => {
-  it('un registro que no existe (P2025 de Prisma) responde 404, no 500', async () => {
-    const res = await request(appQueFalla({ code: 'P2025' })).get('/');
+  it('un registro que no existe (P2025 de Prisma) responde 404, no 500, y queda en el log', async () => {
+    const aviso = jest.spyOn(console, 'warn').mockImplementation();
+    const error = { code: 'P2025' };
+
+    const res = await request(appQueFalla(error)).get('/');
 
     expect(res.status).toBe(404);
     expect(res.body).toEqual({ error: 'Recurso no encontrado' });
+    expect(aviso).toHaveBeenCalledWith(expect.any(String), error);
+    aviso.mockRestore();
   });
 
   it('una clave duplicada (P2002) responde 409', async () => {
