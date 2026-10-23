@@ -12,7 +12,9 @@ import {
   claseInput,
 } from '../../components/ui';
 import { formatoHora } from '../../lib/formato';
+import { esActivable } from '../../lib/reservas';
 import { useEventoSocket } from '../../lib/socket';
+import { useAhora } from '../../lib/useAhora';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
@@ -43,6 +45,7 @@ export function ReservasPage() {
     `/reservas?fecha=${fecha}`,
   );
   const activacion = useGuardar();
+  const ahora = useAhora();
   // El personal ya está en la sala de su sucursal: cualquier alta, baja,
   // activación o vencimiento refresca la lista.
   useEventoSocket(EVENTOS_SOCKET.cambioSalon, recargar);
@@ -114,7 +117,7 @@ export function ReservasPage() {
             },
           ]}
           acciones={(r) =>
-            r.activable &&
+            esActivable(r, ahora) &&
             tienePermiso('reserva.activar') && (
               <Boton disabled={activacion.enviando} onClick={() => activar(r)}>
                 Activar

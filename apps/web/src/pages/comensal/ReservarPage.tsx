@@ -16,6 +16,7 @@ import { MapaSalon } from '../../components/MapaSalon';
 import { Aviso, Boton, Campo, EstadoCarga, claseInput } from '../../components/ui';
 import { formatoDiaYHora, formatoHora, sumarDias } from '../../lib/formato';
 import { useEventoSocket } from '../../lib/socket';
+import { useAhora } from '../../lib/useAhora';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
@@ -38,6 +39,10 @@ export function ReservarPage() {
   const franjas = useRecurso<FranjaDisponible[]>(
     fecha ? `${base}/franjas?fecha=${fecha}&personas=${personas}` : null,
   );
+  // Una franja que empieza mientras la pantalla está abierta deja de ofrecerse.
+  const ahora = useAhora();
+  const ofrecidas = franjas.datos?.filter((f) => Date.parse(f.inicio) > ahora);
+  const franjaVigente = franja !== null && Date.parse(franja) > ahora;
   const mapa = useRecurso<MapaDeFranja>(
     franja ? `${base}/mapa?inicio=${encodeURIComponent(franja)}&personas=${personas}` : null,
   );
@@ -136,16 +141,16 @@ export function ReservarPage() {
       </div>
 
       <EstadoCarga cargando={franjas.cargando && !franjas.datos} error={franjas.error} />
-      {franjas.datos?.length === 0 && (
+      {ofrecidas?.length === 0 && (
         <p className="rounded-xl bg-white p-4 text-sm text-slate-600 shadow-sm ring-1 ring-slate-200">
           No hay mesas disponibles para esa fecha y cantidad de personas. Probá con otra fecha.
         </p>
       )}
-      {franjas.datos && franjas.datos.length > 0 && (
+      {ofrecidas && ofrecidas.length > 0 && (
         <section className="mb-5">
           <h2 className="mb-2 text-sm font-medium text-slate-700">Horario</h2>
           <div className="flex flex-wrap gap-2">
-            {franjas.datos.map((f) => (
+            {ofrecidas.map((f) => (
               <Boton
                 key={f.inicio}
                 variante={f.inicio === franja ? 'primario' : 'secundario'}
@@ -163,7 +168,7 @@ export function ReservarPage() {
         </section>
       )}
 
-      {franja && (
+      {franjaVigente && (
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-slate-700">Elegí tu mesa</h2>
           <EstadoCarga cargando={mapa.cargando && !mapa.datos} error={mapa.error} />
