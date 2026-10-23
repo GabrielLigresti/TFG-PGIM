@@ -1,16 +1,10 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
-import { AppError } from '../lib/errors';
+import { AppError, esClaveDuplicada } from '../lib/errors';
 
 export const notFoundHandler: RequestHandler = (_req, res) => {
   res.status(404).json({ error: 'Recurso no encontrado' });
 };
-
-// P2002 de Prisma: violación de una clave única. Los servicios validan antes,
-// pero dos altas simultáneas pueden llegar igual hasta la base.
-function esClaveDuplicada(err: unknown): boolean {
-  return typeof err === 'object' && err !== null && 'code' in err && err.code === 'P2002';
-}
 
 // Errores de los parsers de Express (cuerpo demasiado grande, JSON mal formado):
 // traen un status 4xx y un `type`.

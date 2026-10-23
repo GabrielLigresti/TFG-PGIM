@@ -10,9 +10,11 @@ import { mesasRouter } from './routes/mesas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
 import { personalRouter } from './routes/personal';
 import { recetasRouter } from './routes/recetas';
+import { reservasComensalRouter } from './routes/reservas';
 import { rolesRouter } from './routes/roles';
 import { sucursalesRouter } from './routes/sucursales';
 import { CARPETA_MODELOS } from './lib/archivos-modelo';
+import { autenticar, soloTipo } from './middleware/auth';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 
 const TIPO_MODELO: Record<string, string> = {
@@ -64,6 +66,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/platos`, platosRouter);
   app.use(`${API_PREFIX}/menus`, menusRouter);
   app.use(`${API_PREFIX}/comensal`, comensalRouter);
+  app.use(`${API_PREFIX}/comensal`, autenticar, soloTipo('COMENSAL'), reservasComensalRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

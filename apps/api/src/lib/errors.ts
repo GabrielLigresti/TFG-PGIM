@@ -11,3 +11,9 @@ export class AppError extends Error {
     this.name = 'AppError';
   }
 }
+
+// P2002 de Prisma: violación de una clave única. Los servicios validan antes,
+// pero dos altas simultáneas pueden llegar igual hasta la base.
+export function esClaveDuplicada(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && err.code === 'P2002';
+}
