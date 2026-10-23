@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { sesionSchema, type CodigoPermiso, type RegistroComensal, type Sesion } from '@pgim/shared';
 import { ApiError, api } from '../lib/api';
+import { reconectarSocket } from '../lib/socket';
 
 interface SesionContexto {
   sesion: Sesion | null;
@@ -42,6 +43,14 @@ export function SesionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     recargarSesion().finally(() => setCargando(false));
   }, [recargarSesion]);
+
+  // El socket se autentica al conectarse: si cambia quién es o dónde trabaja,
+  // se reconecta con la cookie nueva.
+  const usuarioId = sesion?.usuario.id;
+  const sucursalActivaId = sesion?.sucursalActiva?.id;
+  useEffect(() => {
+    reconectarSocket(usuarioId !== undefined);
+  }, [usuarioId, sucursalActivaId]);
 
   const guardar = useCallback((datos: unknown) => {
     const nueva = sesionSchema.parse(datos);

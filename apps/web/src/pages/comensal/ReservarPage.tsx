@@ -4,6 +4,8 @@ import {
   DIAS_ANTICIPACION_RESERVA,
   MAX_PERSONAS_RESERVA,
   hoyArgentina,
+  EVENTOS_SOCKET,
+  type CambioSalon,
   type FranjaDisponible,
   type MapaDeFranja,
   type ReservaComensal,
@@ -13,6 +15,7 @@ import { LayoutComensal } from '../../components/LayoutComensal';
 import { MapaSalon } from '../../components/MapaSalon';
 import { Aviso, Boton, Campo, EstadoCarga, claseInput } from '../../components/ui';
 import { formatoDiaYHora, formatoHora, sumarDias } from '../../lib/formato';
+import { useEventoSocket } from '../../lib/socket';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
@@ -37,6 +40,16 @@ export function ReservarPage() {
   );
   const mapa = useRecurso<MapaDeFranja>(
     franja ? `${base}/mapa?inicio=${encodeURIComponent(franja)}&personas=${personas}` : null,
+  );
+  // Otro comensal reservó o canceló: se actualizan el mapa (si es la misma
+  // franja) y la cantidad de mesas libres.
+  useEventoSocket<CambioSalon>(
+    EVENTOS_SOCKET.cambioSalon,
+    (cambio) => {
+      if (cambio.inicio === franja) mapa.recargar();
+      franjas.recargar();
+    },
+    sucursalId,
   );
   const mesaElegida = mapa.datos?.mesas.find((m) => m.id === mesaId && m.estado === 'LIBRE');
 

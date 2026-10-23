@@ -68,3 +68,27 @@ export interface ReservaComensal {
   limiteLlegada: string;
   cancelable: boolean;
 }
+
+// Tiempo real (Socket.IO). El comensal recibe los cambios de sus reservas en
+// su sala; la sala de la sucursal recibe los cambios de mesas, sin datos
+// personales.
+export const EVENTOS_SOCKET = {
+  seguirSalon: 'salon:seguir',
+  dejarSalon: 'salon:dejar',
+  cambioSalon: 'salon:cambio',
+  cambioReserva: 'reserva:cambio',
+} as const;
+
+export interface CambioSalon {
+  sucursalId: string;
+  inicio: string;
+  mesaId: string;
+}
+
+export interface CambioReserva {
+  id: string;
+  estado: EstadoReserva;
+}
+
+export const salaSucursal = (id: string) => `sucursal:${id}`;
+export const salaComensal = (id: string) => `comensal:${id}`;

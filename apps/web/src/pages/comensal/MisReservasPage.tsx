@@ -1,7 +1,8 @@
-import type { EstadoReserva, ReservaComensal } from '@pgim/shared';
+import { EVENTOS_SOCKET, type EstadoReserva, type ReservaComensal } from '@pgim/shared';
 import { LayoutComensal } from '../../components/LayoutComensal';
 import { Aviso, Boton, EstadoCarga, Etiqueta } from '../../components/ui';
 import { formatoDiaYHora, formatoHora } from '../../lib/formato';
+import { useEventoSocket } from '../../lib/socket';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
@@ -17,6 +18,8 @@ const ETIQUETA_ESTADO: Record<EstadoReserva, { texto: string; color: 'ambar' | '
 export function MisReservasPage() {
   const { datos, cargando, error, recargar } = useRecurso<ReservaComensal[]>('/comensal/reservas');
   const cancelacion = useGuardar();
+  // Activación desde el panel o vencimiento: el estado cambia sin recargar.
+  useEventoSocket(EVENTOS_SOCKET.cambioReserva, recargar);
 
   async function cancelar(r: ReservaComensal) {
     if (!confirm(`¿Cancelar la reserva de la mesa ${r.mesa.numero}?`)) return;
