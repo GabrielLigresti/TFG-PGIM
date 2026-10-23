@@ -15,7 +15,7 @@ const MENSAJES: Partial<Record<Estado, string>> = {
 
 const INSTRUCCIONES: Record<EstadoSesion, string> = {
   abriendo: 'Abriendo la cámara…',
-  buscando: 'Mové el celular despacio sobre la mesa.',
+  buscando: 'Mové el celular despacio, apuntando a la mesa cerca del plato.',
   apuntando: 'Apuntá el anillo al centro del plato y tocá la pantalla.',
   colocado: 'Tocá otro punto para moverlo.',
 };

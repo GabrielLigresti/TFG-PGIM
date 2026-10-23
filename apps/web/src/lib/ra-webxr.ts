@@ -73,16 +73,28 @@ async function cargarPlato(url: string, escala: number): Promise<Group> {
   return plato;
 }
 
-function crearAnillo(): Mesh {
-  const anillo = new Mesh(
-    new RingGeometry(0.035, 0.045, 40).rotateX(-Math.PI / 2),
-    new MeshBasicMaterial({ color: 0xffffff }),
+// Anillo con borde oscuro y punto verde: se tiene que ver también sobre un
+// plato blanco.
+function crearAnillo(): Group {
+  const plano = (geometria: RingGeometry | CircleGeometry, material: MeshBasicMaterial) =>
+    new Mesh(geometria.rotateX(-Math.PI / 2), material);
+  const anillo = new Group();
+  anillo.add(
+    plano(
+      new RingGeometry(0.03, 0.055, 48),
+      new MeshBasicMaterial({ color: 0x0f172a, transparent: true, opacity: 0.55 }),
+    ),
+    plano(new RingGeometry(0.036, 0.048, 48), new MeshBasicMaterial({ color: 0xffffff })),
+    plano(new CircleGeometry(0.009, 24), new MeshBasicMaterial({ color: 0x22c55e })),
   );
-  anillo.add(new Mesh(new CircleGeometry(0.006, 16).rotateX(-Math.PI / 2), anillo.material));
   anillo.matrixAutoUpdate = false;
   anillo.visible = false;
   return anillo;
 }
+
+// Con superficies lisas (un plato blanco) la detección va y viene: el anillo
+// se mantiene en el último punto un rato para que se pueda tocar.
+const MS_SIN_SUPERFICIE = 700;
 
 // Abre la sesión. Si el navegador la rechaza (por ejemplo, sin permiso de
 // cámara) la promesa falla y el visor muestra el respaldo (E2).
@@ -137,15 +149,20 @@ export async function iniciarRa(opciones: OpcionesRa): Promise<() => void> {
     onEstado('colocado');
   });
 
-  let apuntando = false;
-  renderer.setAnimationLoop((_tiempo, cuadro?: XRFrame) => {
+  let ultimaSuperficie = -Infinity;
+  renderer.setAnimationLoop((tiempo, cuadro?: XRFrame) => {
     const espacio = renderer.xr.getReferenceSpace();
     const impacto = cuadro?.getHitTestResults(fuenteImpacto)[0];
     const pose = espacio ? impacto?.getPose(espacio) : undefined;
-    anillo.visible = Boolean(pose);
-    if (pose) anillo.matrix.copy(matriz.fromArray(pose.transform.matrix));
-    if (!plato.visible && Boolean(pose) !== apuntando) onEstado(pose ? 'apuntando' : 'buscando');
-    apuntando = Boolean(pose);
+    if (pose) {
+      anillo.matrix.copy(matriz.fromArray(pose.transform.matrix));
+      ultimaSuperficie = tiempo;
+    }
+    const apuntando = tiempo - ultimaSuperficie < MS_SIN_SUPERFICIE;
+    if (!plato.visible && apuntando !== anillo.visible) {
+      onEstado(apuntando ? 'apuntando' : 'buscando');
+    }
+    anillo.visible = apuntando;
     renderer.render(escena, camara);
   });
 
