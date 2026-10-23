@@ -6,6 +6,7 @@ import { SesionProvider } from './auth/SesionProvider';
 import { PanelLayout } from './components/PanelLayout';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/PanelPage';
+import { RegistroPage } from './pages/RegistroPage';
 import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
 import { PlatoPage } from './pages/comensal/PlatoPage';
@@ -39,6 +40,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/registro" element={<RegistroPage />} />
           <Route
             path="/sucursal"
             element={

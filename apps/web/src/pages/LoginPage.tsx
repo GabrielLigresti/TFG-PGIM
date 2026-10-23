@@ -1,21 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router';
-import type { Sesion } from '@pgim/shared';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../lib/api';
-import { rutaInicio, useSesion } from '../auth/SesionProvider';
+import { destinoTrasLogin as destino, useSesion } from '../auth/SesionProvider';
 import { Cargando } from '../components/Cargando';
-
-// La página que pidió el login (RutaProtegida la deja en el state), si es para
-// el mismo tipo de usuario que entró.
-interface Destino {
-  desde?: string;
-  tipo?: Sesion['usuario']['tipo'];
-}
-
-function destino(sesion: Sesion, state: unknown): string {
-  const { desde, tipo } = (state ?? {}) as Destino;
-  return desde && tipo === sesion.usuario.tipo ? desde : rutaInicio(sesion);
-}
 
 export function LoginPage() {
   const { sesion, cargando, login } = useSesion();
@@ -90,6 +77,13 @@ export function LoginPage() {
         >
           {enviando ? 'Ingresando…' : 'Ingresar'}
         </button>
+
+        <p className="text-center text-sm text-slate-600">
+          ¿No tenés cuenta?{' '}
+          <Link to="/registro" state={state} className="font-medium text-slate-800 underline">
+            Registrate
+          </Link>
+        </p>
       </form>
     </main>
   );
