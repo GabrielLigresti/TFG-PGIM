@@ -154,6 +154,27 @@ describe('mesaService', () => {
       expect(repo.actualizar).toHaveBeenCalled();
     });
 
+    it('el grupo más grande se toma solo de las reservas que todavía la ocupan', async () => {
+      const filas = [
+        reserva('ACTIVA', '2026-10-29T23:00:00.000Z', 8),
+        reserva('PENDIENTE', '2026-10-30T23:00:00.000Z', 3),
+      ];
+
+      await servicio(conReservas(filas)).actualizar(R, 'centro', 'm1', { ...datos, capacidad: 3 });
+      await expect(
+        servicio(conReservas(filas)).actualizar(R, 'centro', 'm1', { ...datos, capacidad: 2 }),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('dar de baja otra vez una mesa ya inactiva no falla', async () => {
+      const repo = conReservas();
+      repo.buscar.mockResolvedValue({ ...mesa, activa: false });
+
+      await servicio(repo).desactivar(R, 'centro', 'm1');
+
+      expect(repo.desactivar).toHaveBeenCalled();
+    });
+
     it('una mesa que ya estaba dada de baja se puede mover', async () => {
       const repo = conReservas();
       repo.buscar.mockResolvedValue({ ...mesa, activa: false });
