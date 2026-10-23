@@ -289,7 +289,12 @@ describe('reservaService', () => {
 
       const cancelada = await service.cancelar(C, 'R');
 
-      expect(repo.cambiarEstado).toHaveBeenCalledWith('R', 'PENDIENTE', 'CANCELADA');
+      expect(repo.cambiarEstado).toHaveBeenCalledWith(
+        { comensalId: C },
+        'R',
+        'PENDIENTE',
+        'CANCELADA',
+      );
       expect(bus.publicar).toHaveBeenCalledWith(
         expect.objectContaining({ tipo: 'RESERVA_CANCELADA' }),
       );
@@ -341,7 +346,7 @@ describe('activación (CU-12)', () => {
     const activada = await service.activar(R, S, 'R');
 
     expect(repo.buscarEnSucursal).toHaveBeenCalledWith(R, S, 'R');
-    expect(repo.activar).toHaveBeenCalledWith('R');
+    expect(repo.activar).toHaveBeenCalledWith(R, S, 'R', 'PENDIENTE', 'ACTIVA');
     expect(bus.publicar).toHaveBeenCalledWith({
       tipo: 'RESERVA_ACTIVADA',
       reserva: expect.objectContaining({ id: 'R', estado: 'ACTIVA' }),
@@ -418,7 +423,7 @@ describe('vencimiento por no-show (CU-21)', () => {
     );
 
     expect(await service.vencerPendientes()).toBe(1);
-    expect(repo.cambiarEstado).toHaveBeenCalledWith('R', 'PENDIENTE', 'VENCIDA');
+    expect(repo.cambiarEstado).toHaveBeenCalledWith({ sistema: true }, 'R', 'PENDIENTE', 'VENCIDA');
     expect(bus.publicar).toHaveBeenCalledWith({
       tipo: 'RESERVA_VENCIDA',
       reserva: expect.objectContaining({ id: 'R', estado: 'VENCIDA' }),

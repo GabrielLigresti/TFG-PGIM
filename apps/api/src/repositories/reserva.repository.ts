@@ -57,7 +57,12 @@ export interface ReservaRepository {
   buscarDelComensal(comensalId: string, id: string): Promise<FilaReserva | null>;
   listarDelComensal(comensalId: string): Promise<FilaReserva[]>;
   // Cambia el estado solo si sigue en `desde`; false si otra operación lo cambió antes.
-  cambiarEstado(id: string, desde: EstadoReserva, hacia: EstadoReserva): Promise<boolean>;
+  cambiarEstado(
+    alcance: AlcanceReserva,
+    id: string,
+    desde: EstadoReserva,
+    hacia: EstadoReserva,
+  ): Promise<boolean>;
   // Panel (CU-12): acotadas por restaurante y sucursal de trabajo.
   listarDelDia(
     restauranteId: string,
@@ -70,12 +75,24 @@ export interface ReservaRepository {
     sucursalId: string,
     id: string,
   ): Promise<FilaReservaPanel | null>;
-  // PENDIENTE → ACTIVA y apertura de la cuenta de mesa, en una transacción.
-  // false si la reserva ya no estaba pendiente.
-  activar(id: string): Promise<boolean>;
-  // CU-21: PENDIENTE ya empezadas, de sucursales activas, con su tolerancia.
+  // Cambio de estado de la activación (lo decide el State) y apertura de la
+  // cuenta de mesa, en una transacción. false si la reserva ya no estaba en `desde`.
+  activar(
+    restauranteId: string,
+    sucursalId: string,
+    id: string,
+    desde: EstadoReserva,
+    hacia: EstadoReserva,
+  ): Promise<boolean>;
+  // CU-21: PENDIENTE ya empezadas, con la tolerancia de su sucursal. Incluye
+  // las de sucursales dadas de baja, para que no queden pendientes para siempre.
   pendientesIniciadas(ahora: Date): Promise<FilaReserva[]>;
 }
+
+// Toda escritura va acotada: por el comensal titular, por la sucursal de
+// trabajo del personal o, solo en las tareas programadas, por ninguno.
+export type AlcanceReserva =
+  { comensalId: string } | { restauranteId: string; sucursalId: string } | { sistema: true };
 
 const VIGENTES: EstadoReserva[] = ['PENDIENTE', 'ACTIVA'];
 
@@ -120,6 +137,12 @@ function aFilaReservaPanel({ comensal, ...fila }: FilaPanel): FilaReservaPanel {
 
 function deLaSucursal(restauranteId: string, sucursalId: string) {
   return { sucursalId, sucursal: { restauranteId } };
+}
+
+function filtroDeAlcance(alcance: AlcanceReserva): Prisma.ReservaWhereInput {
+  if ('comensalId' in alcance) return { comensalId: alcance.comensalId };
+  if ('sucursalId' in alcance) return deLaSucursal(alcance.restauranteId, alcance.sucursalId);
+  return {};
 }
 
 export const reservaRepository: ReservaRepository = {
@@ -198,9 +221,9 @@ export const reservaRepository: ReservaRepository = {
     return filas.map(aFilaReserva);
   },
 
-  async cambiarEstado(id, desde, hacia) {
+  async cambiarEstado(alcance, id, desde, hacia) {
     const { count } = await prisma.reserva.updateMany({
-      where: { id, estado: desde },
+      where: { id, estado: desde, ...filtroDeAlcance(alcance) },
       data: { estado: hacia },
     });
     return count === 1;
@@ -223,11 +246,11 @@ export const reservaRepository: ReservaRepository = {
     return fila && aFilaReservaPanel(fila);
   },
 
-  activar(id) {
+  activar(restauranteId, sucursalId, id, desde, hacia) {
     return prisma.$transaction(async (tx) => {
       const { count } = await tx.reserva.updateMany({
-        where: { id, estado: 'PENDIENTE' },
-        data: { estado: 'ACTIVA' },
+        where: { id, estado: desde, ...deLaSucursal(restauranteId, sucursalId) },
+        data: { estado: hacia },
       });
       if (count !== 1) return false;
       await tx.cuentaMesa.create({ data: { reservaId: id } });
@@ -235,9 +258,10 @@ export const reservaRepository: ReservaRepository = {
     });
   },
 
+  // Tarea de sistema: recorre todos los restaurantes, por eso no filtra por tenant.
   async pendientesIniciadas(ahora) {
     const filas = await prisma.reserva.findMany({
-      where: { estado: 'PENDIENTE', inicio: { lt: ahora }, sucursal: { activa: true } },
+      where: { estado: 'PENDIENTE', inicio: { lt: ahora } },
       select: seleccionReserva,
     });
     return filas.map(aFilaReserva);

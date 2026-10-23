@@ -225,7 +225,7 @@ export function createReservaService(
         toleranciaNoShowMin: fila.toleranciaNoShowMin,
         ahora: ahora(),
       });
-      if (!(await repo.cambiarEstado(id, fila.estado, hacia))) {
+      if (!(await repo.cambiarEstado({ comensalId }, id, fila.estado, hacia))) {
         throw new AppError(409, 'La reserva cambió de estado; recargá la pantalla');
       }
       publicar('RESERVA_CANCELADA', fila, hacia);
@@ -246,7 +246,7 @@ export function createReservaService(
         if (momento <= limiteDeLlegada(ctx)) continue;
         const hacia = estadoDeReserva(fila.estado).vencer(ctx);
         // Si mientras tanto la activaron o la cancelaron, no se toca.
-        if (await repo.cambiarEstado(fila.id, fila.estado, hacia)) {
+        if (await repo.cambiarEstado({ sistema: true }, fila.id, fila.estado, hacia)) {
           publicar('RESERVA_VENCIDA', fila, hacia);
           vencidas++;
         }
@@ -274,7 +274,7 @@ export function createReservaService(
         toleranciaNoShowMin: fila.toleranciaNoShowMin,
         ahora: ahora(),
       });
-      if (!(await repo.activar(id))) {
+      if (!(await repo.activar(restauranteId, sucursalId, id, fila.estado, hacia))) {
         throw new AppError(409, 'La reserva cambió de estado; recargá la pantalla');
       }
       publicar('RESERVA_ACTIVADA', fila, hacia);
