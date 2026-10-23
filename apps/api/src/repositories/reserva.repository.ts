@@ -139,7 +139,7 @@ function deLaSucursal(restauranteId: string, sucursalId: string) {
   return { sucursalId, sucursal: { restauranteId } };
 }
 
-function filtroDeAlcance(alcance: AlcanceReserva): Prisma.ReservaWhereInput {
+export function filtroDeAlcance(alcance: AlcanceReserva): Prisma.ReservaWhereInput {
   if ('comensalId' in alcance) return { comensalId: alcance.comensalId };
   if ('sucursalId' in alcance) return deLaSucursal(alcance.restauranteId, alcance.sucursalId);
   return {};
