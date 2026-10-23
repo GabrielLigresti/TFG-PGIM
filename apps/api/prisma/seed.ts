@@ -6,6 +6,10 @@ import {
   type CodigoPermiso,
   type RolPredeterminado,
 } from '@pgim/shared';
+import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { CARPETA_MODELOS, borrarModelo, guardarModelo } from '../src/lib/archivos-modelo';
 import { prisma } from '../src/lib/prisma';
 import { hashPassword } from '../src/lib/password';
 import type { Prisma } from '../src/generated/prisma/client';
@@ -297,7 +301,7 @@ async function seedMenuEInventario(
   restauranteId: string,
   centroId: string,
   adminId: string,
-): Promise<void> {
+): Promise<string[]> {
   const categoriaIds = new Map<NombreCategoria, string>();
   for (const { nombre, requiereReceta } of CATEGORIAS) {
     const categoria = await tx.categoria.upsert({
@@ -352,6 +356,7 @@ async function seedMenuEInventario(
   componentes.set('Salsa criolla', salsaId);
   await seedReceta(tx, { productoIntermedioId: salsaId }, SALSA_CRIOLLA, componentes);
 
+  const platoIds: string[] = [];
   for (const plato of PLATOS) {
     const datos = {
       categoriaId: categoriaIds.get(plato.categoria)!,
@@ -369,13 +374,91 @@ async function seedMenuEInventario(
 
     if (plato.receta) await seedReceta(tx, { itemMenuId: item.id }, plato.receta, componentes);
     else await tx.receta.deleteMany({ where: { itemMenuId: item.id } });
+    platoIds.push(item.id);
+  }
+  return platoIds;
+}
+
+// "Carta principal" queda vigente y activa en Centro; "Menú de invierno" ya
+// venció, para ver cómo se marca en el panel.
+const MENUS = [
+  {
+    nombre: 'Carta principal',
+    descripcion: 'La carta de todo el año.',
+    vigenciaDesde: '2026-10-01',
+    vigenciaHasta: null,
+  },
+  {
+    nombre: 'Menú de invierno',
+    descripcion: 'Platos de olla y guisos.',
+    vigenciaDesde: '2026-06-21',
+    vigenciaHasta: '2026-09-20',
+  },
+] as const;
+
+async function seedMenus(
+  tx: Prisma.TransactionClient,
+  restauranteId: string,
+  platoIds: string[],
+): Promise<string> {
+  const ids: string[] = [];
+  for (const menu of MENUS) {
+    const datos = {
+      descripcion: menu.descripcion,
+      vigenciaDesde: new Date(`${menu.vigenciaDesde}T00:00:00.000Z`),
+      vigenciaHasta: menu.vigenciaHasta && new Date(`${menu.vigenciaHasta}T00:00:00.000Z`),
+    };
+    const existente = await tx.menu.findFirst({ where: { restauranteId, nombre: menu.nombre } });
+    const fila = existente
+      ? await tx.menu.update({ where: { id: existente.id }, data: datos })
+      : await tx.menu.create({ data: { restauranteId, nombre: menu.nombre, ...datos } });
+    await tx.menuItem.deleteMany({ where: { menuId: fila.id } });
+    await tx.menuItem.createMany({
+      data: platoIds.map((itemMenuId) => ({ menuId: fila.id, itemMenuId })),
+    });
+    ids.push(fila.id);
+  }
+  return ids[0]!;
+}
+
+// Modelos de demo (Kenney, CC0; ver modelos-demo/LICENCIA.md), ya a escala
+// real. El resto de los platos queda sin modelo, para ver el menú sin "Ver en RA".
+const MODELOS_RA = [
+  { plato: 'Flan casero', archivo: 'flan.glb', porcionGramos: 120 },
+  { plato: 'Bife de chorizo con papas', archivo: 'bife.glb', porcionGramos: 400 },
+];
+
+// Fuera de la transacción porque escribe archivos. Si el plato ya tiene su
+// modelo y el archivo existe, lo deja como está.
+async function seedModelosRa(restauranteId: string): Promise<void> {
+  for (const modelo of MODELOS_RA) {
+    const plato = await prisma.itemMenu.findFirstOrThrow({
+      where: { restauranteId, nombre: modelo.plato },
+      include: { modeloRa: true },
+    });
+    const actual = plato.modeloRa?.urlModelo;
+    if (actual && existsSync(path.join(CARPETA_MODELOS, path.basename(actual)))) continue;
+
+    const archivo = await readFile(path.join(__dirname, 'modelos-demo', modelo.archivo));
+    const datos = {
+      urlModelo: await guardarModelo(archivo, 'glb'),
+      urlModeloIos: null,
+      escalaReal: 1,
+      porcionGramos: modelo.porcionGramos,
+    };
+    await prisma.modeloRA.upsert({
+      where: { itemMenuId: plato.id },
+      update: datos,
+      create: { itemMenuId: plato.id, ...datos },
+    });
+    await borrarModelo(actual);
   }
 }
 
 async function main(): Promise<void> {
   const passwordHash = await hashPassword(PASSWORD_DEMO);
 
-  await prisma.$transaction(async (tx) => {
+  const restauranteId = await prisma.$transaction(async (tx) => {
     const permisoIds = await seedPermisos(tx);
 
     const restaurante = await tx.restaurante.upsert({
@@ -443,7 +526,17 @@ async function main(): Promise<void> {
     }
 
     const admin = await tx.usuario.findUniqueOrThrow({ where: { email: 'admin@demo.pgim.test' } });
-    await seedMenuEInventario(tx, restaurante.id, sucursalIds.get('Centro')!, admin.id);
+    const platoIds = await seedMenuEInventario(
+      tx,
+      restaurante.id,
+      sucursalIds.get('Centro')!,
+      admin.id,
+    );
+    const cartaId = await seedMenus(tx, restaurante.id, platoIds);
+    await tx.sucursal.update({
+      where: { id: sucursalIds.get('Centro')! },
+      data: { menuActivoId: cartaId },
+    });
 
     const comensal = await tx.usuario.upsert({
       where: { email: 'comensal@demo.pgim.test' },
@@ -455,7 +548,9 @@ async function main(): Promise<void> {
       update: { nombre: 'Carlos Comensal' },
       create: { usuarioId: comensal.id, nombre: 'Carlos Comensal' },
     });
+    return restaurante.id;
   });
+  await seedModelosRa(restauranteId);
 
   const [permisos, roles, sucursales, usuarios, componentes, platos, movimientos] =
     await Promise.all([

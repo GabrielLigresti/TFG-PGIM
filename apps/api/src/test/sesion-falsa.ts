@@ -27,3 +27,18 @@ export function cookieConPermisos(permisos: CodigoPermiso[]): string {
   usuarioRepository.findSesionById.mockResolvedValue(sesion);
   return `sesion=${firmarToken({ usuarioId: IDS.admin, sucursalId: IDS.centro })}`;
 }
+
+// Igual que cookieConPermisos, pero la sesión es de un comensal.
+export function cookieDeComensal(): string {
+  const { usuarioRepository } = jest.requireMock('../repositories/usuario.repository');
+  const sesion: UsuarioSesion = {
+    id: IDS.comensal,
+    email: 'comensal@demo.test',
+    tipo: 'COMENSAL',
+    activo: true,
+    comensal: { nombre: 'Comensal' },
+    empleado: null,
+  };
+  usuarioRepository.findSesionById.mockResolvedValue(sesion);
+  return `sesion=${firmarToken({ usuarioId: IDS.comensal, sucursalId: null })}`;
+}

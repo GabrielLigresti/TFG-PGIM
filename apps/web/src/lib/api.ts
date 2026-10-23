@@ -18,6 +18,20 @@ export async function api<T>(ruta: string, opciones: { method?: string; body?: u
     headers: opciones.body === undefined ? undefined : { 'Content-Type': 'application/json' },
     body: opciones.body === undefined ? undefined : JSON.stringify(opciones.body),
   });
+  return leerRespuesta<T>(res);
+}
+
+// Sube un archivo como cuerpo binario (PUT), sin multipart.
+export async function subirArchivo<T>(ruta: string, archivo: Blob) {
+  const res = await fetch(`${API_PREFIX}${ruta}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/octet-stream' },
+    body: archivo,
+  });
+  return leerRespuesta<T>(res);
+}
+
+async function leerRespuesta<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
 
   const datos: unknown = await res.json().catch(() => null);

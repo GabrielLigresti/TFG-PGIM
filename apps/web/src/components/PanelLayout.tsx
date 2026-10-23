@@ -47,6 +47,12 @@ export const SECCIONES: SeccionPanel[] = [
     descripcion: 'Platos y categorías del menú',
     permiso: 'menu.ver',
   },
+  {
+    ruta: 'menus',
+    titulo: 'Menús',
+    descripcion: 'Menús con vigencia y sus platos',
+    permiso: 'menu.ver',
+  },
 ];
 
 export function PanelLayout() {

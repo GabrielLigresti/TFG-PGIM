@@ -18,14 +18,16 @@ import {
 import { aNumero, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { ModeloRaModal } from './ModeloRaModal';
 
-// CU-16 sin menús con vigencia ni modelo RA: platos y categorías.
+// CU-16: platos (con su modelo RA) y categorías. Los menús van en su propia pantalla.
 export function PlatosPage() {
   const { tienePermiso } = useSesion();
   const platos = useRecurso<Plato[]>('/platos');
   const categorias = useRecurso<Categoria[]>('/categorias');
   const [plato, setPlato] = useState<Plato | 'nuevo' | null>(null);
   const [categoria, setCategoria] = useState<Categoria | 'nueva' | null>(null);
+  const [modelo, setModelo] = useState<Plato | null>(null);
   const baja = useGuardar();
 
   function recargarTodo() {
@@ -89,6 +91,10 @@ export function PlatosPage() {
                 valor: (p) => (p.disponible ? 'Sí' : <Etiqueta color="rojo">Agotado</Etiqueta>),
               },
               {
+                titulo: 'RA',
+                valor: (p) => (p.modeloRa ? <Etiqueta color="verde">Con modelo</Etiqueta> : '—'),
+              },
+              {
                 titulo: 'Receta',
                 valor: (p) =>
                   tienePermiso('receta.ver') && (p.tieneReceta || tienePermiso('receta.crear')) ? (
@@ -110,6 +116,11 @@ export function PlatosPage() {
                 {tienePermiso('menu.editar') && (
                   <Boton variante="secundario" onClick={() => setPlato(p)}>
                     Editar
+                  </Boton>
+                )}
+                {tienePermiso('menu.editar') && (
+                  <Boton variante="secundario" onClick={() => setModelo(p)}>
+                    Modelo RA
                   </Boton>
                 )}
                 {tienePermiso('menu.eliminar') && p.activo && (
@@ -170,6 +181,16 @@ export function PlatosPage() {
           onGuardado={() => {
             setPlato(null);
             recargarTodo();
+          }}
+        />
+      )}
+      {modelo && (
+        <ModeloRaModal
+          plato={modelo}
+          onCerrar={() => setModelo(null)}
+          onGuardado={() => {
+            setModelo(null);
+            platos.recargar();
           }}
         />
       )}

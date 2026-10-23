@@ -2,7 +2,10 @@ import { useState, type FormEvent } from 'react';
 import {
   FRANJAS,
   administraModulo,
+  estaVigente,
+  hoyArgentina,
   type Franja,
+  type Menu,
   type Sucursal,
   type SucursalInput,
 } from '@pgim/shared';
@@ -22,6 +25,7 @@ import {
 import { aNumero } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { QrMenuModal } from './QrMenuModal';
 
 const NOMBRE_FRANJA: Record<Franja, string> = { ALMUERZO: 'Almuerzo', CENA: 'Cena' };
 
@@ -36,12 +40,13 @@ function horarios(s: Sucursal) {
     .join(' · ');
 }
 
-// CU-13: sucursales y horarios de servicio (el menú activo llega con los menús).
+// CU-13: sucursales, horarios de servicio y menú activo.
 export function SucursalesPage() {
   const { sesion, tienePermiso, recargarSesion } = useSesion();
   const acotada = !administraModulo(sesion?.permisos ?? [], 'sucursal');
   const { datos, cargando, error, recargar } = useRecurso<Sucursal[]>('/sucursales');
   const [editando, setEditando] = useState<Sucursal | 'nueva' | null>(null);
+  const [qr, setQr] = useState<Sucursal | null>(null);
   const baja = useGuardar();
 
   async function guardado() {
@@ -93,9 +98,15 @@ export function SucursalesPage() {
             { titulo: 'Horario', valor: (s) => `${s.horarioApertura}–${s.horarioCierre}` },
             { titulo: 'Servicio', valor: (s) => horarios(s) || '—' },
             { titulo: 'Tolerancia', valor: (s) => `${s.toleranciaNoShowMin} min` },
+            { titulo: 'Menú activo', valor: (s) => s.menuActivo?.nombre ?? '—' },
           ]}
           acciones={(s) => (
             <span className="inline-flex gap-2">
+              {s.activa && (
+                <Boton variante="secundario" onClick={() => setQr(s)}>
+                  QR del menú
+                </Boton>
+              )}
               {tienePermiso('sucursal.editar') && (
                 <Boton variante="secundario" onClick={() => setEditando(s)}>
                   Editar
@@ -111,6 +122,7 @@ export function SucursalesPage() {
         />
       )}
 
+      {qr && <QrMenuModal sucursal={qr} onCerrar={() => setQr(null)} />}
       {editando && (
         <FormularioSucursal
           sucursal={editando === 'nueva' ? null : editando}
@@ -137,6 +149,12 @@ function FormularioSucursal({
   const [cierre, setCierre] = useState(sucursal?.horarioCierre ?? '00:00');
   const [tolerancia, setTolerancia] = useState(String(sucursal?.toleranciaNoShowMin ?? 15));
   const [activa, setActiva] = useState(sucursal?.activa ?? true);
+  const [menuActivoId, setMenuActivoId] = useState(sucursal?.menuActivo?.id ?? '');
+  // Sin menu.ver no se pueden listar los menús: el menú activo queda como está.
+  const { tienePermiso } = useSesion();
+  const puedeElegirMenu = tienePermiso('menu.ver');
+  const menus = useRecurso<Menu[]>(puedeElegirMenu ? '/menus' : null);
+  const hoy = hoyArgentina();
   const [servicio, setServicio] = useState(() =>
     FRANJAS.map((franja) => {
       const actual = sucursal?.horariosServicio.find((h) => h.franja === franja);
@@ -164,6 +182,7 @@ function FormularioSucursal({
       horariosServicio: servicio
         .filter((h) => h.habilitada)
         .map(({ franja, horaInicio, horaFin }) => ({ franja, horaInicio, horaFin })),
+      ...(puedeElegirMenu && { menuActivoId: menuActivoId || null }),
       ...(sucursal && { activa }),
     };
     const respuesta = sucursal
@@ -252,6 +271,29 @@ function FormularioSucursal({
             </div>
           ))}
         </fieldset>
+
+        <Campo
+          etiqueta="Menú activo"
+          ayuda="Es el que ven los comensales; fuera de su vigencia deja de mostrarse"
+        >
+          {puedeElegirMenu ? (
+            <select
+              value={menuActivoId}
+              onChange={(e) => setMenuActivoId(e.target.value)}
+              className={claseInput}
+            >
+              <option value="">Sin menú</option>
+              {menus.datos?.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.nombre}
+                  {!estaVigente(m, hoy) && ' (fuera de vigencia)'}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <p className="py-2 text-sm text-slate-700">{sucursal?.menuActivo?.nombre ?? '—'}</p>
+          )}
+        </Campo>
 
         {sucursal && <Casilla etiqueta="Sucursal activa" checked={activa} onChange={setActiva} />}
 

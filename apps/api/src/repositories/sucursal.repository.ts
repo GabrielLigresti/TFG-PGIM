@@ -9,6 +9,7 @@ export interface SucursalRepository {
   buscar(restauranteId: string, id: string): Promise<Sucursal | null>;
   existeNombre(restauranteId: string, nombre: string, excluirId?: string): Promise<boolean>;
   contarActivas(restauranteId: string): Promise<number>;
+  existeMenu(restauranteId: string, menuId: string): Promise<boolean>;
   // La sucursal nueva queda asignada a quien la crea, para que pueda elegirla.
   crear(restauranteId: string, datos: SucursalInput, empleadoId: string): Promise<Sucursal>;
   actualizar(restauranteId: string, id: string, datos: SucursalInput): Promise<Sucursal>;
@@ -27,6 +28,7 @@ const seleccion = {
     select: { franja: true, horaInicio: true, horaFin: true },
     orderBy: { franja: 'asc' },
   },
+  menuActivo: { select: { id: true, nombre: true } },
 } satisfies Prisma.SucursalSelect;
 
 type Fila = Prisma.SucursalGetPayload<{ select: typeof seleccion }>;
@@ -51,6 +53,8 @@ function columnas(datos: SucursalInput) {
     horarioApertura: deHora(datos.horarioApertura),
     horarioCierre: deHora(datos.horarioCierre),
     toleranciaNoShowMin: datos.toleranciaNoShowMin,
+    // Sin el campo, el menú activo queda como estaba.
+    ...(datos.menuActivoId !== undefined && { menuActivoId: datos.menuActivoId }),
   };
 }
 
@@ -93,6 +97,10 @@ export const sucursalRepository: SucursalRepository = {
 
   contarActivas(restauranteId) {
     return prisma.sucursal.count({ where: { restauranteId, activa: true } });
+  },
+
+  async existeMenu(restauranteId, menuId) {
+    return (await prisma.menu.count({ where: { id: menuId, restauranteId } })) > 0;
   },
 
   async crear(restauranteId, datos, empleadoId) {

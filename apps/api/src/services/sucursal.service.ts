@@ -20,6 +20,12 @@ export function createSucursalService(repo: SucursalRepository) {
     }
   }
 
+  async function verificarMenu(restauranteId: string, menuId: string | null | undefined) {
+    if (menuId && !(await repo.existeMenu(restauranteId, menuId))) {
+      throw new AppError(404, 'El menú no existe');
+    }
+  }
+
   async function verificarQueNoSeaLaUltima(restauranteId: string, sucursal: Sucursal) {
     if (sucursal.activa && (await repo.contarActivas(restauranteId)) <= 1) {
       throw new AppError(409, 'No se puede dar de baja la única sucursal activa');
@@ -36,12 +42,14 @@ export function createSucursalService(repo: SucursalRepository) {
 
     async crear(restauranteId: string, empleadoId: string, datos: SucursalInput) {
       await verificarNombre(restauranteId, datos.nombre);
+      await verificarMenu(restauranteId, datos.menuActivoId);
       return repo.crear(restauranteId, datos, empleadoId);
     },
 
     async actualizar(restauranteId: string, id: string, datos: SucursalInput) {
       const actual = await obtener(restauranteId, id);
       await verificarNombre(restauranteId, datos.nombre, id);
+      await verificarMenu(restauranteId, datos.menuActivoId);
       if (datos.activa === false) await verificarQueNoSeaLaUltima(restauranteId, actual);
       return repo.actualizar(restauranteId, id, datos);
     },

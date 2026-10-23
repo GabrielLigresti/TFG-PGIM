@@ -35,6 +35,17 @@ describe('POST /api/auth/login', () => {
     expect(cookie).toMatch(/^sesion=/);
     expect(cookie).toMatch(/HttpOnly/);
     expect(cookie).toMatch(/SameSite=Lax/);
+    expect(cookie).not.toMatch(/Secure/);
+  });
+
+  it('marca la cookie como Secure cuando llega por HTTPS (túnel)', async () => {
+    const res = await request(createApp())
+      .post('/api/auth/login')
+      .set('X-Forwarded-Proto', 'https')
+      .send({ email: 'mozo@demo.test', password: PASSWORD });
+
+    expect(res.status).toBe(200);
+    expect(String(res.headers['set-cookie'])).toMatch(/Secure/);
   });
 
   it('responde 401 con mensaje genérico ante credenciales incorrectas', async () => {
