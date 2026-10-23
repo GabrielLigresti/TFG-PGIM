@@ -77,3 +77,31 @@ describe('obtenerSesion', () => {
     expect(sesion?.sucursalActiva).toBeNull();
   });
 });
+
+describe('registrarComensal', () => {
+  const datos = { nombre: 'Nueva', email: 'nueva@demo.test', password: 'clave1234' };
+
+  it('registra un comensal y devuelve su sesión', async () => {
+    const repo = await crearRepositorioFalso();
+    const crearComensal = jest.spyOn(repo, 'crearComensal');
+
+    const { token, sesion } = await createAuthService(repo).registrarComensal(datos);
+
+    const recibido = crearComensal.mock.calls[0]![0];
+    expect(recibido.passwordHash.startsWith('scrypt$')).toBe(true);
+    expect(JSON.stringify(recibido)).not.toContain('clave1234');
+    expect(recibido).toMatchObject({ email: 'nueva@demo.test', nombre: 'Nueva', telefono: null });
+    expect(sesion.usuario.tipo).toBe('COMENSAL');
+    expect(verificarToken(token)).toEqual({ usuarioId: IDS.comensal, sucursalId: null });
+  });
+
+  it('un email ya registrado responde 409', async () => {
+    const repo = await crearRepositorioFalso();
+    jest.spyOn(repo, 'crearComensal').mockRejectedValue({ code: 'P2002' });
+
+    await expect(createAuthService(repo).registrarComensal(datos)).rejects.toMatchObject({
+      status: 409,
+      message: 'Ya existe una cuenta con ese email',
+    });
+  });
+});

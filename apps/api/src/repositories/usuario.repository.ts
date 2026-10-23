@@ -30,6 +30,14 @@ export interface UsuarioSesion {
 export interface UsuarioRepository {
   findCredencialesByEmail(email: string): Promise<CredencialesUsuario | null>;
   findSesionById(id: string): Promise<UsuarioSesion | null>;
+  // Usuario y comensal en un solo create anidado (atómico). Devuelve el id.
+  // Un email repetido llega como P2002.
+  crearComensal(datos: {
+    email: string;
+    passwordHash: string;
+    nombre: string;
+    telefono: string | null;
+  }): Promise<string>;
 }
 
 // usuario es una tabla global (el comensal es de toda la plataforma), así que
@@ -88,5 +96,13 @@ export const usuarioRepository: UsuarioRepository = {
         sucursales: empleado.sucursales.map(({ sucursal }) => sucursal),
       },
     };
+  },
+
+  async crearComensal({ email, passwordHash, nombre, telefono }) {
+    const usuario = await prisma.usuario.create({
+      data: { email, passwordHash, tipo: 'COMENSAL', comensal: { create: { nombre, telefono } } },
+      select: { id: true },
+    });
+    return usuario.id;
   },
 };

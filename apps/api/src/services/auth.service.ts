@@ -1,5 +1,5 @@
-import type { Sesion } from '@pgim/shared';
-import { AppError } from '../lib/errors';
+import type { RegistroComensal, Sesion } from '@pgim/shared';
+import { AppError, esClaveDuplicada } from '../lib/errors';
 import { firmarToken, type TokenSesion } from '../lib/jwt';
 import { hashPassword, verifyPassword } from '../lib/password';
 import {
@@ -64,6 +64,28 @@ export function createAuthService(repo: UsuarioRepository) {
       return {
         token: firmarToken({ usuarioId: usuario.id, sucursalId }),
         sesion: construirSesion(usuario, sucursalId),
+      };
+    },
+
+    // Registro de comensal: queda con la sesión iniciada, como después del login.
+    async registrarComensal(datos: RegistroComensal): Promise<SesionIniciada> {
+      let usuarioId: string;
+      try {
+        usuarioId = await repo.crearComensal({
+          email: datos.email,
+          passwordHash: await hashPassword(datos.password),
+          nombre: datos.nombre,
+          telefono: datos.telefono || null,
+        });
+      } catch (err) {
+        if (esClaveDuplicada(err)) throw new AppError(409, 'Ya existe una cuenta con ese email');
+        throw err;
+      }
+      const usuario = await cargarActivo(usuarioId);
+      if (!usuario) throw new AppError(500, 'No se pudo iniciar la sesión');
+      return {
+        token: firmarToken({ usuarioId, sucursalId: null }),
+        sesion: construirSesion(usuario, null),
       };
     },
 

@@ -19,7 +19,13 @@ export function MenuSucursalPage() {
         <>
           <p className="text-sm text-slate-500">{datos.sucursal.restaurante.nombre}</p>
           <h1 className="text-xl font-semibold text-slate-800">{datos.sucursal.nombre}</h1>
-          <p className="mb-5 text-sm text-slate-500">{datos.sucursal.direccion}</p>
+          <p className="mb-3 text-sm text-slate-500">{datos.sucursal.direccion}</p>
+          <Link
+            to={`/s/${datos.sucursal.id}/reservar`}
+            className="mb-5 inline-block rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+          >
+            Reservar mesa
+          </Link>
 
           {!datos.menu ? (
             <p className="rounded-xl bg-white p-4 text-sm text-slate-600 shadow-sm ring-1 ring-slate-200">

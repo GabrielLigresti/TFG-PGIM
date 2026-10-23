@@ -6,9 +6,12 @@ import { SesionProvider } from './auth/SesionProvider';
 import { PanelLayout } from './components/PanelLayout';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/PanelPage';
+import { RegistroPage } from './pages/RegistroPage';
 import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
+import { MisReservasPage } from './pages/comensal/MisReservasPage';
 import { PlatoPage } from './pages/comensal/PlatoPage';
+import { ReservarPage } from './pages/comensal/ReservarPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
 import { InsumosPage } from './pages/panel/InsumosPage';
 import { MenusPage } from './pages/panel/MenusPage';
@@ -16,7 +19,9 @@ import { PersonalPage } from './pages/panel/PersonalPage';
 import { PlatosPage } from './pages/panel/PlatosPage';
 import { RecetaEditorPage } from './pages/panel/RecetaEditorPage';
 import { RecetasPage } from './pages/panel/RecetasPage';
+import { ReservasPage } from './pages/panel/ReservasPage';
 import { RolesPage } from './pages/panel/RolesPage';
+import { SalonPage } from './pages/panel/SalonPage';
 import { SucursalesPage } from './pages/panel/SucursalesPage';
 
 // Las pantallas del panel piden el permiso de lectura de su módulo.
@@ -38,6 +43,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/registro" element={<RegistroPage />} />
           <Route
             path="/sucursal"
             element={
@@ -55,7 +61,12 @@ export default function App() {
             }
           >
             <Route index element={<PanelPage />} />
+            <Route path="reservas" element={conPermiso('reserva.ver', <ReservasPage />)} />
             <Route path="sucursales" element={conPermiso('sucursal.ver', <SucursalesPage />)} />
+            <Route
+              path="sucursales/:id/salon"
+              element={conPermiso('sucursal.ver', <SalonPage />)}
+            />
             <Route path="roles" element={conPermiso('rol.ver', <RolesPage />)} />
             <Route path="personal" element={conPermiso('personal.ver', <PersonalPage />)} />
             <Route path="insumos" element={conPermiso('insumo.ver', <InsumosPage />)} />
@@ -70,6 +81,8 @@ export default function App() {
           <Route path="/inicio" element={paraComensal(<InicioComensalPage />)} />
           <Route path="/s/:sucursalId/menu" element={paraComensal(<MenuSucursalPage />)} />
           <Route path="/s/:sucursalId/platos/:id" element={paraComensal(<PlatoPage />)} />
+          <Route path="/s/:sucursalId/reservar" element={paraComensal(<ReservarPage />)} />
+          <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>

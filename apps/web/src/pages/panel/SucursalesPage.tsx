@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router';
 import {
   FRANJAS,
   administraModulo,
@@ -43,6 +44,7 @@ function horarios(s: Sucursal) {
 // CU-13: sucursales, horarios de servicio y menú activo.
 export function SucursalesPage() {
   const { sesion, tienePermiso, recargarSesion } = useSesion();
+  const navigate = useNavigate();
   const acotada = !administraModulo(sesion?.permisos ?? [], 'sucursal');
   const { datos, cargando, error, recargar } = useRecurso<Sucursal[]>('/sucursales');
   const [editando, setEditando] = useState<Sucursal | 'nueva' | null>(null);
@@ -102,6 +104,12 @@ export function SucursalesPage() {
           ]}
           acciones={(s) => (
             <span className="inline-flex gap-2">
+              <Boton
+                variante="secundario"
+                onClick={() => navigate(`/panel/sucursales/${s.id}/salon`)}
+              >
+                Salón
+              </Boton>
               {s.activa && (
                 <Boton variante="secundario" onClick={() => setQr(s)}>
                   QR del menú

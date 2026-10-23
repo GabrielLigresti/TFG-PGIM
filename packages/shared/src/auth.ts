@@ -32,3 +32,13 @@ export const sesionSchema = z.object({
 });
 
 export type Sesion = z.infer<typeof sesionSchema>;
+
+// Alta simple de comensal desde el login (sin verificación de email).
+export const registroComensalSchema = z.object({
+  nombre: z.string().trim().min(1, 'Ingresá tu nombre').max(100),
+  email: z.string().trim().toLowerCase().pipe(z.email()),
+  password: z.string().min(8, 'La contraseña tiene que tener al menos 8 caracteres').max(100),
+  telefono: z.string().trim().max(30).optional(),
+});
+
+export type RegistroComensal = z.infer<typeof registroComensalSchema>;

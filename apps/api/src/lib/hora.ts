@@ -11,3 +11,15 @@ export function aHora(fecha: Date): string {
 export function deHora(hhmm: string): Date {
   return new Date(`1970-01-01T${hhmm}:00.000Z`);
 }
+
+const formatoHoraArgentina = new Intl.DateTimeFormat('es-AR', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+// Hora "HH:mm" de Argentina de un instante (por ejemplo, el inicio de una franja).
+export function horaArgentina(instante: Date): string {
+  return formatoHoraArgentina.format(instante);
+}

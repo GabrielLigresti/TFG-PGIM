@@ -6,12 +6,15 @@ import { authRouter } from './routes/auth';
 import { comensalRouter } from './routes/comensal';
 import { healthRouter } from './routes/health';
 import { insumosRouter } from './routes/insumos';
+import { mesasRouter } from './routes/mesas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
 import { personalRouter } from './routes/personal';
 import { recetasRouter } from './routes/recetas';
+import { reservasComensalRouter, reservasPanelRouter } from './routes/reservas';
 import { rolesRouter } from './routes/roles';
 import { sucursalesRouter } from './routes/sucursales';
 import { CARPETA_MODELOS } from './lib/archivos-modelo';
+import { autenticar, soloTipo } from './middleware/auth';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
 
 const TIPO_MODELO: Record<string, string> = {
@@ -53,7 +56,9 @@ export function createApp() {
 
   app.use(`${API_PREFIX}/health`, healthRouter);
   app.use(`${API_PREFIX}/auth`, authRouter);
+  app.use(`${API_PREFIX}/sucursales/:sucursalId/mesas`, mesasRouter);
   app.use(`${API_PREFIX}/sucursales`, sucursalesRouter);
+  app.use(`${API_PREFIX}/reservas`, reservasPanelRouter);
   app.use(`${API_PREFIX}/roles`, rolesRouter);
   app.use(`${API_PREFIX}/personal`, personalRouter);
   app.use(`${API_PREFIX}/insumos`, insumosRouter);
@@ -62,6 +67,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/platos`, platosRouter);
   app.use(`${API_PREFIX}/menus`, menusRouter);
   app.use(`${API_PREFIX}/comensal`, comensalRouter);
+  app.use(`${API_PREFIX}/comensal`, autenticar, soloTipo('COMENSAL'), reservasComensalRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
