@@ -87,6 +87,7 @@ Si la sesión no tiene acceso al vault, trabajar con `docs/modelos/` y preguntar
 - Ante un hueco de contexto o una ambigüedad, preguntar antes de asumir.
 - **Idioma del código:** términos del dominio en español, como en los diagramas (`Reserva`, `Pedido`, `CuentaMesa`); términos técnicos en inglés (`ReservaService`, `findById`, `controller`).
 - **Commits:** pequeños y descriptivos, con el mensaje en español.
+- **Revisión independiente:** toda implementación (un hito, una tarea o un arreglo no trivial) la revisa un agente aparte antes del push, en lo posible con Opus. El revisor arranca con contexto limpio, trabaja en solo lectura sobre el rango de commits y compara contra el plan y `docs/modelos/`. Sus hallazgos se le presentan a Gabriel antes de arreglarlos.
 - **Comandos de desarrollo** (desde la raíz):
   - `npm run db:up` / `npm run db:down`: PostgreSQL en Docker.
   - `npm run dev`: shared en watch, API (3000) y web (5173).
