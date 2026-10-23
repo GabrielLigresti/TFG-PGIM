@@ -16,6 +16,7 @@ function repoFalso(cambios: Partial<MesaRepository> = {}): jest.Mocked<MesaRepos
     crear: jest.fn().mockResolvedValue(mesa),
     actualizar: jest.fn().mockResolvedValue(mesa),
     desactivar: jest.fn(),
+    reservasVigentes: jest.fn().mockResolvedValue({ cantidad: 0, maxPersonas: 0 }),
     ...cambios,
   } as jest.Mocked<MesaRepository>;
 }
@@ -43,7 +44,7 @@ describe('mesaService', () => {
 
     await createMesaService(repo).actualizar(R, 'centro', 'm1', datos);
 
-    expect(repo.existeNumero).toHaveBeenCalledWith('centro', 1, 'm1');
+    expect(repo.existeNumero).toHaveBeenCalledWith(R, 'centro', 1, 'm1');
     expect(repo.actualizar).toHaveBeenCalledWith(R, 'centro', 'm1', datos);
   });
 
@@ -78,5 +79,57 @@ describe('mesaService', () => {
     await createMesaService(repo).desactivar(R, 'centro', 'm1');
 
     expect(repo.desactivar).toHaveBeenCalledWith(R, 'centro', 'm1');
+  });
+
+  it('crea la mesa acotada al restaurante', async () => {
+    const repo = repoFalso();
+
+    await createMesaService(repo).crear(R, 'centro', datos);
+
+    expect(repo.existeNumero).toHaveBeenCalledWith(R, 'centro', 1, undefined);
+    expect(repo.crear).toHaveBeenCalledWith(R, 'centro', datos);
+  });
+
+  describe('con reservas vigentes', () => {
+    const conReservas = () =>
+      repoFalso({ reservasVigentes: jest.fn().mockResolvedValue({ cantidad: 2, maxPersonas: 3 }) });
+
+    it('no se da de baja', async () => {
+      const repo = conReservas();
+
+      await expect(createMesaService(repo).desactivar(R, 'centro', 'm1')).rejects.toMatchObject({
+        status: 409,
+      });
+      expect(repo.desactivar).not.toHaveBeenCalled();
+    });
+
+    it('tampoco por edición con activa en false', async () => {
+      const repo = conReservas();
+
+      await expect(
+        createMesaService(repo).actualizar(R, 'centro', 'm1', { ...datos, activa: false }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(repo.actualizar).not.toHaveBeenCalled();
+    });
+
+    it('no se achica por debajo del grupo más grande que la tiene reservada', async () => {
+      const repo = conReservas();
+
+      await expect(
+        createMesaService(repo).actualizar(R, 'centro', 'm1', { ...datos, capacidad: 2 }),
+      ).rejects.toMatchObject({ status: 409 });
+    });
+
+    it('se puede mover o achicar hasta ese grupo', async () => {
+      const repo = conReservas();
+
+      await createMesaService(repo).actualizar(R, 'centro', 'm1', {
+        ...datos,
+        capacidad: 3,
+        posX: 40,
+      });
+
+      expect(repo.actualizar).toHaveBeenCalled();
+    });
   });
 });

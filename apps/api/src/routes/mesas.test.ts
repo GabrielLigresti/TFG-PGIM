@@ -16,6 +16,7 @@ jest.mock('../repositories/mesa.repository', () => ({
     crear: jest.fn(),
     actualizar: jest.fn(),
     desactivar: jest.fn(),
+    reservasVigentes: jest.fn().mockResolvedValue({ cantidad: 0, maxPersonas: 0 }),
   },
 }));
 

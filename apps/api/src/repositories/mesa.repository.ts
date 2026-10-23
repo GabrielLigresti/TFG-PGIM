@@ -8,8 +8,13 @@ export interface MesaRepository {
   listar(restauranteId: string, sucursalId: string): Promise<Mesa[]>;
   existeSucursal(restauranteId: string, sucursalId: string): Promise<boolean>;
   buscar(restauranteId: string, sucursalId: string, id: string): Promise<Mesa | null>;
-  existeNumero(sucursalId: string, numero: number, excluirId?: string): Promise<boolean>;
-  crear(sucursalId: string, datos: MesaInput): Promise<Mesa>;
+  existeNumero(
+    restauranteId: string,
+    sucursalId: string,
+    numero: number,
+    excluirId?: string,
+  ): Promise<boolean>;
+  crear(restauranteId: string, sucursalId: string, datos: MesaInput): Promise<Mesa>;
   actualizar(
     restauranteId: string,
     sucursalId: string,
@@ -17,6 +22,12 @@ export interface MesaRepository {
     datos: MesaInput,
   ): Promise<Mesa>;
   desactivar(restauranteId: string, sucursalId: string, id: string): Promise<void>;
+  // Reservas PENDIENTE o ACTIVA de la mesa y el grupo más grande entre ellas.
+  reservasVigentes(
+    restauranteId: string,
+    sucursalId: string,
+    id: string,
+  ): Promise<{ cantidad: number; maxPersonas: number }>;
 }
 
 const seleccion = {
@@ -61,16 +72,21 @@ export const mesaRepository: MesaRepository = {
     return fila && aMesa(fila);
   },
 
-  async existeNumero(sucursalId, numero, excluirId) {
+  async existeNumero(restauranteId, sucursalId, numero, excluirId) {
     const cantidad = await prisma.mesa.count({
-      where: { sucursalId, numero, ...(excluirId && { id: { not: excluirId } }) },
+      where: {
+        ...deLaSucursal(restauranteId, sucursalId),
+        numero,
+        ...(excluirId && { id: { not: excluirId } }),
+      },
     });
     return cantidad > 0;
   },
 
-  async crear(sucursalId, datos) {
+  async crear(restauranteId, sucursalId, datos) {
     const fila = await prisma.mesa.create({
-      data: { sucursalId, ...datos },
+      // connect con restauranteId: si la sucursal es de otro restaurante, Prisma no la encuentra.
+      data: { ...datos, sucursal: { connect: { id: sucursalId, restauranteId } } },
       select: seleccion,
     });
     return aMesa(fila);
@@ -90,5 +106,18 @@ export const mesaRepository: MesaRepository = {
       where: { id, ...deLaSucursal(restauranteId, sucursalId) },
       data: { activa: false },
     });
+  },
+
+  async reservasVigentes(restauranteId, sucursalId, id) {
+    const { _count, _max } = await prisma.reserva.aggregate({
+      where: {
+        mesaId: id,
+        estado: { in: ['PENDIENTE', 'ACTIVA'] },
+        ...deLaSucursal(restauranteId, sucursalId),
+      },
+      _count: true,
+      _max: { cantidadPersonas: true },
+    });
+    return { cantidad: _count, maxPersonas: _max.cantidadPersonas ?? 0 };
   },
 };

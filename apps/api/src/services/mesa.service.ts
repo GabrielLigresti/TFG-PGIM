@@ -16,9 +16,38 @@ export function createMesaService(repo: MesaRepository) {
     }
   }
 
-  async function verificarNumero(sucursalId: string, numero: number, excluirId?: string) {
-    if (await repo.existeNumero(sucursalId, numero, excluirId)) {
+  async function verificarNumero(
+    restauranteId: string,
+    sucursalId: string,
+    numero: number,
+    excluirId?: string,
+  ) {
+    if (await repo.existeNumero(restauranteId, sucursalId, numero, excluirId)) {
       throw new AppError(409, `Ya existe la mesa ${numero} en esta sucursal`);
+    }
+  }
+
+  // Una mesa con reservas vigentes no se da de baja ni se achica por debajo del
+  // grupo más grande que la tiene reservada: esas reservas quedarían sin mesa.
+  async function verificarReservas(
+    restauranteId: string,
+    sucursalId: string,
+    id: string,
+    cambios: Partial<MesaInput>,
+  ) {
+    const { cantidad, maxPersonas } = await repo.reservasVigentes(restauranteId, sucursalId, id);
+    if (cantidad === 0) return;
+    if (cambios.activa === false) {
+      throw new AppError(
+        409,
+        `La mesa tiene ${cantidad} ${cantidad === 1 ? 'reserva vigente' : 'reservas vigentes'}: no se puede dar de baja`,
+      );
+    }
+    if (cambios.capacidad !== undefined && cambios.capacidad < maxPersonas) {
+      throw new AppError(
+        409,
+        `La mesa tiene una reserva para ${maxPersonas} personas: la capacidad no puede ser menor`,
+      );
     }
   }
 
@@ -39,18 +68,20 @@ export function createMesaService(repo: MesaRepository) {
 
     async crear(restauranteId: string, sucursalId: string, datos: MesaInput) {
       await verificarSucursal(restauranteId, sucursalId);
-      await verificarNumero(sucursalId, datos.numero);
-      return repo.crear(sucursalId, datos);
+      await verificarNumero(restauranteId, sucursalId, datos.numero);
+      return repo.crear(restauranteId, sucursalId, datos);
     },
 
     async actualizar(restauranteId: string, sucursalId: string, id: string, datos: MesaInput) {
       await verificarMesa(restauranteId, sucursalId, id);
-      await verificarNumero(sucursalId, datos.numero, id);
+      await verificarNumero(restauranteId, sucursalId, datos.numero, id);
+      await verificarReservas(restauranteId, sucursalId, id, datos);
       return repo.actualizar(restauranteId, sucursalId, id, datos);
     },
 
     async desactivar(restauranteId: string, sucursalId: string, id: string) {
       await verificarMesa(restauranteId, sucursalId, id);
+      await verificarReservas(restauranteId, sucursalId, id, { activa: false });
       await repo.desactivar(restauranteId, sucursalId, id);
     },
   };
