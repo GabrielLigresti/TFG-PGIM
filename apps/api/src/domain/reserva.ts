@@ -36,14 +36,18 @@ export function puedeActivarse(ctx: ContextoReserva): boolean {
 const DURACION_FRANJA_MIN = 60;
 
 // Si la reserva todavía compromete la mesa: una pendiente hasta el fin de la
-// tolerancia (después vence) y una activa mientras dura su franja.
+// tolerancia (después vence) y una activa mientras dura su franja o la
+// tolerancia, lo que termine más tarde.
 export function ocupaLaMesa(
   r: { estado: EstadoReserva; inicio: Date; toleranciaNoShowMin: number },
   ahora: Date,
 ): boolean {
   if (r.estado === 'PENDIENTE') return ahora <= limiteDeLlegada(r);
   if (r.estado === 'ACTIVA') {
-    return ahora.getTime() < r.inicio.getTime() + DURACION_FRANJA_MIN * MINUTO;
+    // Con una tolerancia de más de 1 h, el grupo pudo sentarse después de que
+    // terminó la franja: la mesa sigue ocupada hasta el fin de la tolerancia.
+    const finFranja = r.inicio.getTime() + DURACION_FRANJA_MIN * MINUTO;
+    return ahora.getTime() < finFranja || ahora <= limiteDeLlegada(r);
   }
   return false;
 }

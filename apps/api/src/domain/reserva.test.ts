@@ -100,6 +100,13 @@ describe('estados de la reserva', () => {
       expect(ocupaLaMesa(reserva('ACTIVA'), en('2026-10-31T00:00:00.000Z'))).toBe(false);
     });
 
+    it('con una tolerancia de más de 1 h, una activa la ocupa hasta el fin de la tolerancia', () => {
+      const tarde = { estado: 'ACTIVA' as const, inicio, toleranciaNoShowMin: 90 };
+      expect(ocupaLaMesa(tarde, en('2026-10-31T00:10:00.000Z'))).toBe(true);
+      expect(ocupaLaMesa(tarde, en('2026-10-31T00:30:00.000Z'))).toBe(true);
+      expect(ocupaLaMesa(tarde, en('2026-10-31T00:30:01.000Z'))).toBe(false);
+    });
+
     it.each(['CANCELADA', 'VENCIDA', 'FINALIZADA'] as const)('una %s no la ocupa', (estado) => {
       expect(ocupaLaMesa(reserva(estado), en('2026-10-30T22:00:00.000Z'))).toBe(false);
     });
