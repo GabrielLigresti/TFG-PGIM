@@ -175,9 +175,12 @@ export function ReservarPage() {
         </section>
       )}
 
-      <div className="mb-3">
-        <Aviso>{error}</Aviso>
-      </div>
+      {/* Sin mapa a la vista (por ejemplo, la franja ya empezó), el aviso va acá. */}
+      {error && !franjaVigente && (
+        <div className="mb-3">
+          <Aviso>{error}</Aviso>
+        </div>
+      )}
       {franjaVigente && (
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-slate-700">Elegí tu mesa</h2>
@@ -191,6 +194,7 @@ export function ReservarPage() {
               </p>
             </>
           )}
+          <Aviso>{error}</Aviso>
           <div className="flex flex-wrap gap-2">
             <Boton disabled={!mesaElegida || enviando} onClick={() => reservar(mesaId)}>
               {mesaElegida ? `Reservar mesa ${mesaElegida.numero}` : 'Tocá una mesa libre'}
