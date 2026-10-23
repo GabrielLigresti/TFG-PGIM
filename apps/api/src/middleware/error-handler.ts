@@ -1,6 +1,6 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
 import { ZodError } from 'zod';
-import { AppError, esClaveDuplicada } from '../lib/errors';
+import { AppError, esClaveDuplicada, esRegistroInexistente } from '../lib/errors';
 
 export const notFoundHandler: RequestHandler = (_req, res) => {
   res.status(404).json({ error: 'Recurso no encontrado' });
@@ -43,6 +43,10 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
           ? 'El archivo es demasiado grande'
           : 'El pedido no tiene un formato válido',
     });
+    return;
+  }
+  if (esRegistroInexistente(err)) {
+    res.status(404).json({ error: 'Recurso no encontrado' });
     return;
   }
   if (esClaveDuplicada(err)) {

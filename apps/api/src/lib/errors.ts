@@ -17,3 +17,9 @@ export class AppError extends Error {
 export function esClaveDuplicada(err: unknown): boolean {
   return typeof err === 'object' && err !== null && 'code' in err && err.code === 'P2002';
 }
+
+// P2025 de Prisma: el registro a actualizar o conectar no existe (o no es del
+// tenant). Los servicios buscan antes; llega acá solo si desapareció en el medio.
+export function esRegistroInexistente(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && 'code' in err && err.code === 'P2025';
+}
