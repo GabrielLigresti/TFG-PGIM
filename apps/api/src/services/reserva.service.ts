@@ -232,6 +232,28 @@ export function createReservaService(
       return aReservaComensal({ ...fila, estado: hacia });
     },
 
+    // CU-21: la tarea programada vence las pendientes pasada la tolerancia.
+    // Devuelve cuántas venció.
+    async vencerPendientes(): Promise<number> {
+      const momento = ahora();
+      let vencidas = 0;
+      for (const fila of await repo.pendientesIniciadas(momento)) {
+        const ctx = {
+          inicio: fila.inicio,
+          toleranciaNoShowMin: fila.toleranciaNoShowMin,
+          ahora: momento,
+        };
+        if (momento <= limiteDeLlegada(ctx)) continue;
+        const hacia = estadoDeReserva(fila.estado).vencer(ctx);
+        // Si mientras tanto la activaron o la cancelaron, no se toca.
+        if (await repo.cambiarEstado(fila.id, fila.estado, hacia)) {
+          publicar('RESERVA_VENCIDA', fila, hacia);
+          vencidas++;
+        }
+      }
+      return vencidas;
+    },
+
     // CU-12: reservas de un día (hora de Argentina) de la sucursal de trabajo.
     async delDia(
       restauranteId: string,

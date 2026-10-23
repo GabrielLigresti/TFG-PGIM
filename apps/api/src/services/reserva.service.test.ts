@@ -73,6 +73,7 @@ function repoFalso(cambios: Partial<ReservaRepository> = {}): jest.Mocked<Reserv
     listarDelDia: jest.fn().mockResolvedValue([filaPanel()]),
     buscarEnSucursal: jest.fn().mockResolvedValue(filaPanel()),
     activar: jest.fn().mockResolvedValue(true),
+    pendientesIniciadas: jest.fn().mockResolvedValue([fila({ inicio: new Date(A_LAS_20) })]),
     ...cambios,
   } as jest.Mocked<ReservaRepository>;
 }
@@ -405,5 +406,40 @@ describe('activación (CU-12)', () => {
       comensal: { nombre: 'Carlos', telefono: null },
       limiteLlegada: '2026-10-30T23:15:00.000Z',
     });
+  });
+});
+
+describe('vencimiento por no-show (CU-21)', () => {
+  it('vence las pendientes pasada la tolerancia y publica RESERVA_VENCIDA', async () => {
+    const { service, repo, bus } = servicio(
+      undefined,
+      undefined,
+      new Date('2026-10-30T23:15:01.000Z'),
+    );
+
+    expect(await service.vencerPendientes()).toBe(1);
+    expect(repo.cambiarEstado).toHaveBeenCalledWith('R', 'PENDIENTE', 'VENCIDA');
+    expect(bus.publicar).toHaveBeenCalledWith({
+      tipo: 'RESERVA_VENCIDA',
+      reserva: expect.objectContaining({ id: 'R', estado: 'VENCIDA' }),
+    });
+  });
+
+  it('no vence dentro de la tolerancia', async () => {
+    const { service, repo } = servicio(undefined, undefined, new Date('2026-10-30T23:15:00.000Z'));
+
+    expect(await service.vencerPendientes()).toBe(0);
+    expect(repo.cambiarEstado).not.toHaveBeenCalled();
+  });
+
+  it('no publica si otra operación ya la cambió', async () => {
+    const { service, bus } = servicio(
+      repoFalso({ cambiarEstado: jest.fn().mockResolvedValue(false) }),
+      undefined,
+      new Date('2026-10-30T23:20:00.000Z'),
+    );
+
+    expect(await service.vencerPendientes()).toBe(0);
+    expect(bus.publicar).not.toHaveBeenCalled();
   });
 });

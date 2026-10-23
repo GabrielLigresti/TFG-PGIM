@@ -73,6 +73,8 @@ export interface ReservaRepository {
   // PENDIENTE → ACTIVA y apertura de la cuenta de mesa, en una transacción.
   // false si la reserva ya no estaba pendiente.
   activar(id: string): Promise<boolean>;
+  // CU-21: PENDIENTE ya empezadas, de sucursales activas, con su tolerancia.
+  pendientesIniciadas(ahora: Date): Promise<FilaReserva[]>;
 }
 
 const VIGENTES: EstadoReserva[] = ['PENDIENTE', 'ACTIVA'];
@@ -231,5 +233,13 @@ export const reservaRepository: ReservaRepository = {
       await tx.cuentaMesa.create({ data: { reservaId: id } });
       return true;
     });
+  },
+
+  async pendientesIniciadas(ahora) {
+    const filas = await prisma.reserva.findMany({
+      where: { estado: 'PENDIENTE', inicio: { lt: ahora }, sucursal: { activa: true } },
+      select: seleccionReserva,
+    });
+    return filas.map(aFilaReserva);
   },
 };
