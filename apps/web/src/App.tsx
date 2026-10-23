@@ -9,7 +9,9 @@ import { PanelPage } from './pages/PanelPage';
 import { RegistroPage } from './pages/RegistroPage';
 import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
+import { MisReservasPage } from './pages/comensal/MisReservasPage';
 import { PlatoPage } from './pages/comensal/PlatoPage';
+import { ReservarPage } from './pages/comensal/ReservarPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
 import { InsumosPage } from './pages/panel/InsumosPage';
 import { MenusPage } from './pages/panel/MenusPage';
@@ -77,6 +79,8 @@ export default function App() {
           <Route path="/inicio" element={paraComensal(<InicioComensalPage />)} />
           <Route path="/s/:sucursalId/menu" element={paraComensal(<MenuSucursalPage />)} />
           <Route path="/s/:sucursalId/platos/:id" element={paraComensal(<PlatoPage />)} />
+          <Route path="/s/:sucursalId/reservar" element={paraComensal(<ReservarPage />)} />
+          <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
