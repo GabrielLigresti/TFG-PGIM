@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import {
   DIAS_ANTICIPACION_RESERVA,
@@ -43,6 +43,13 @@ export function ReservarPage() {
   const ahora = useAhora();
   const ofrecidas = franjas.datos?.filter((f) => Date.parse(f.inicio) > ahora);
   const franjaVigente = franja !== null && Date.parse(franja) > ahora;
+  // La franja elegida empezó con la pantalla abierta: se descarta y se avisa.
+  useEffect(() => {
+    if (franja === null || franjaVigente) return;
+    setFranja(null);
+    setMesaId(null);
+    setError(`La franja de las ${formatoHora(franja)} ya empezó. Elegí otro horario.`);
+  }, [franja, franjaVigente, setError]);
   const mapa = useRecurso<MapaDeFranja>(
     franja ? `${base}/mapa?inicio=${encodeURIComponent(franja)}&personas=${personas}` : null,
   );
@@ -168,6 +175,9 @@ export function ReservarPage() {
         </section>
       )}
 
+      <div className="mb-3">
+        <Aviso>{error}</Aviso>
+      </div>
       {franjaVigente && (
         <section className="space-y-3">
           <h2 className="text-sm font-medium text-slate-700">Elegí tu mesa</h2>
@@ -181,7 +191,6 @@ export function ReservarPage() {
               </p>
             </>
           )}
-          <Aviso>{error}</Aviso>
           <div className="flex flex-wrap gap-2">
             <Boton disabled={!mesaElegida || enviando} onClick={() => reservar(mesaId)}>
               {mesaElegida ? `Reservar mesa ${mesaElegida.numero}` : 'Tocá una mesa libre'}
