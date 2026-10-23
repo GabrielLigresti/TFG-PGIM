@@ -25,14 +25,24 @@ const limiteLogin = rateLimit({
   message: { error: 'Demasiados intentos. Probá de nuevo en unos minutos.' },
 });
 
+// El registro cuenta también las altas que salen bien: sin verificación de
+// email, frena que un script cree cuentas en masa (y esquive la regla de una
+// reserva por comensal y hora).
+const limiteRegistro = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Demasiados registros desde esta conexión. Probá de nuevo más tarde.' },
+});
+
 authRouter.post('/login', limiteLogin, validar(loginRequestSchema), async (req, res) => {
   const { email, password } = req.body as LoginRequest;
   const { token, sesion } = await authService.iniciarSesion(email, password);
   res.cookie(COOKIE_SESION, token, opcionesCookie(req)).json(sesion);
 });
 
-// Mismo límite que el login: cuenta los intentos fallidos (por ejemplo, probar emails ya registrados).
-authRouter.post('/registro', limiteLogin, validar(registroComensalSchema), async (req, res) => {
+authRouter.post('/registro', limiteRegistro, validar(registroComensalSchema), async (req, res) => {
   const { token, sesion } = await authService.registrarComensal(req.body as RegistroComensal);
   res.cookie(COOKIE_SESION, token, opcionesCookie(req)).status(201).json(sesion);
 });
