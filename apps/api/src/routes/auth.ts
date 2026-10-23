@@ -30,7 +30,7 @@ const limiteLogin = rateLimit({
 // reserva por comensal y hora).
 const limiteRegistro = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 5,
+  limit: 10,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   message: { error: 'Demasiados registros desde esta conexión. Probá de nuevo más tarde.' },

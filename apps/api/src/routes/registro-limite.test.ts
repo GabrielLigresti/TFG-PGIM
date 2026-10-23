@@ -19,14 +19,14 @@ beforeAll(async () => {
 
 // En su propio archivo: el contador del límite es del módulo y arranca de cero.
 describe('límite de registros', () => {
-  it('después de 5 altas desde la misma IP responde 429, aunque hayan salido bien', async () => {
+  it('después de 10 altas desde la misma IP responde 429, aunque hayan salido bien', async () => {
     const app = createApp();
     const registrar = (n: number) =>
       request(app)
         .post('/api/auth/registro')
         .send({ nombre: 'Nueva', email: `nueva${n}@demo.test`, password: 'clave1234' });
 
-    for (let n = 1; n <= 5; n++) expect((await registrar(n)).status).toBe(201);
-    expect((await registrar(6)).status).toBe(429);
+    for (let n = 1; n <= 10; n++) expect((await registrar(n)).status).toBe(201);
+    expect((await registrar(11)).status).toBe(429);
   });
 });
