@@ -17,6 +17,7 @@ import { PlatosPage } from './pages/panel/PlatosPage';
 import { RecetaEditorPage } from './pages/panel/RecetaEditorPage';
 import { RecetasPage } from './pages/panel/RecetasPage';
 import { RolesPage } from './pages/panel/RolesPage';
+import { SalonPage } from './pages/panel/SalonPage';
 import { SucursalesPage } from './pages/panel/SucursalesPage';
 
 // Las pantallas del panel piden el permiso de lectura de su módulo.
@@ -56,6 +57,10 @@ export default function App() {
           >
             <Route index element={<PanelPage />} />
             <Route path="sucursales" element={conPermiso('sucursal.ver', <SucursalesPage />)} />
+            <Route
+              path="sucursales/:id/salon"
+              element={conPermiso('sucursal.ver', <SalonPage />)}
+            />
             <Route path="roles" element={conPermiso('rol.ver', <RolesPage />)} />
             <Route path="personal" element={conPermiso('personal.ver', <PersonalPage />)} />
             <Route path="insumos" element={conPermiso('insumo.ver', <InsumosPage />)} />
