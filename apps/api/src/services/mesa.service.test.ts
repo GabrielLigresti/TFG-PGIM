@@ -16,7 +16,7 @@ function repoFalso(cambios: Partial<MesaRepository> = {}): jest.Mocked<MesaRepos
     crear: jest.fn().mockResolvedValue(mesa),
     actualizar: jest.fn().mockResolvedValue(mesa),
     desactivar: jest.fn(),
-    reservasVigentes: jest.fn().mockResolvedValue({ cantidad: 0, maxPersonas: 0 }),
+    reservasVigentes: jest.fn().mockResolvedValue([]),
     ...cambios,
   } as jest.Mocked<MesaRepository>;
 }
@@ -91,13 +91,23 @@ describe('mesaService', () => {
   });
 
   describe('con reservas vigentes', () => {
-    const conReservas = () =>
-      repoFalso({ reservasVigentes: jest.fn().mockResolvedValue({ cantidad: 2, maxPersonas: 3 }) });
+    // 17:00 del 30/10 en Argentina.
+    const AHORA = new Date('2026-10-30T20:00:00.000Z');
+    const reserva = (estado: 'PENDIENTE' | 'ACTIVA', inicio: string, cantidadPersonas = 3) => ({
+      estado,
+      inicio: new Date(inicio),
+      cantidadPersonas,
+      toleranciaNoShowMin: 15,
+    });
+    // Una para 3 personas a las 20:00 de hoy.
+    const conReservas = (filas = [reserva('PENDIENTE', '2026-10-30T23:00:00.000Z')]) =>
+      repoFalso({ reservasVigentes: jest.fn().mockResolvedValue(filas) });
+    const servicio = (repo: MesaRepository) => createMesaService(repo, () => AHORA);
 
     it('no se da de baja', async () => {
       const repo = conReservas();
 
-      await expect(createMesaService(repo).desactivar(R, 'centro', 'm1')).rejects.toMatchObject({
+      await expect(servicio(repo).desactivar(R, 'centro', 'm1')).rejects.toMatchObject({
         status: 409,
       });
       expect(repo.desactivar).not.toHaveBeenCalled();
@@ -107,7 +117,7 @@ describe('mesaService', () => {
       const repo = conReservas();
 
       await expect(
-        createMesaService(repo).actualizar(R, 'centro', 'm1', { ...datos, activa: false }),
+        servicio(repo).actualizar(R, 'centro', 'm1', { ...datos, activa: false }),
       ).rejects.toMatchObject({ status: 409 });
       expect(repo.actualizar).not.toHaveBeenCalled();
     });
@@ -116,18 +126,39 @@ describe('mesaService', () => {
       const repo = conReservas();
 
       await expect(
-        createMesaService(repo).actualizar(R, 'centro', 'm1', { ...datos, capacidad: 2 }),
+        servicio(repo).actualizar(R, 'centro', 'm1', { ...datos, capacidad: 2 }),
       ).rejects.toMatchObject({ status: 409 });
     });
 
     it('se puede mover o achicar hasta ese grupo', async () => {
       const repo = conReservas();
 
-      await createMesaService(repo).actualizar(R, 'centro', 'm1', {
-        ...datos,
-        capacidad: 3,
-        posX: 40,
-      });
+      await servicio(repo).actualizar(R, 'centro', 'm1', { ...datos, capacidad: 3, posX: 40 });
+
+      expect(repo.actualizar).toHaveBeenCalled();
+    });
+
+    it('una activa de una franja que ya terminó no la traba', async () => {
+      const repo = conReservas([reserva('ACTIVA', '2026-10-29T23:00:00.000Z', 8)]);
+
+      await servicio(repo).desactivar(R, 'centro', 'm1');
+
+      expect(repo.desactivar).toHaveBeenCalled();
+    });
+
+    it('una pendiente pasada la tolerancia (a punto de vencer) no la traba', async () => {
+      const repo = conReservas([reserva('PENDIENTE', '2026-10-30T19:00:00.000Z', 8)]);
+
+      await servicio(repo).actualizar(R, 'centro', 'm1', { ...datos, capacidad: 2 });
+
+      expect(repo.actualizar).toHaveBeenCalled();
+    });
+
+    it('una mesa que ya estaba dada de baja se puede mover', async () => {
+      const repo = conReservas();
+      repo.buscar.mockResolvedValue({ ...mesa, activa: false });
+
+      await servicio(repo).actualizar(R, 'centro', 'm1', { ...datos, activa: false, posX: 40 });
 
       expect(repo.actualizar).toHaveBeenCalled();
     });

@@ -31,6 +31,23 @@ export function puedeActivarse(ctx: ContextoReserva): boolean {
   return ctx.ahora.getTime() >= desde && ctx.ahora <= limiteDeLlegada(ctx);
 }
 
+// Mientras no haya cierre de mesa (Hito 4), una reserva activa se da por
+// terminada al final de su franja de 1 h.
+const DURACION_FRANJA_MIN = 60;
+
+// Si la reserva todavía compromete la mesa: una pendiente hasta el fin de la
+// tolerancia (después vence) y una activa mientras dura su franja.
+export function ocupaLaMesa(
+  r: { estado: EstadoReserva; inicio: Date; toleranciaNoShowMin: number },
+  ahora: Date,
+): boolean {
+  if (r.estado === 'PENDIENTE') return ahora <= limiteDeLlegada(r);
+  if (r.estado === 'ACTIVA') {
+    return ahora.getTime() < r.inicio.getTime() + DURACION_FRANJA_MIN * MINUTO;
+  }
+  return false;
+}
+
 export function puedeCancelarse(ctx: ContextoReserva): boolean {
   return ctx.ahora < ctx.inicio;
 }

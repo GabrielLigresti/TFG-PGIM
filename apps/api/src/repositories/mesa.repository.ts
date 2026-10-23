@@ -1,4 +1,4 @@
-import type { Mesa, MesaInput } from '@pgim/shared';
+import type { EstadoReserva, Mesa, MesaInput } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
 
@@ -22,12 +22,15 @@ export interface MesaRepository {
     datos: MesaInput,
   ): Promise<Mesa>;
   desactivar(restauranteId: string, sucursalId: string, id: string): Promise<void>;
-  // Reservas PENDIENTE o ACTIVA de la mesa y el grupo más grande entre ellas.
-  reservasVigentes(
-    restauranteId: string,
-    sucursalId: string,
-    id: string,
-  ): Promise<{ cantidad: number; maxPersonas: number }>;
+  // Reservas PENDIENTE o ACTIVA de la mesa; el servicio decide cuáles la ocupan.
+  reservasVigentes(restauranteId: string, sucursalId: string, id: string): Promise<ReservaDeMesa[]>;
+}
+
+export interface ReservaDeMesa {
+  estado: EstadoReserva;
+  inicio: Date;
+  cantidadPersonas: number;
+  toleranciaNoShowMin: number;
 }
 
 const seleccion = {
@@ -109,15 +112,22 @@ export const mesaRepository: MesaRepository = {
   },
 
   async reservasVigentes(restauranteId, sucursalId, id) {
-    const { _count, _max } = await prisma.reserva.aggregate({
+    const filas = await prisma.reserva.findMany({
       where: {
         mesaId: id,
         estado: { in: ['PENDIENTE', 'ACTIVA'] },
         ...deLaSucursal(restauranteId, sucursalId),
       },
-      _count: true,
-      _max: { cantidadPersonas: true },
+      select: {
+        estado: true,
+        inicio: true,
+        cantidadPersonas: true,
+        sucursal: { select: { toleranciaNoShowMin: true } },
+      },
     });
-    return { cantidad: _count, maxPersonas: _max.cantidadPersonas ?? 0 };
+    return filas.map(({ sucursal, ...fila }) => ({
+      ...fila,
+      toleranciaNoShowMin: sucursal.toleranciaNoShowMin,
+    }));
   },
 };

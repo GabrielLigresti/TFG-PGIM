@@ -1,19 +1,20 @@
-import { administraModulo, type CodigoPermiso, type MesaInput } from '@pgim/shared';
+import { administraModulo, type CodigoPermiso, type Mesa, type MesaInput } from '@pgim/shared';
+import { ocupaLaMesa } from '../domain/reserva';
 import { AppError } from '../lib/errors';
 import { mesaRepository, type MesaRepository } from '../repositories/mesa.repository';
 
 // CU-14 Configurar mapa del salón.
-export function createMesaService(repo: MesaRepository) {
+export function createMesaService(repo: MesaRepository, ahora: () => Date = () => new Date()) {
   async function verificarSucursal(restauranteId: string, sucursalId: string) {
     if (!(await repo.existeSucursal(restauranteId, sucursalId))) {
       throw new AppError(404, 'La sucursal no existe');
     }
   }
 
-  async function verificarMesa(restauranteId: string, sucursalId: string, id: string) {
-    if (!(await repo.buscar(restauranteId, sucursalId, id))) {
-      throw new AppError(404, 'La mesa no existe');
-    }
+  async function obtenerMesa(restauranteId: string, sucursalId: string, id: string) {
+    const mesa = await repo.buscar(restauranteId, sucursalId, id);
+    if (!mesa) throw new AppError(404, 'La mesa no existe');
+    return mesa;
   }
 
   async function verificarNumero(
@@ -27,17 +28,24 @@ export function createMesaService(repo: MesaRepository) {
     }
   }
 
-  // Una mesa con reservas vigentes no se da de baja ni se achica por debajo del
-  // grupo más grande que la tiene reservada: esas reservas quedarían sin mesa.
+  // Una mesa con reservas que todavía la ocupan no se da de baja ni se achica
+  // por debajo del grupo más grande: esas reservas quedarían sin mesa. Una
+  // pendiente vencida o una activa de una franja ya terminada no cuentan.
   async function verificarReservas(
     restauranteId: string,
     sucursalId: string,
-    id: string,
+    mesa: Mesa,
     cambios: Partial<MesaInput>,
   ) {
-    const { cantidad, maxPersonas } = await repo.reservasVigentes(restauranteId, sucursalId, id);
+    const momento = ahora();
+    const ocupan = (await repo.reservasVigentes(restauranteId, sucursalId, mesa.id)).filter((r) =>
+      ocupaLaMesa(r, momento),
+    );
+    const cantidad = ocupan.length;
     if (cantidad === 0) return;
-    if (cambios.activa === false) {
+    const maxPersonas = Math.max(...ocupan.map((r) => r.cantidadPersonas));
+    // Solo el paso de activa a inactiva: una mesa ya dada de baja se puede mover.
+    if (mesa.activa && cambios.activa === false) {
       throw new AppError(
         409,
         `La mesa tiene ${cantidad} ${cantidad === 1 ? 'reserva vigente' : 'reservas vigentes'}: no se puede dar de baja`,
@@ -73,15 +81,15 @@ export function createMesaService(repo: MesaRepository) {
     },
 
     async actualizar(restauranteId: string, sucursalId: string, id: string, datos: MesaInput) {
-      await verificarMesa(restauranteId, sucursalId, id);
+      const mesa = await obtenerMesa(restauranteId, sucursalId, id);
       await verificarNumero(restauranteId, sucursalId, datos.numero, id);
-      await verificarReservas(restauranteId, sucursalId, id, datos);
+      await verificarReservas(restauranteId, sucursalId, mesa, datos);
       return repo.actualizar(restauranteId, sucursalId, id, datos);
     },
 
     async desactivar(restauranteId: string, sucursalId: string, id: string) {
-      await verificarMesa(restauranteId, sucursalId, id);
-      await verificarReservas(restauranteId, sucursalId, id, { activa: false });
+      const mesa = await obtenerMesa(restauranteId, sucursalId, id);
+      await verificarReservas(restauranteId, sucursalId, mesa, { activa: false });
       await repo.desactivar(restauranteId, sucursalId, id);
     },
   };

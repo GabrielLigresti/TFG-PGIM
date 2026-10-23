@@ -1,5 +1,5 @@
 import { ESTADOS_RESERVA, type EstadoReserva } from '@pgim/shared';
-import { estadoDeReserva, limiteDeLlegada, type ContextoReserva } from './reserva';
+import { estadoDeReserva, limiteDeLlegada, ocupaLaMesa, type ContextoReserva } from './reserva';
 
 // 20:00 en Argentina, con 15 minutos de tolerancia.
 const inicio = new Date('2026-10-30T23:00:00.000Z');
@@ -84,5 +84,24 @@ describe('estados de la reserva', () => {
     expect(limiteDeLlegada({ inicio, toleranciaNoShowMin: 15 }).toISOString()).toBe(
       '2026-10-30T23:15:00.000Z',
     );
+  });
+
+  describe('ocupaLaMesa', () => {
+    const reserva = (estado: EstadoReserva) => ({ estado, inicio, toleranciaNoShowMin: 15 });
+    const en = (iso: string) => new Date(iso);
+
+    it('una pendiente la ocupa hasta el fin de la tolerancia', () => {
+      expect(ocupaLaMesa(reserva('PENDIENTE'), en('2026-10-30T23:15:00.000Z'))).toBe(true);
+      expect(ocupaLaMesa(reserva('PENDIENTE'), en('2026-10-30T23:15:01.000Z'))).toBe(false);
+    });
+
+    it('una activa la ocupa mientras dura su franja de 1 h', () => {
+      expect(ocupaLaMesa(reserva('ACTIVA'), en('2026-10-30T23:59:59.000Z'))).toBe(true);
+      expect(ocupaLaMesa(reserva('ACTIVA'), en('2026-10-31T00:00:00.000Z'))).toBe(false);
+    });
+
+    it.each(['CANCELADA', 'VENCIDA', 'FINALIZADA'] as const)('una %s no la ocupa', (estado) => {
+      expect(ocupaLaMesa(reserva(estado), en('2026-10-30T22:00:00.000Z'))).toBe(false);
+    });
   });
 });
