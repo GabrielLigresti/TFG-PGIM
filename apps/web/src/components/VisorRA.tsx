@@ -44,6 +44,8 @@ export function VisorRA({
   const [webXR, setWebXR] = useState<boolean | null>(null);
   const [sesion, setSesion] = useState<EstadoSesion | null>(null);
   const salir = useRef<(() => void) | null>(null);
+  const [diagnostico, setDiagnostico] = useState<string | null>(null);
+  const conDiagnostico = new URLSearchParams(window.location.search).has('diag');
 
   useEffect(() => {
     void import('../lib/ra-webxr').then(({ soportaRaWebXR }) => soportaRaWebXR().then(setWebXR));
@@ -81,6 +83,7 @@ export function VisorRA({
         escalaReal: modelo.escalaReal,
         overlay: capa.current,
         onEstado: setSesion,
+        ...(conDiagnostico && { onDiagnostico: setDiagnostico }),
         onFin: () => {
           salir.current = null;
           setSesion(null);
@@ -159,6 +162,7 @@ export function VisorRA({
           <p className="font-medium">{nombre}</p>
           <p className="text-sm">{sesion && INSTRUCCIONES[sesion]}</p>
           <p className="text-xs opacity-80">Porción: {porcion}</p>
+          {diagnostico && <p className="mt-1 font-mono text-[10px] opacity-90">{diagnostico}</p>}
         </div>
         <button
           type="button"

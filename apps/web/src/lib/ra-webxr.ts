@@ -37,6 +37,8 @@ export interface OpcionesRa {
   overlay: HTMLElement;
   onEstado(estado: 'buscando' | 'apuntando' | 'colocado'): void;
   onFin(): void;
+  // Solo para pruebas en el celular (?diag en la URL): datos del dibujado.
+  onDiagnostico?(texto: string): void;
 }
 
 // Sombra suave bajo el plato, para que no parezca flotar.
@@ -99,29 +101,13 @@ const MS_SIN_SUPERFICIE = 700;
 // Abre la sesión. Si el navegador la rechaza (por ejemplo, sin permiso de
 // cámara) la promesa falla y el visor muestra el respaldo (E2).
 export async function iniciarRa(opciones: OpcionesRa): Promise<() => void> {
-  const { urlModelo, escalaReal, overlay, onEstado, onFin } = opciones;
+  const { urlModelo, escalaReal, overlay, onEstado, onFin, onDiagnostico } = opciones;
   const plato = await cargarPlato(urlModelo, escalaReal);
-
-  const sesion = await navigator.xr!.requestSession('immersive-ar', {
-    requiredFeatures: ['hit-test', 'local'],
-    optionalFeatures: ['dom-overlay'],
-    domOverlay: { root: overlay },
-  });
 
   const renderer = new WebGLRenderer({ alpha: true, antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
   renderer.xr.enabled = true;
   renderer.xr.setReferenceSpaceType('local');
-  let fuenteImpacto: XRHitTestSource;
-  try {
-    await renderer.xr.setSession(sesion);
-    const espacioVisor = await sesion.requestReferenceSpace('viewer');
-    fuenteImpacto = (await sesion.requestHitTestSource!({ space: espacioVisor }))!;
-  } catch (e) {
-    renderer.dispose();
-    await sesion.end().catch(() => undefined);
-    throw e;
-  }
 
   const escena = new Scene();
   escena.add(new HemisphereLight(0xffffff, 0x8899aa, 2.5));
@@ -132,11 +118,70 @@ export async function iniciarRa(opciones: OpcionesRa): Promise<() => void> {
   escena.add(anillo, plato);
   const camara = new PerspectiveCamera();
 
+  const matriz = new Matrix4();
+  let fuenteImpacto: XRHitTestSource | null = null;
+  let ultimaSuperficie = -Infinity;
+  let cuadros = 0;
+
+  // El loop se registra antes de abrir la sesión, como en los ejemplos de
+  // three.js: así three corta su loop del navegador al empezar la sesión y
+  // solo se dibuja dentro de los cuadros de WebXR.
+  renderer.setAnimationLoop((tiempo, cuadro?: XRFrame) => {
+    if (!cuadro) return;
+    const espacio = renderer.xr.getReferenceSpace();
+    const impacto = fuenteImpacto ? cuadro.getHitTestResults(fuenteImpacto)[0] : undefined;
+    const pose = espacio ? impacto?.getPose(espacio) : undefined;
+    if (pose) {
+      anillo.matrix.copy(matriz.fromArray(pose.transform.matrix));
+      ultimaSuperficie = tiempo;
+    }
+    const apuntando = tiempo - ultimaSuperficie < MS_SIN_SUPERFICIE;
+    if (!plato.visible && apuntando !== anillo.visible) {
+      onEstado(apuntando ? 'apuntando' : 'buscando');
+    }
+    anillo.visible = apuntando;
+    renderer.render(escena, camara);
+    if (onDiagnostico && ++cuadros % 30 === 0) {
+      const capa = renderer.xr.getBaseLayer();
+      onDiagnostico(
+        [
+          `cuadros ${cuadros}`,
+          `triángulos ${renderer.info.render.triangles}`,
+          `capa ${capa ? capa.constructor.name : 'ninguna'}`,
+          `error GL ${renderer.getContext().getError()}`,
+          `anillo ${anillo.visible ? 'sí' : 'no'}`,
+          `plato ${plato.visible ? 'sí' : 'no'}`,
+        ].join(' · '),
+      );
+    }
+  });
+
+  let sesion: XRSession;
+  try {
+    sesion = await navigator.xr!.requestSession('immersive-ar', {
+      requiredFeatures: ['hit-test', 'local'],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: { root: overlay },
+    });
+  } catch (e) {
+    renderer.setAnimationLoop(null);
+    renderer.dispose();
+    throw e;
+  }
+  try {
+    await renderer.xr.setSession(sesion);
+    const espacioVisor = await sesion.requestReferenceSpace('viewer');
+    fuenteImpacto = (await sesion.requestHitTestSource!({ space: espacioVisor })) ?? null;
+  } catch (e) {
+    renderer.setAnimationLoop(null);
+    renderer.dispose();
+    await sesion.end().catch(() => undefined);
+    throw e;
+  }
   onEstado('buscando');
 
   const punto = new Vector3();
   const posicionCamara = new Vector3();
-  const matriz = new Matrix4();
 
   sesion.addEventListener('select', () => {
     if (!anillo.visible) return;
@@ -149,26 +194,9 @@ export async function iniciarRa(opciones: OpcionesRa): Promise<() => void> {
     onEstado('colocado');
   });
 
-  let ultimaSuperficie = -Infinity;
-  renderer.setAnimationLoop((tiempo, cuadro?: XRFrame) => {
-    const espacio = renderer.xr.getReferenceSpace();
-    const impacto = cuadro?.getHitTestResults(fuenteImpacto)[0];
-    const pose = espacio ? impacto?.getPose(espacio) : undefined;
-    if (pose) {
-      anillo.matrix.copy(matriz.fromArray(pose.transform.matrix));
-      ultimaSuperficie = tiempo;
-    }
-    const apuntando = tiempo - ultimaSuperficie < MS_SIN_SUPERFICIE;
-    if (!plato.visible && apuntando !== anillo.visible) {
-      onEstado(apuntando ? 'apuntando' : 'buscando');
-    }
-    anillo.visible = apuntando;
-    renderer.render(escena, camara);
-  });
-
   sesion.addEventListener('end', () => {
     renderer.setAnimationLoop(null);
-    fuenteImpacto.cancel();
+    fuenteImpacto?.cancel();
     renderer.dispose();
     onFin();
   });
