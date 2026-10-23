@@ -98,6 +98,21 @@ function crearAnillo(): Group {
 // se mantiene en el último punto un rato para que se pueda tocar.
 const MS_SIN_SUPERFICIE = 700;
 
+// three usa WebXR Layers (XRProjectionLayer) si el navegador los trae, pero en
+// la RA de Chrome para Android esa capa no se mezcla con la cámara: se dibuja y
+// no se ve. Mientras three arma la sesión se oculta esa API para que use la
+// capa clásica (XRWebGLLayer), la que funciona en todos los navegadores.
+async function conCapaClasica<T>(armar: () => Promise<T>): Promise<T> {
+  const prototipo = typeof XRWebGLBinding === 'undefined' ? null : XRWebGLBinding.prototype;
+  const original = prototipo && Object.getOwnPropertyDescriptor(prototipo, 'createProjectionLayer');
+  if (original) delete (prototipo as Partial<XRWebGLBinding>).createProjectionLayer;
+  try {
+    return await armar();
+  } finally {
+    if (original) Object.defineProperty(prototipo, 'createProjectionLayer', original);
+  }
+}
+
 // Abre la sesión. Si el navegador la rechaza (por ejemplo, sin permiso de
 // cámara) la promesa falla y el visor muestra el respaldo (E2).
 export async function iniciarRa(opciones: OpcionesRa): Promise<() => void> {
@@ -169,7 +184,7 @@ export async function iniciarRa(opciones: OpcionesRa): Promise<() => void> {
     throw e;
   }
   try {
-    await renderer.xr.setSession(sesion);
+    await conCapaClasica(() => renderer.xr.setSession(sesion));
     const espacioVisor = await sesion.requestReferenceSpace('viewer');
     fuenteImpacto = (await sesion.requestHitTestSource!({ space: espacioVisor })) ?? null;
   } catch (e) {
