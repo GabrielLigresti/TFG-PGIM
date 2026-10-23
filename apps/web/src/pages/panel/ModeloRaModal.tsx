@@ -43,6 +43,10 @@ export function ModeloRaModal({
   }, [glb]);
   const vistaPrevia = urlLocal ?? actual?.urlModelo;
   const escalaNumero = aNumero(escala);
+  // Quick Look (iOS) usa el .usdz tal cual: con escala distinta de 1, uno subido
+  // se vería con el tamaño del archivo. El generado desde el .glb sí la respeta.
+  const usaUsdzSinEscala =
+    Number.isFinite(escalaNumero) && escalaNumero !== 1 && Boolean(usdz ?? actual?.urlModeloIos);
 
   async function ejecutar(accion: () => Promise<unknown>) {
     setEnviando(true);
@@ -117,8 +121,8 @@ export function ModeloRaModal({
           etiqueta="Modelo para iOS (.usdz)"
           ayuda={
             actual?.urlModeloIos
-              ? 'Ya tiene uno; elegí otro para reemplazarlo'
-              : 'Opcional: si falta, se genera desde el .glb'
+              ? 'Ya tiene uno; elegí otro para reemplazarlo. Tiene que estar a tamaño real'
+              : 'Opcional: si falta, se genera desde el .glb. Tiene que estar a tamaño real'
           }
         >
           <input
@@ -150,6 +154,13 @@ export function ModeloRaModal({
             />
           </Campo>
         </div>
+        {usaUsdzSinEscala && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            iOS no aplica la escala a un .usdz subido: se verá con el tamaño del archivo. Subí un
+            .usdz a tamaño real, o quitá el modelo y volvé a subir solo el .glb para que el de iOS
+            se genere con la escala.
+          </p>
+        )}
         {actual && (
           <p className="text-sm text-slate-500">
             Guardado: escala {actual.escalaReal}, porción{' '}
