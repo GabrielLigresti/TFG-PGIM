@@ -2,8 +2,10 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import {
   loginRequestSchema,
+  registroComensalSchema,
   seleccionarSucursalSchema,
   type LoginRequest,
+  type RegistroComensal,
   type SeleccionarSucursalRequest,
 } from '@pgim/shared';
 import { COOKIE_SESION, opcionesCookie } from '../lib/jwt';
@@ -27,6 +29,12 @@ authRouter.post('/login', limiteLogin, validar(loginRequestSchema), async (req, 
   const { email, password } = req.body as LoginRequest;
   const { token, sesion } = await authService.iniciarSesion(email, password);
   res.cookie(COOKIE_SESION, token, opcionesCookie(req)).json(sesion);
+});
+
+// Mismo límite que el login: cuenta los intentos fallidos (por ejemplo, probar emails ya registrados).
+authRouter.post('/registro', limiteLogin, validar(registroComensalSchema), async (req, res) => {
+  const { token, sesion } = await authService.registrarComensal(req.body as RegistroComensal);
+  res.cookie(COOKIE_SESION, token, opcionesCookie(req)).status(201).json(sesion);
 });
 
 authRouter.post('/sucursal', autenticar, validar(seleccionarSucursalSchema), async (req, res) => {

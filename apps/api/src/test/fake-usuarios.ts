@@ -69,5 +69,9 @@ export async function crearRepositorioFalso(): Promise<UsuarioRepository> {
     async findSesionById(id) {
       return USUARIOS.find((u) => u.id === id) ?? null;
     },
+    // El alta devuelve el comensal de USUARIOS para que la sesión se pueda cargar.
+    async crearComensal() {
+      return IDS.comensal;
+    },
   };
 }
