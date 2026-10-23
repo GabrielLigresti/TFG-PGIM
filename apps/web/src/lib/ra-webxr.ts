@@ -75,23 +75,37 @@ async function cargarPlato(url: string, escala: number): Promise<Group> {
   return plato;
 }
 
-// Anillo con borde oscuro y punto verde: se tiene que ver también sobre un
-// plato blanco.
-function crearAnillo(): Group {
-  const plano = (geometria: RingGeometry | CircleGeometry, material: MeshBasicMaterial) =>
-    new Mesh(geometria.rotateX(-Math.PI / 2), material);
-  const anillo = new Group();
-  anillo.add(
-    plano(
-      new RingGeometry(0.03, 0.055, 48),
-      new MeshBasicMaterial({ color: 0x0f172a, transparent: true, opacity: 0.55 }),
-    ),
-    plano(new RingGeometry(0.036, 0.048, 48), new MeshBasicMaterial({ color: 0xffffff })),
-    plano(new CircleGeometry(0.009, 24), new MeshBasicMaterial({ color: 0x22c55e })),
+// Anillo blanco con filetes oscuros finos por dentro y por fuera, para que se
+// vea sobre un plato blanco y sobre la mesa. Los aros no se superponen: dos
+// planos en el mismo lugar titilan (z-fighting). El contenido va en un grupo
+// interno para poder animarlo, porque el exterior sigue la pose de WebXR.
+function crearAnillo(): { anillo: Group; dibujo: Group; materiales: MeshBasicMaterial[] } {
+  const materiales: MeshBasicMaterial[] = [];
+  const plano = (geometria: RingGeometry | CircleGeometry, color: number, opacidad: number) => {
+    const material = new MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: opacidad,
+      depthWrite: false,
+    });
+    material.userData.opacidad = opacidad;
+    materiales.push(material);
+    return new Mesh(geometria.rotateX(-Math.PI / 2), material);
+  };
+  const dibujo = new Group();
+  dibujo.position.y = 0.002; // apenas sobre la superficie y la sombra del plato
+  dibujo.add(
+    plano(new RingGeometry(0.0335, 0.036, 64), 0x0f172a, 0.6),
+    plano(new RingGeometry(0.036, 0.044, 64), 0xffffff, 0.95),
+    plano(new RingGeometry(0.044, 0.0465, 64), 0x0f172a, 0.6),
+    plano(new CircleGeometry(0.0075, 32), 0xffffff, 0.95),
+    plano(new RingGeometry(0.0075, 0.0095, 32), 0x0f172a, 0.6),
   );
+  const anillo = new Group();
+  anillo.add(dibujo);
   anillo.matrixAutoUpdate = false;
   anillo.visible = false;
-  return anillo;
+  return { anillo, dibujo, materiales };
 }
 
 // Con superficies lisas (un plato blanco) la detección va y viene: el anillo
@@ -129,7 +143,7 @@ export async function iniciarRa(opciones: OpcionesRa): Promise<() => void> {
   const sol = new DirectionalLight(0xffffff, 1.5);
   sol.position.set(0.5, 1, 0.3);
   escena.add(sol);
-  const anillo = crearAnillo();
+  const { anillo, dibujo, materiales } = crearAnillo();
   escena.add(anillo, plato);
   const camara = new PerspectiveCamera();
 
@@ -155,6 +169,12 @@ export async function iniciarRa(opciones: OpcionesRa): Promise<() => void> {
       onEstado(apuntando ? 'apuntando' : 'buscando');
     }
     anillo.visible = apuntando;
+    // Pulso suave mientras busca; con el plato apoyado, más chico y tenue.
+    const pulso = plato.visible ? 0.7 : 1 + 0.06 * Math.sin(tiempo / 220);
+    dibujo.scale.setScalar(pulso);
+    for (const material of materiales) {
+      material.opacity = (plato.visible ? 0.5 : 1) * material.userData.opacidad;
+    }
     renderer.render(escena, camara);
     if (onDiagnostico && ++cuadros % 30 === 0) {
       const capa = renderer.xr.getBaseLayer();
