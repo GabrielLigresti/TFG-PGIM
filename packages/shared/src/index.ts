@@ -11,3 +11,4 @@ export * from './inventario';
 export * from './menu';
 export * from './comensal';
 export * from './salon';
+export * from './reserva';
