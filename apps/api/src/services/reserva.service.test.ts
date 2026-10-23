@@ -2,6 +2,7 @@ import type { Mesa, ReservaInput } from '@pgim/shared';
 import type { BusEventos } from '../domain/eventos';
 import type {
   FilaReserva,
+  FilaReservaPanel,
   ReservaRepository,
   SucursalReservable,
 } from '../repositories/reserva.repository';
@@ -47,6 +48,18 @@ function fila(cambios: Partial<FilaReserva> = {}): FilaReserva {
   };
 }
 
+// 20:00 del 30/10 en Argentina.
+const A_LAS_20 = '2026-10-30T23:00:00.000Z';
+
+function filaPanel(cambios: Partial<FilaReservaPanel> = {}): FilaReservaPanel {
+  return {
+    ...fila({ inicio: new Date(A_LAS_20) }),
+    comensalNombre: 'Carlos',
+    comensalTelefono: null,
+    ...cambios,
+  };
+}
+
 function repoFalso(cambios: Partial<ReservaRepository> = {}): jest.Mocked<ReservaRepository> {
   return {
     buscarSucursalReservable: jest.fn().mockResolvedValue(sucursal),
@@ -57,6 +70,9 @@ function repoFalso(cambios: Partial<ReservaRepository> = {}): jest.Mocked<Reserv
     buscarDelComensal: jest.fn().mockResolvedValue(fila()),
     listarDelComensal: jest.fn().mockResolvedValue([fila()]),
     cambiarEstado: jest.fn().mockResolvedValue(true),
+    listarDelDia: jest.fn().mockResolvedValue([filaPanel()]),
+    buscarEnSucursal: jest.fn().mockResolvedValue(filaPanel()),
+    activar: jest.fn().mockResolvedValue(true),
     ...cambios,
   } as jest.Mocked<ReservaRepository>;
 }
@@ -310,5 +326,84 @@ describe('reservaService', () => {
     const [primera] = await service.misReservas(C);
 
     expect(primera).toMatchObject({ id: 'R', cancelable: false });
+  });
+});
+
+describe('activación (CU-12)', () => {
+  const R = 'restaurante';
+  // 19:40 en Argentina: dentro de los 30 minutos previos a las 20:00.
+  const DENTRO = new Date('2026-10-30T22:40:00.000Z');
+
+  it('activa dentro de la ventana, abre la cuenta y publica RESERVA_ACTIVADA', async () => {
+    const { service, repo, bus } = servicio(undefined, undefined, DENTRO);
+
+    const activada = await service.activar(R, S, 'R');
+
+    expect(repo.buscarEnSucursal).toHaveBeenCalledWith(R, S, 'R');
+    expect(repo.activar).toHaveBeenCalledWith('R');
+    expect(bus.publicar).toHaveBeenCalledWith({
+      tipo: 'RESERVA_ACTIVADA',
+      reserva: expect.objectContaining({ id: 'R', estado: 'ACTIVA' }),
+    });
+    expect(activada).toMatchObject({ estado: 'ACTIVA', activable: false });
+  });
+
+  it('antes de los 30 minutos previos responde 409', async () => {
+    const { service, repo } = servicio(undefined, undefined, new Date('2026-10-30T22:29:00.000Z'));
+
+    await expect(service.activar(R, S, 'R')).rejects.toMatchObject({ status: 409 });
+    expect(repo.activar).not.toHaveBeenCalled();
+  });
+
+  it('una reserva de otra sucursal o restaurante responde 404', async () => {
+    const { service } = servicio(
+      repoFalso({ buscarEnSucursal: jest.fn().mockResolvedValue(null) }),
+      undefined,
+      DENTRO,
+    );
+
+    await expect(service.activar(R, S, 'R')).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('si otro la activó antes responde 409', async () => {
+    const { service, bus } = servicio(
+      repoFalso({ activar: jest.fn().mockResolvedValue(false) }),
+      undefined,
+      DENTRO,
+    );
+
+    await expect(service.activar(R, S, 'R')).rejects.toMatchObject({ status: 409 });
+    expect(bus.publicar).not.toHaveBeenCalled();
+  });
+
+  it('activable refleja la ventana en el listado del día', async () => {
+    const repo = repoFalso({
+      listarDelDia: jest
+        .fn()
+        .mockResolvedValue([
+          filaPanel(),
+          filaPanel({ id: 'tarde', inicio: new Date('2026-10-31T00:00:00.000Z') }),
+          filaPanel({ id: 'activa', estado: 'ACTIVA' }),
+        ]),
+    });
+    const { service } = servicio(repo, undefined, DENTRO);
+
+    const lista = await service.delDia(R, S, '2026-10-30');
+
+    expect(repo.listarDelDia).toHaveBeenCalledWith(
+      R,
+      S,
+      new Date('2026-10-30T03:00:00.000Z'),
+      new Date('2026-10-31T03:00:00.000Z'),
+    );
+    expect(lista.map((r) => [r.id, r.activable])).toEqual([
+      ['R', true],
+      ['tarde', false],
+      ['activa', false],
+    ]);
+    expect(lista[0]).toMatchObject({
+      comensal: { nombre: 'Carlos', telefono: null },
+      limiteLlegada: '2026-10-30T23:15:00.000Z',
+    });
   });
 });

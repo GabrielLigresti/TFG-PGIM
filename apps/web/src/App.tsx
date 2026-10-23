@@ -19,6 +19,7 @@ import { PersonalPage } from './pages/panel/PersonalPage';
 import { PlatosPage } from './pages/panel/PlatosPage';
 import { RecetaEditorPage } from './pages/panel/RecetaEditorPage';
 import { RecetasPage } from './pages/panel/RecetasPage';
+import { ReservasPage } from './pages/panel/ReservasPage';
 import { RolesPage } from './pages/panel/RolesPage';
 import { SalonPage } from './pages/panel/SalonPage';
 import { SucursalesPage } from './pages/panel/SucursalesPage';
@@ -60,6 +61,7 @@ export default function App() {
             }
           >
             <Route index element={<PanelPage />} />
+            <Route path="reservas" element={conPermiso('reserva.ver', <ReservasPage />)} />
             <Route path="sucursales" element={conPermiso('sucursal.ver', <SucursalesPage />)} />
             <Route
               path="sucursales/:id/salon"

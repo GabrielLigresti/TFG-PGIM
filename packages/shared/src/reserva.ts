@@ -92,3 +92,17 @@ export interface CambioReserva {
 
 export const salaSucursal = (id: string) => `sucursal:${id}`;
 export const salaComensal = (id: string) => `comensal:${id}`;
+
+// CU-12: reservas del día de la sucursal de trabajo, en el panel.
+export const consultaReservasPanelSchema = z.object({ fecha: fechaSchema });
+
+export interface ReservaPanel {
+  id: string;
+  comensal: { nombre: string; telefono: string | null };
+  mesa: { id: string; numero: number };
+  inicio: string;
+  cantidadPersonas: number;
+  estado: EstadoReserva;
+  limiteLlegada: string;
+  activable: boolean;
+}

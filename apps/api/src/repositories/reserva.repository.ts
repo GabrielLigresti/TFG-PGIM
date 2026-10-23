@@ -27,6 +27,12 @@ export interface FilaReserva {
   toleranciaNoShowMin: number;
 }
 
+// Para el panel: la reserva con el contacto del comensal.
+export interface FilaReservaPanel extends FilaReserva {
+  comensalNombre: string;
+  comensalTelefono: string | null;
+}
+
 export interface DatosReserva {
   sucursalId: string;
   mesaId: string;
@@ -52,6 +58,21 @@ export interface ReservaRepository {
   listarDelComensal(comensalId: string): Promise<FilaReserva[]>;
   // Cambia el estado solo si sigue en `desde`; false si otra operación lo cambió antes.
   cambiarEstado(id: string, desde: EstadoReserva, hacia: EstadoReserva): Promise<boolean>;
+  // Panel (CU-12): acotadas por restaurante y sucursal de trabajo.
+  listarDelDia(
+    restauranteId: string,
+    sucursalId: string,
+    desde: Date,
+    hasta: Date,
+  ): Promise<FilaReservaPanel[]>;
+  buscarEnSucursal(
+    restauranteId: string,
+    sucursalId: string,
+    id: string,
+  ): Promise<FilaReservaPanel | null>;
+  // PENDIENTE → ACTIVA y apertura de la cuenta de mesa, en una transacción.
+  // false si la reserva ya no estaba pendiente.
+  activar(id: string): Promise<boolean>;
 }
 
 const VIGENTES: EstadoReserva[] = ['PENDIENTE', 'ACTIVA'];
@@ -78,6 +99,25 @@ export function aFilaReserva({ sucursal, mesa, ...fila }: Fila): FilaReserva {
     mesaNumero: mesa.numero,
     toleranciaNoShowMin: sucursal.toleranciaNoShowMin,
   };
+}
+
+const seleccionPanel = {
+  ...seleccionReserva,
+  comensal: { select: { nombre: true, telefono: true } },
+} satisfies Prisma.ReservaSelect;
+
+type FilaPanel = Prisma.ReservaGetPayload<{ select: typeof seleccionPanel }>;
+
+function aFilaReservaPanel({ comensal, ...fila }: FilaPanel): FilaReservaPanel {
+  return {
+    ...aFilaReserva(fila),
+    comensalNombre: comensal.nombre,
+    comensalTelefono: comensal.telefono,
+  };
+}
+
+function deLaSucursal(restauranteId: string, sucursalId: string) {
+  return { sucursalId, sucursal: { restauranteId } };
 }
 
 export const reservaRepository: ReservaRepository = {
@@ -162,5 +202,34 @@ export const reservaRepository: ReservaRepository = {
       data: { estado: hacia },
     });
     return count === 1;
+  },
+
+  async listarDelDia(restauranteId, sucursalId, desde, hasta) {
+    const filas = await prisma.reserva.findMany({
+      where: { ...deLaSucursal(restauranteId, sucursalId), inicio: { gte: desde, lt: hasta } },
+      select: seleccionPanel,
+      orderBy: [{ inicio: 'asc' }, { mesa: { numero: 'asc' } }],
+    });
+    return filas.map(aFilaReservaPanel);
+  },
+
+  async buscarEnSucursal(restauranteId, sucursalId, id) {
+    const fila = await prisma.reserva.findFirst({
+      where: { id, ...deLaSucursal(restauranteId, sucursalId) },
+      select: seleccionPanel,
+    });
+    return fila && aFilaReservaPanel(fila);
+  },
+
+  activar(id) {
+    return prisma.$transaction(async (tx) => {
+      const { count } = await tx.reserva.updateMany({
+        where: { id, estado: 'PENDIENTE' },
+        data: { estado: 'ACTIVA' },
+      });
+      if (count !== 1) return false;
+      await tx.cuentaMesa.create({ data: { reservaId: id } });
+      return true;
+    });
   },
 };

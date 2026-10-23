@@ -1,12 +1,14 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import {
   consultaFranjasSchema,
   consultaMapaSchema,
+  consultaReservasPanelSchema,
   idParamSchema,
   reservaInputSchema,
   type ReservaInput,
 } from '@pgim/shared';
-import { validar, validarParams } from '../middleware/auth';
+import { AppError } from '../lib/errors';
+import { autenticar, requierePermiso, tenant, validar, validarParams } from '../middleware/auth';
 import { reservaService } from '../services/reserva.service';
 
 // CU-03 del lado del comensal. Se monta con autenticar → soloTipo('COMENSAL').
@@ -44,5 +46,36 @@ reservasComensalRouter.post(
   validarParams(idParamSchema),
   async (req, res) => {
     res.json(await reservaService.cancelar(req.sesion!.usuario.id, req.params.id as string));
+  },
+);
+
+// CU-12 del lado del personal: reservas de la sucursal de trabajo.
+export const reservasPanelRouter = Router();
+
+reservasPanelRouter.use(autenticar, tenant);
+
+function sucursalDeTrabajo(req: Request): string {
+  const { sucursalId } = req.tenant!;
+  if (!sucursalId) throw new AppError(409, 'Elegí una sucursal de trabajo');
+  return sucursalId;
+}
+
+reservasPanelRouter.get('/', requierePermiso('reserva.ver'), async (req, res) => {
+  const { fecha } = consultaReservasPanelSchema.parse(req.query);
+  res.json(await reservaService.delDia(req.tenant!.restauranteId, sucursalDeTrabajo(req), fecha));
+});
+
+reservasPanelRouter.post(
+  '/:id/activar',
+  requierePermiso('reserva.activar'),
+  validarParams(idParamSchema),
+  async (req, res) => {
+    res.json(
+      await reservaService.activar(
+        req.tenant!.restauranteId,
+        sucursalDeTrabajo(req),
+        req.params.id as string,
+      ),
+    );
   },
 );

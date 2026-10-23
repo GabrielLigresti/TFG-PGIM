@@ -1,5 +1,6 @@
 import type {
   EstadoReserva,
+  ReservaPanel,
   FranjaDisponible,
   MapaDeFranja,
   ReservaComensal,
@@ -7,12 +8,18 @@ import type {
 } from '@pgim/shared';
 import { busEventos, type BusEventos, type TipoEventoReserva } from '../domain/eventos';
 import { elegirMesa, esFechaReservable, fechaDe, iniciosDelDia } from '../domain/franjas';
-import { estadoDeReserva, limiteDeLlegada, puedeCancelarse } from '../domain/reserva';
+import {
+  estadoDeReserva,
+  limiteDeLlegada,
+  puedeActivarse,
+  puedeCancelarse,
+} from '../domain/reserva';
 import { AppError, esClaveDuplicada } from '../lib/errors';
 import { horaArgentina } from '../lib/hora';
 import {
   reservaRepository,
   type FilaReserva,
+  type FilaReservaPanel,
   type ReservaRepository,
   type SucursalReservable,
 } from '../repositories/reserva.repository';
@@ -66,6 +73,24 @@ export function createReservaService(
       estado: fila.estado,
       limiteLlegada: limiteDeLlegada(ctx).toISOString(),
       cancelable: fila.estado === 'PENDIENTE' && puedeCancelarse({ ...ctx, ahora: ahora() }),
+    };
+  }
+
+  function aReservaPanel(fila: FilaReservaPanel): ReservaPanel {
+    const ctx = {
+      inicio: fila.inicio,
+      toleranciaNoShowMin: fila.toleranciaNoShowMin,
+      ahora: ahora(),
+    };
+    return {
+      id: fila.id,
+      comensal: { nombre: fila.comensalNombre, telefono: fila.comensalTelefono },
+      mesa: { id: fila.mesaId, numero: fila.mesaNumero },
+      inicio: fila.inicio.toISOString(),
+      cantidadPersonas: fila.cantidadPersonas,
+      estado: fila.estado,
+      limiteLlegada: limiteDeLlegada(ctx).toISOString(),
+      activable: fila.estado === 'PENDIENTE' && puedeActivarse(ctx),
     };
   }
 
@@ -205,6 +230,33 @@ export function createReservaService(
       }
       publicar('RESERVA_CANCELADA', fila, hacia);
       return aReservaComensal({ ...fila, estado: hacia });
+    },
+
+    // CU-12: reservas de un día (hora de Argentina) de la sucursal de trabajo.
+    async delDia(
+      restauranteId: string,
+      sucursalId: string,
+      fecha: string,
+    ): Promise<ReservaPanel[]> {
+      const desde = iniciosDelDia(fecha, '00:00', '00:00')[0]!;
+      const hasta = new Date(desde.getTime() + 24 * 60 * 60 * 1000);
+      return (await repo.listarDelDia(restauranteId, sucursalId, desde, hasta)).map(aReservaPanel);
+    },
+
+    // CU-12 Activar reserva: el comensal llegó; se abre la cuenta de mesa.
+    async activar(restauranteId: string, sucursalId: string, id: string): Promise<ReservaPanel> {
+      const fila = await repo.buscarEnSucursal(restauranteId, sucursalId, id);
+      if (!fila) throw new AppError(404, 'La reserva no existe');
+      const hacia = estadoDeReserva(fila.estado).activar({
+        inicio: fila.inicio,
+        toleranciaNoShowMin: fila.toleranciaNoShowMin,
+        ahora: ahora(),
+      });
+      if (!(await repo.activar(id))) {
+        throw new AppError(409, 'La reserva cambió de estado; recargá la pantalla');
+      }
+      publicar('RESERVA_ACTIVADA', fila, hacia);
+      return aReservaPanel({ ...fila, estado: hacia });
     },
   };
 }

@@ -10,7 +10,7 @@ import { mesasRouter } from './routes/mesas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
 import { personalRouter } from './routes/personal';
 import { recetasRouter } from './routes/recetas';
-import { reservasComensalRouter } from './routes/reservas';
+import { reservasComensalRouter, reservasPanelRouter } from './routes/reservas';
 import { rolesRouter } from './routes/roles';
 import { sucursalesRouter } from './routes/sucursales';
 import { CARPETA_MODELOS } from './lib/archivos-modelo';
@@ -58,6 +58,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/auth`, authRouter);
   app.use(`${API_PREFIX}/sucursales/:sucursalId/mesas`, mesasRouter);
   app.use(`${API_PREFIX}/sucursales`, sucursalesRouter);
+  app.use(`${API_PREFIX}/reservas`, reservasPanelRouter);
   app.use(`${API_PREFIX}/roles`, rolesRouter);
   app.use(`${API_PREFIX}/personal`, personalRouter);
   app.use(`${API_PREFIX}/insumos`, insumosRouter);

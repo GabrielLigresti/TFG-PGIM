@@ -18,6 +18,9 @@ jest.mock('../repositories/reserva.repository', () => ({
     buscarDelComensal: jest.fn(),
     listarDelComensal: jest.fn().mockResolvedValue([]),
     cambiarEstado: jest.fn(),
+    listarDelDia: jest.fn().mockResolvedValue([]),
+    buscarEnSucursal: jest.fn(),
+    activar: jest.fn().mockResolvedValue(true),
   },
 }));
 
@@ -113,5 +116,75 @@ describe('/api/comensal (reservas)', () => {
       .post('/api/comensal/reservas/no-es-uuid/cancelar')
       .set('Cookie', cookieDeComensal());
     expect(res.status).toBe(400);
+  });
+});
+
+describe('/api/reservas (panel)', () => {
+  const app = createApp();
+  const { reservaRepository } = jest.requireMock('../repositories/reserva.repository');
+
+  it('sin reserva.ver responde 403', async () => {
+    const res = await request(app)
+      .get('/api/reservas?fecha=2026-10-30')
+      .set('Cookie', cookieConPermisos(['menu.ver']));
+    expect(res.status).toBe(403);
+  });
+
+  it('con reserva.ver lista las reservas del día de la sucursal de trabajo', async () => {
+    const res = await request(app)
+      .get('/api/reservas?fecha=2026-10-30')
+      .set('Cookie', cookieConPermisos(['reserva.ver']));
+    expect(res.status).toBe(200);
+    expect(reservaRepository.listarDelDia).toHaveBeenCalledWith(
+      IDS.restaurante,
+      IDS.centro,
+      new Date('2026-10-30T03:00:00.000Z'),
+      new Date('2026-10-31T03:00:00.000Z'),
+    );
+  });
+
+  it('valida la fecha', async () => {
+    const res = await request(app)
+      .get('/api/reservas?fecha=hoy')
+      .set('Cookie', cookieConPermisos(['reserva.ver']));
+    expect(res.status).toBe(400);
+  });
+
+  it('activar sin reserva.activar responde 403', async () => {
+    const res = await request(app)
+      .post(`/api/reservas/${RESERVA}/activar`)
+      .set('Cookie', cookieConPermisos(['reserva.ver']));
+    expect(res.status).toBe(403);
+  });
+
+  it('con reserva.activar activa una reserva dentro de la ventana', async () => {
+    // Empieza en 10 minutos: el test no depende de la hora en que corre.
+    reservaRepository.buscarEnSucursal.mockResolvedValue({
+      id: RESERVA,
+      sucursalId: IDS.centro,
+      sucursalNombre: 'Centro',
+      comensalId: IDS.comensal,
+      mesaId: MESA,
+      mesaNumero: 1,
+      inicio: new Date(Date.now() + 10 * 60 * 1000),
+      cantidadPersonas: 2,
+      modoAsignacion: 'MANUAL',
+      estado: 'PENDIENTE',
+      toleranciaNoShowMin: 15,
+      comensalNombre: 'Carlos',
+      comensalTelefono: null,
+    });
+
+    const res = await request(app)
+      .post(`/api/reservas/${RESERVA}/activar`)
+      .set('Cookie', cookieConPermisos(['reserva.activar']));
+
+    expect(res.status).toBe(200);
+    expect(res.body.estado).toBe('ACTIVA');
+    expect(reservaRepository.buscarEnSucursal).toHaveBeenCalledWith(
+      IDS.restaurante,
+      IDS.centro,
+      RESERVA,
+    );
   });
 });
