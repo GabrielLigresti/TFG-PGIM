@@ -361,7 +361,6 @@ package "3. Menú, recetas e inventario" as P3 {
 package "4. Fidelización y promociones" as P4 {
   class ProgramaFidelidad {
     -puntosPorUnidadMonetaria : Decimal
-    -activo : Boolean
     +calcularPuntos(monto : Decimal) : Integer
   }
   class CuentaFidelidad {
@@ -384,7 +383,6 @@ package "4. Fidelización y promociones" as P4 {
   }
   class GrupoBeneficios {
     -nombre : String
-    -habilitado : Boolean
   }
   abstract class Beneficio <<abstract>> {
     -nombre : String
@@ -392,11 +390,14 @@ package "4. Fidelización y promociones" as P4 {
     -valor : Decimal
     -vigenciaDesde : DateTime
     -vigenciaHasta : DateTime
+    -stockInicial : Integer
     -stockDisponible : Integer
     -activo : Boolean
     +estaVigente() : Boolean
     +calcularDescuento(monto : Decimal) : Decimal
     +consumirStock() : void
+    +devolverStock() : void
+    +relanzar() : void
     {abstract} +aplicaA(cuenta, pago) : Boolean
   }
   class Recompensa
@@ -696,7 +697,7 @@ note bottom of Existencia
 end note
 
 ' Relaciones — 4. Fidelización y promociones
-Restaurante "1" *-- "1" ProgramaFidelidad
+Restaurante "1" *-- "0..1" ProgramaFidelidad
 Comensal "1" -- "*" CuentaFidelidad
 Restaurante "1" <-- "*" CuentaFidelidad
 CuentaFidelidad "1" *-- "*" MovimientoPuntos
@@ -717,8 +718,28 @@ note top of CriterioElegibilidad
   Se persiste en la tabla BENEFICIO como
   criterio_tipo + criterio_valor (solo Recompensa);
   el criterio se reconstruye a partir del tipo.
-  desde = último canje de esa recompensa
-  (una vez por ciclo).
+  desde = inicio de la vigencia o último canje
+  de esa recompensa, lo más reciente
+  (una vez por ciclo y por edición).
+end note
+note bottom of ProgramaFidelidad
+  Lo crea el Administrador (permiso beneficio.*).
+  Permanente: una vez creado siempre acumula
+  y los puntos no vencen. Lo que tiene duración
+  son las recompensas que se canjean con puntos.
+end note
+note bottom of Beneficio
+  Vigencia obligatoria; stock opcional.
+  Termina al vencer la vigencia o al llegar
+  el stock a 0, lo que ocurra primero; no se
+  interrumpe ni se edita mientras está vigente.
+  relanzar(): solo terminado; nueva vigencia
+  desde ahora con la misma duración y
+  stockDisponible = stockInicial. El progreso
+  de la edición anterior deja de contar.
+  consumirStock() reserva la unidad con el pago
+  PENDIENTE; devolverStock() la libera si el
+  pago queda RECHAZADO.
 end note
 Menu "1" <-- "*" Promocion
 

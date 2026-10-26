@@ -54,7 +54,7 @@ PGC -> CF : beneficiosDisponibles()
 activate CF
 CF --> PGC : beneficios aplicables
 deactivate CF
-note right of CF : Incluye las promociones del menú activo y las\nrecompensas cuyo criterio se cumple desde el\núltimo canje (esElegible(cuenta, desde)).\nE1. Beneficio fuera de vigencia, sin stock o ya\ncanjeado en el ciclo: no se ofrece
+note right of CF : Incluye las promociones del menú activo y las\nrecompensas cuyo criterio se cumple desde el inicio\nde la vigencia o el último canje, lo más reciente\n(esElegible(cuenta, desde)).\nE1. Beneficio fuera de vigencia, sin stock o ya\ncanjeado en el ciclo: no se ofrece
 PGC --> V : cuenta con beneficios
 deactivate PGC
 V --> C : Muestra consumos, saldo pendiente\ny beneficios aplicables
@@ -78,6 +78,16 @@ PGC -> P : crear(cuenta, comensal, monto, medio)
 activate P
 P --> PGC : pago creado (PagoPendiente)
 deactivate P
+note over BA #D5E8D4 : por cada beneficio elegido
+PGC -> BA : crear(pago, beneficio, montoDescontado)
+activate BA
+BA --> PGC : beneficio aplicado
+deactivate BA
+PGC -> B : consumirStock()
+activate B
+B --> PGC : unidad reservada
+deactivate B
+note right of B : E4. Sin stock al confirmar (otro comensal\nreservó la última unidad): no se crea el pago\ny se vuelve a mostrar la cuenta con los\nbeneficios disponibles
 PGC -> MP : cobrar(monto, medio)
 activate MP
 MP --> PGC : cobro iniciado
@@ -93,18 +103,9 @@ PGC -> P : aprobar()
 activate P
 P --> PGC : APROBADO
 deactivate P
-note right of P : E2. Pago rechazado: Pago.rechazar(), se informa\nal comensal y puede reintentar con un pago nuevo.\nE3. Notificación duplicada: la referencia externa\nya procesada se ignora (no acredita dos veces)
+note right of P : E2. Pago rechazado: Pago.rechazar() y\nBeneficio.devolverStock() por cada beneficio\naplicado; se informa al comensal y puede\nreintentar con un pago nuevo.\nE3. Notificación duplicada: la referencia externa\nya procesada se ignora (no acredita dos veces)
 
 note over CF, CO : Paso 9: transacción única
-note over BA #D5E8D4 : por cada beneficio aplicado
-PGC -> BA : crear(pago, beneficio, montoDescontado)
-activate BA
-BA --> PGC : beneficio aplicado
-deactivate BA
-PGC -> B : consumirStock()
-activate B
-B --> PGC : stock actualizado
-deactivate B
 PGC -> CF : acreditar(pago)
 activate CF
 CF --> PGC : puntos y monto acreditados

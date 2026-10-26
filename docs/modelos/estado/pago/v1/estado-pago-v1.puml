@@ -24,9 +24,9 @@ title Pago
 state PENDIENTE
 state APROBADO
 state RECHAZADO
-[*] --> PENDIENTE : pagar (Comensal)\n/ recalcula saldo y beneficios;\nderiva el cobro a Mercado Pago
-PENDIENTE --> APROBADO : notificación de Mercado Pago\n[aprobado]\n/ acredita puntos y monto, aplica canje,\ndescuenta stock de promoción, emite comprobante
-PENDIENTE --> RECHAZADO : notificación de Mercado Pago\n[rechazado]
+[*] --> PENDIENTE : pagar (Comensal)\n/ recalcula saldo y beneficios; registra los\nbeneficios aplicados y reserva su stock;\nderiva el cobro a Mercado Pago
+PENDIENTE --> APROBADO : notificación de Mercado Pago\n[aprobado]\n/ acredita puntos y monto, aplica canje,\nemite comprobante
+PENDIENTE --> RECHAZADO : notificación de Mercado Pago\n[rechazado]\n/ devuelve el stock reservado de los beneficios
 APROBADO --> [*]
 RECHAZADO --> [*]
 note right of RECHAZADO
