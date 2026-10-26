@@ -6,9 +6,9 @@
 ' Menor (05/10, c): consultas por asociación usadas en las secuencias (obtenerRol, obtenerSucursales, obtenerPermisos, obtenerRoles, obtenerReceta, obtenerModeloRA) y Permiso.listarPorModulo() (static, CU-02).
 ' Menor (20/10): validación del DER antes de la primera migración (Sucursal.activa, columna estado enumerada).
 ' Menor (26/10): beneficios con duración y relanzamiento (stockInicial, relanzar, devolverStock, stock reservado con el pago PENDIENTE); programa de puntos permanente, 0..1 y sin activo; sin GrupoBeneficios.habilitado.
-' PNG a 110 dpi (antes 125) para no superar 25 MP (límite de imágenes de Google Docs). Para imprimir o hacer zoom, usar el PDF/SVG vectorial.
+' PNG a 105 dpi (antes 110 y 125) para no superar 25 MP (límite de imágenes de Google Docs). Para imprimir o hacer zoom, usar el PDF/SVG vectorial.
 top to bottom direction
-skinparam dpi 110
+skinparam dpi 105
 skinparam defaultFontName Calibri
 skinparam defaultFontSize 11
 skinparam shadowing false
