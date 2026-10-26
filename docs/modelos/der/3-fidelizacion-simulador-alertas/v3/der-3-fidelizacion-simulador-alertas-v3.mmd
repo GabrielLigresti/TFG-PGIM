@@ -1,5 +1,5 @@
 erDiagram
-    RESTAURANTE ||--|| PROGRAMA_FIDELIDAD : configura
+    RESTAURANTE ||--o| PROGRAMA_FIDELIDAD : configura
     RESTAURANTE ||--o{ CUENTA_FIDELIDAD : fideliza
     COMENSAL ||--o{ CUENTA_FIDELIDAD : posee
     CUENTA_FIDELIDAD ||--o{ MOVIMIENTO_PUNTOS : registra
@@ -27,8 +27,7 @@ erDiagram
     PROGRAMA_FIDELIDAD {
         uuid id PK
         uuid restaurante_id FK, UK
-        numeric puntos_por_unidad
-        bool activo
+        numeric puntos_por_unidad "no editable; permanente: una vez creado siempre acumula; los puntos no vencen"
     }
     CUENTA_FIDELIDAD {
         uuid id PK
@@ -56,7 +55,6 @@ erDiagram
         uuid id PK
         uuid restaurante_id FK
         varchar nombre
-        bool habilitado
     }
     BENEFICIO {
         uuid id PK
@@ -69,10 +67,11 @@ erDiagram
         numeric criterio_valor "solo RECOMPENSA, obligatorio en ella; parametro del criterio (Strategy)"
         TipoDescuento tipo_descuento "PORCENTAJE | MONTO_FIJO"
         numeric valor
-        timestamptz vigencia_desde "null si no tiene limite"
-        timestamptz vigencia_hasta "null si no tiene limite"
-        int stock_disponible "null si no tiene limite; nunca negativo"
-        bool activo
+        timestamptz vigencia_desde "inicio de la edicion vigente; se renueva al relanzar"
+        timestamptz vigencia_hasta "fin de la edicion vigente; mayor que vigencia_desde"
+        int stock_inicial "null si no tiene limite; mayor que 0; se repone al relanzar"
+        int stock_disponible "null si no tiene limite; entre 0 y stock_inicial; se reserva con el pago PENDIENTE"
+        bool activo "baja logica; no aplica a un beneficio vigente"
     }
     BENEFICIO_APLICADO {
         uuid pago_id PK, FK "se registra con el pago PENDIENTE; vale solo si el pago queda APROBADO"
