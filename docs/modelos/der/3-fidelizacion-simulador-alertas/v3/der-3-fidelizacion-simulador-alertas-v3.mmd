@@ -27,7 +27,7 @@ erDiagram
     PROGRAMA_FIDELIDAD {
         uuid id PK
         uuid restaurante_id FK, UK
-        numeric puntos_por_unidad "permanente: una vez creado siempre acumula; los puntos no vencen"
+        numeric puntos_por_unidad "no editable; permanente: una vez creado siempre acumula; los puntos no vencen"
     }
     CUENTA_FIDELIDAD {
         uuid id PK
@@ -70,7 +70,7 @@ erDiagram
         timestamptz vigencia_desde "inicio de la edicion vigente; se renueva al relanzar"
         timestamptz vigencia_hasta "fin de la edicion vigente; mayor que vigencia_desde"
         int stock_inicial "null si no tiene limite; mayor que 0; se repone al relanzar"
-        int stock_disponible "null si no tiene limite; nunca negativo; se reserva con el pago PENDIENTE"
+        int stock_disponible "null si no tiene limite; entre 0 y stock_inicial; se reserva con el pago PENDIENTE"
         bool activo "baja logica; no aplica a un beneficio vigente"
     }
     BENEFICIO_APLICADO {

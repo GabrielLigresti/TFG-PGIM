@@ -49,6 +49,7 @@ Se agregan a mano en la migración porque Prisma no las genera:
 - `linea_receta.porcentaje_merma` entre 0 y menos de 100; `linea_receta.cantidad > 0` y `receta.rendimiento > 0`.
 - `beneficio`: `menu_id` obligatorio solo en PROMOCION; `criterio_tipo` y `criterio_valor` obligatorios solo en RECOMPENSA.
 - `componente_inventario.unidad_base` en GRAMO, MILILITRO o UNIDAD.
+- `beneficio`: `vigencia_hasta > vigencia_desde`; `stock_inicial > 0`; `stock_inicial` y `stock_disponible` ambos nulos o ambos con valor; `stock_disponible <= stock_inicial`.
 
 ## Otras reglas
 

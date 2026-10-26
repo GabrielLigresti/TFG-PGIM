@@ -4,6 +4,8 @@
 ' Menor (05/10): alineación con el DER (informe GD-01 a GD-13): Reserva/Pedido -> Sucursal, Empleado.fotoUrl, EventoDominio no persistido, nota de criterio, sin asociación duplicada Empleado-Turno.
 ' Menor (05/10, b): operaciones que piden las especificaciones CU-01 a CU-10 para las secuencias (verificarFirma, buscarMesaDisponible, ingresar/ajustar, calcularDescuento/consumirStock, esElegible con desde, pronóstico por franja, faltantes de personal, PLANIFICACION_CONFIRMADA).
 ' Menor (05/10, c): consultas por asociación usadas en las secuencias (obtenerRol, obtenerSucursales, obtenerPermisos, obtenerRoles, obtenerReceta, obtenerModeloRA) y Permiso.listarPorModulo() (static, CU-02).
+' Menor (20/10): validación del DER antes de la primera migración (Sucursal.activa, columna estado enumerada).
+' Menor (26/10): beneficios con duración y relanzamiento (stockInicial, relanzar, devolverStock, stock reservado con el pago PENDIENTE); programa de puntos permanente, 0..1 y sin activo; sin GrupoBeneficios.habilitado.
 ' PNG a 110 dpi (antes 125) para no superar 25 MP (límite de imágenes de Google Docs). Para imprimir o hacer zoom, usar el PDF/SVG vectorial.
 top to bottom direction
 skinparam dpi 110
@@ -718,28 +720,40 @@ note top of CriterioElegibilidad
   Se persiste en la tabla BENEFICIO como
   criterio_tipo + criterio_valor (solo Recompensa);
   el criterio se reconstruye a partir del tipo.
-  desde = inicio de la vigencia o último canje
-  de esa recompensa, lo más reciente
-  (una vez por ciclo y por edición).
+  Criterios con condiciones (visitas, monto):
+  cuentan desde el inicio de la vigencia o el
+  último canje APROBADO de esa recompensa, lo
+  más reciente (una vez por ciclo y por edición).
+  Por puntos: la recompensa se compra con el
+  saldo total de puntos, que no se reinicia;
+  el canje descuenta los puntos.
+  Nuevo cliente: cuenta las visitas desde el
+  alta del comensal.
 end note
 note bottom of ProgramaFidelidad
-  Lo crea el Administrador (permiso beneficio.*).
-  Permanente: una vez creado siempre acumula
-  y los puntos no vencen. Lo que tiene duración
-  son las recompensas que se canjean con puntos.
+  Lo crea quien tenga beneficio.crear (por
+  defecto, el Administrador). Permanente: una
+  vez creado siempre acumula, la tasa no se
+  edita y los puntos no vencen. Sin programa
+  no se acreditan puntos (sí visitas y monto).
 end note
 note bottom of Beneficio
   Vigencia obligatoria; stock opcional.
-  Termina al vencer la vigencia o al llegar
-  el stock a 0, lo que ocurra primero; no se
+  estaVigente(): activo, dentro de la vigencia
+  y con stock (sin límite o mayor que 0).
+  Termina al vencer la vigencia o al agotarse
+  el stock, lo que ocurra primero; no se
   interrumpe ni se edita mientras está vigente.
-  relanzar(): solo terminado; nueva vigencia
-  desde ahora con la misma duración y
+  relanzar(): solo terminado y sin pagos
+  PENDIENTE que lo usen; nueva vigencia desde
+  ahora con la misma duración y
   stockDisponible = stockInicial. El progreso
   de la edición anterior deja de contar.
-  consumirStock() reserva la unidad con el pago
-  PENDIENTE; devolverStock() la libera si el
-  pago queda RECHAZADO.
+  consumirStock(): descuento atómico si hay
+  stock; reserva la unidad con el pago PENDIENTE.
+  devolverStock(): la libera si el pago queda
+  RECHAZADO, en la misma transacción; sin límite
+  de stock no hace nada.
 end note
 Menu "1" <-- "*" Promocion
 
