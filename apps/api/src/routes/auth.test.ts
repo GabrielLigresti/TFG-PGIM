@@ -8,7 +8,11 @@ import { errorHandler } from '../middleware/error-handler';
 import { IDS, PASSWORD, crearRepositorioFalso } from '../test/fake-usuarios';
 
 jest.mock('../repositories/usuario.repository', () => {
-  const repo = { findCredencialesByEmail: jest.fn(), findSesionById: jest.fn() };
+  const repo = {
+    findCredencialesByEmail: jest.fn(),
+    findSesionById: jest.fn(),
+    crearComensal: jest.fn(),
+  };
   return { usuarioRepository: repo };
 });
 
@@ -17,6 +21,7 @@ beforeAll(async () => {
   const falso = await crearRepositorioFalso();
   usuarioRepository.findCredencialesByEmail.mockImplementation(falso.findCredencialesByEmail);
   usuarioRepository.findSesionById.mockImplementation(falso.findSesionById);
+  usuarioRepository.crearComensal.mockImplementation(falso.crearComensal);
 });
 
 function cookieDe(usuarioId: string, sucursalId: string | null = IDS.centro): string {
@@ -139,5 +144,31 @@ describe('cadena autenticar → tenant → requierePermiso', () => {
     const res = await request(app).get('/ver').set('Cookie', cookieDe(IDS.comensal, null));
 
     expect(res.status).toBe(403);
+  });
+});
+
+describe('POST /api/auth/registro', () => {
+  const valido = { nombre: 'Nueva', email: 'nueva@demo.test', password: 'clave1234' };
+
+  it('rechaza una contraseña de menos de 8 caracteres', async () => {
+    const res = await request(createApp())
+      .post('/api/auth/registro')
+      .send({ ...valido, password: 'clave12' });
+    expect(res.status).toBe(400);
+  });
+
+  it('rechaza un email inválido', async () => {
+    const res = await request(createApp())
+      .post('/api/auth/registro')
+      .send({ ...valido, email: 'no-es-email' });
+    expect(res.status).toBe(400);
+  });
+
+  it('crea la cuenta, deja la sesión iniciada y responde 201', async () => {
+    const res = await request(createApp()).post('/api/auth/registro').send(valido);
+
+    expect(res.status).toBe(201);
+    expect(res.headers['set-cookie']?.[0]).toContain('sesion=');
+    expect(res.body.usuario.tipo).toBe('COMENSAL');
   });
 });

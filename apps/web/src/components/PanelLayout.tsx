@@ -12,6 +12,12 @@ export interface SeccionPanel {
 // Cada sección se habilita con su permiso de lectura.
 export const SECCIONES: SeccionPanel[] = [
   {
+    ruta: 'reservas',
+    titulo: 'Reservas',
+    descripcion: 'Reservas del día y activación de mesas',
+    permiso: 'reserva.ver',
+  },
+  {
     ruta: 'sucursales',
     titulo: 'Sucursales',
     descripcion: 'Locales y horarios de servicio',

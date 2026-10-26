@@ -47,6 +47,25 @@ const SUCURSALES = [
 
 type NombreSucursal = (typeof SUCURSALES)[number]['nombre'];
 
+// Salón de cada sucursal (CU-14): capacidades en orden de número de mesa,
+// ubicadas en una grilla sobre el lienzo de 100 × 60.
+interface SalonSeed {
+  capacidades: number[];
+  columnas: number;
+  x0: number;
+  pasoX: number;
+}
+
+const SALONES: Record<NombreSucursal, SalonSeed> = {
+  Centro: { capacidades: [2, 2, 4, 4, 4, 6, 6, 8, 2, 4], columnas: 5, x0: 10, pasoX: 20 },
+  Palermo: { capacidades: [2, 4, 4, 6, 2, 8], columnas: 3, x0: 20, pasoX: 30 },
+};
+
+const COMENSALES = [
+  { email: 'comensal@demo.pgim.test', nombre: 'Carlos Comensal' },
+  { email: 'comensal2@demo.pgim.test', nombre: 'Lucía Comensal' },
+];
+
 const EMPLEADOS: {
   email: string;
   nombreCompleto: string;
@@ -227,6 +246,27 @@ async function seedPermisos(tx: Prisma.TransactionClient): Promise<Map<CodigoPer
     ids.set(codigo, permiso.id);
   }
   return ids;
+}
+
+async function seedSalon(
+  tx: Prisma.TransactionClient,
+  sucursalId: string,
+  { capacidades, columnas, x0, pasoX }: SalonSeed,
+): Promise<void> {
+  for (const [i, capacidad] of capacidades.entries()) {
+    const numero = i + 1;
+    const posicion = {
+      capacidad,
+      posX: x0 + (i % columnas) * pasoX,
+      posY: 15 + Math.floor(i / columnas) * 30,
+      activa: true,
+    };
+    await tx.mesa.upsert({
+      where: { sucursalId_numero: { sucursalId, numero } },
+      update: posicion,
+      create: { sucursalId, numero, ...posicion },
+    });
+  }
 }
 
 async function seedRol(
@@ -488,6 +528,8 @@ async function main(): Promise<void> {
       await tx.horarioServicio.createMany({
         data: HORARIOS_SERVICIO.map((h) => ({ sucursalId: sucursal.id, ...h })),
       });
+
+      await seedSalon(tx, sucursal.id, SALONES[nombre]);
     }
 
     const rolIds = new Map<string, string>();
@@ -538,16 +580,18 @@ async function main(): Promise<void> {
       data: { menuActivoId: cartaId },
     });
 
-    const comensal = await tx.usuario.upsert({
-      where: { email: 'comensal@demo.pgim.test' },
-      update: { passwordHash, activo: true },
-      create: { email: 'comensal@demo.pgim.test', passwordHash, tipo: 'COMENSAL' },
-    });
-    await tx.comensal.upsert({
-      where: { usuarioId: comensal.id },
-      update: { nombre: 'Carlos Comensal' },
-      create: { usuarioId: comensal.id, nombre: 'Carlos Comensal' },
-    });
+    for (const { email, nombre } of COMENSALES) {
+      const comensal = await tx.usuario.upsert({
+        where: { email },
+        update: { passwordHash, activo: true },
+        create: { email, passwordHash, tipo: 'COMENSAL' },
+      });
+      await tx.comensal.upsert({
+        where: { usuarioId: comensal.id },
+        update: { nombre },
+        create: { usuarioId: comensal.id, nombre },
+      });
+    }
     return restaurante.id;
   });
   await seedModelosRa(restauranteId);
