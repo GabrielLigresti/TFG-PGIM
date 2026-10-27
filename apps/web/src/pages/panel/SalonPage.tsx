@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router';
 import type { Mesa, MesaInput, Sucursal } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { Lista } from '../../components/Lista';
-import { MapaSalon } from '../../components/MapaSalon';
+import { LeyendaSalon, MapaSalon } from '../../components/MapaSalon';
 import {
   Aviso,
   Boton,
@@ -99,6 +99,7 @@ export function SalonPage() {
             mesas={mesas.map((m) => ({ ...m, inactiva: !m.activa }))}
             onMover={editable ? mover : undefined}
           />
+          {mesas.some((m) => !m.activa) && <LeyendaSalon estados={[]} inactiva />}
           <Lista
             filas={mesas}
             clave={(m) => m.id}

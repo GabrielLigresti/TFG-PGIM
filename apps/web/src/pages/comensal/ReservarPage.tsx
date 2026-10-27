@@ -12,7 +12,7 @@ import {
   type RestauranteComensal,
 } from '@pgim/shared';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
-import { MapaSalon } from '../../components/MapaSalon';
+import { LeyendaSalon, MapaSalon } from '../../components/MapaSalon';
 import { Aviso, Boton, Campo, EstadoCarga, claseInput } from '../../components/ui';
 import { formatoDiaYHora, formatoHora, sumarDias } from '../../lib/formato';
 import { useEventoSocket } from '../../lib/socket';
@@ -211,10 +211,7 @@ export function ReservarPage() {
           {mapa.datos && (
             <>
               <MapaSalon mesas={mapa.datos.mesas} seleccionadaId={mesaId} onElegir={setMesaId} />
-              <p className="text-xs text-slate-500">
-                En verde, las libres. Las grises están reservadas o son chicas para {personas}{' '}
-                {personas === 1 ? 'persona' : 'personas'}.
-              </p>
+              <LeyendaSalon estados={['LIBRE', 'RESERVADA', 'CHICA']} />
             </>
           )}
           <Aviso>{error}</Aviso>
