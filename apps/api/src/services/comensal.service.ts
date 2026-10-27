@@ -1,5 +1,4 @@
 import {
-  estaVigente,
   hoyArgentina,
   type CategoriaMenu,
   type DetallePlato,
@@ -7,38 +6,8 @@ import {
   type PlatoMenu,
 } from '@pgim/shared';
 import { AppError } from '../lib/errors';
-import {
-  comensalRepository,
-  type ComensalRepository,
-  type PlatoDelMenu,
-} from '../repositories/comensal.repository';
-
-// El comensal ve el menú activo de la sucursal solo si está vigente, y de él
-// los platos activos, disponibles y con receta cuando su categoría la exige.
-function visible(plato: PlatoDelMenu): boolean {
-  return plato.activo && plato.disponible && (!plato.categoria.requiereReceta || plato.tieneReceta);
-}
-
-function aPlatoMenu({
-  id,
-  nombre,
-  descripcion,
-  precio,
-  fotoUrl,
-  categoria,
-  modeloRa,
-}: PlatoDelMenu): PlatoMenu {
-  return {
-    id,
-    nombre,
-    descripcion,
-    precio,
-    fotoUrl,
-    categoria: { id: categoria.id, nombre: categoria.nombre },
-    modeloRa,
-    hayStock: true,
-  };
-}
+import { comensalRepository, type ComensalRepository } from '../repositories/comensal.repository';
+import { createMenuVisible, inventario, type Inventario } from './menu-visible';
 
 function agrupar(platos: PlatoMenu[]): CategoriaMenu[] {
   const categorias = new Map<string, CategoriaMenu>();
@@ -50,18 +19,12 @@ function agrupar(platos: PlatoMenu[]): CategoriaMenu[] {
   return [...categorias.values()];
 }
 
-export function createComensalService(repo: ComensalRepository, hoy: () => string = hoyArgentina) {
-  async function menuDeSucursal(sucursalId: string) {
-    const sucursal = await repo.buscarSucursalConMenu(sucursalId);
-    if (!sucursal) throw new AppError(404, 'La sucursal no existe');
-    const { menuActivo, ...datos } = sucursal;
-    const menu = menuActivo && estaVigente(menuActivo, hoy()) ? menuActivo : null;
-    return {
-      sucursal: datos,
-      menu,
-      platos: menu ? menu.platos.filter(visible).map(aPlatoMenu) : [],
-    };
-  }
+export function createComensalService(
+  repo: ComensalRepository,
+  hoy: () => string = hoyArgentina,
+  stock: Inventario = inventario,
+) {
+  const menuDeSucursal = createMenuVisible(repo, hoy, stock);
 
   return {
     listarSucursales: () => repo.listarSucursales(),
@@ -70,18 +33,14 @@ export function createComensalService(repo: ComensalRepository, hoy: () => strin
       const { sucursal, menu, platos } = await menuDeSucursal(sucursalId);
       return {
         sucursal,
-        menu: menu && {
-          nombre: menu.nombre,
-          descripcion: menu.descripcion,
-          categorias: agrupar(platos),
-        },
+        menu: menu && { ...menu, categorias: agrupar(platos.map((p) => p.plato)) },
       };
     },
 
     // CU-10 obtenerDetalle: el plato tiene que estar a la vista en esa sucursal.
     async obtenerPlato(sucursalId: string, platoId: string): Promise<DetallePlato> {
       const { sucursal, platos } = await menuDeSucursal(sucursalId);
-      const plato = platos.find((p) => p.id === platoId);
+      const plato = platos.find((p) => p.plato.id === platoId)?.plato;
       if (!plato) throw new AppError(404, 'El plato no está en el menú de esta sucursal');
       return { sucursal, plato };
     },

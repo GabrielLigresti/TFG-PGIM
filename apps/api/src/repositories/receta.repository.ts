@@ -45,7 +45,7 @@ export interface RecetaRepository {
   usosDeComponente(restauranteId: string, id: string): Promise<string[]>;
 }
 
-const seleccionReceta = {
+export const seleccionReceta = {
   rendimiento: true,
   instrucciones: true,
   lineas: {
@@ -56,7 +56,7 @@ const seleccionReceta = {
 
 type RecetaPrisma = Prisma.RecetaGetPayload<{ select: typeof seleccionReceta }>;
 
-function aRecetaFila(receta: RecetaPrisma): RecetaFila {
+export function aRecetaFila(receta: RecetaPrisma): RecetaFila {
   return {
     rendimiento: Number(receta.rendimiento),
     instrucciones: receta.instrucciones,

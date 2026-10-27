@@ -1,6 +1,7 @@
 import type { ModeloRa, RestauranteComensal } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
+import { aRecetaFila, seleccionReceta, type RecetaFila } from './receta.repository';
 
 // Lectura del menú para el comensal. El comensal no pertenece a un tenant: el
 // restaurante sale de la sucursal pedida y todas las consultas filtran por él.
@@ -15,6 +16,8 @@ export interface PlatoDelMenu {
   activo: boolean;
   categoria: { id: string; nombre: string; requiereReceta: boolean };
   tieneReceta: boolean;
+  // Para calcular el stock que consume: null si el plato no tiene receta.
+  receta: RecetaFila | null;
   modeloRa: ModeloRa | null;
 }
 
@@ -47,7 +50,7 @@ const seleccionPlato = {
   disponible: true,
   activo: true,
   categoria: { select: { id: true, nombre: true, requiereReceta: true } },
-  receta: { select: { id: true } },
+  receta: { select: seleccionReceta },
   modeloRa: {
     select: { urlModelo: true, urlModeloIos: true, escalaReal: true, porcionGramos: true },
   },
@@ -60,6 +63,7 @@ function aPlato({ receta, modeloRa, ...fila }: FilaPlato): PlatoDelMenu {
     ...fila,
     precio: Number(fila.precio),
     tieneReceta: receta !== null,
+    receta: receta && aRecetaFila(receta),
     modeloRa: modeloRa && { ...modeloRa, escalaReal: Number(modeloRa.escalaReal) },
   };
 }

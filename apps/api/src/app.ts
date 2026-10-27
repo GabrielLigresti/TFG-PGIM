@@ -6,6 +6,7 @@ import { authRouter } from './routes/auth';
 import { comensalRouter } from './routes/comensal';
 import { healthRouter } from './routes/health';
 import { insumosRouter } from './routes/insumos';
+import { mesaComensalRouter } from './routes/mesa-comensal';
 import { mesasRouter } from './routes/mesas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
 import { personalRouter } from './routes/personal';
@@ -68,6 +69,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/menus`, menusRouter);
   app.use(`${API_PREFIX}/comensal`, comensalRouter);
   app.use(`${API_PREFIX}/comensal`, autenticar, soloTipo('COMENSAL'), reservasComensalRouter);
+  app.use(`${API_PREFIX}/comensal`, autenticar, soloTipo('COMENSAL'), mesaComensalRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);
