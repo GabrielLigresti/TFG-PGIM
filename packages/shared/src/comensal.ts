@@ -21,6 +21,8 @@ export interface PlatoMenu {
   fotoUrl: string | null;
   categoria: Referencia;
   modeloRa: ModeloRa | null;
+  // false si a algún insumo no le alcanza para una porción en esta sucursal.
+  hayStock: boolean;
 }
 
 export interface CategoriaMenu extends Referencia {

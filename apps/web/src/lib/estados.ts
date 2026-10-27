@@ -11,7 +11,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import type { EstadoReserva } from '@pgim/shared';
+import type { EstadoPedido, EstadoReserva } from '@pgim/shared';
 
 // Única fuente de etiqueta, tono e ícono de cada estado. Ninguna pantalla
 // elige colores de estado por su cuenta.
@@ -27,7 +27,6 @@ export interface InfoEstado {
 }
 
 // Hasta que estos enums lleguen a @pgim/shared con sus hitos.
-type EstadoPedidoUI = 'CONFIRMADO' | 'EN_PREPARACION' | 'LISTO' | 'ENTREGADO' | 'CANCELADO';
 type EstadoPagoUI = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
 
 export const ESTADOS = {
@@ -44,7 +43,7 @@ export const ESTADOS = {
     LISTO: { etiqueta: 'Listo', tono: 'ok', icono: Check },
     ENTREGADO: { etiqueta: 'Entregado', tono: 'neutro', icono: CheckCheck },
     CANCELADO: { etiqueta: 'Cancelado', tono: 'bad', icono: X },
-  } satisfies Record<EstadoPedidoUI, InfoEstado>,
+  } satisfies Record<EstadoPedido, InfoEstado>,
   pago: {
     PENDIENTE: { etiqueta: 'Pendiente', tono: 'neutro', icono: Clock },
     APROBADO: { etiqueta: 'Aprobado', tono: 'ok', icono: Check },

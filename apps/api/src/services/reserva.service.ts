@@ -91,6 +91,8 @@ export function createReservaService(
       estado: fila.estado,
       limiteLlegada: limiteDeLlegada(ctx).toISOString(),
       activable: fila.estado === 'PENDIENTE' && puedeActivarse(ctx),
+      cerrable: fila.estado === 'ACTIVA',
+      cancelable: fila.estado === 'PENDIENTE' && ctx.ahora <= limiteDeLlegada(ctx),
     };
   }
 

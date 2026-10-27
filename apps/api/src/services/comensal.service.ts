@@ -36,6 +36,7 @@ function aPlatoMenu({
     fotoUrl,
     categoria: { id: categoria.id, nombre: categoria.nombre },
     modeloRa,
+    hayStock: true,
   };
 }
 
