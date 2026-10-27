@@ -54,7 +54,7 @@ export const reservasPanelRouter = Router();
 
 reservasPanelRouter.use(autenticar, tenant);
 
-function sucursalDeTrabajo(req: Request): string {
+export function sucursalDeTrabajo(req: Request): string {
   const { sucursalId } = req.tenant!;
   if (!sucursalId) throw new AppError(409, 'Elegí una sucursal de trabajo');
   return sucursalId;

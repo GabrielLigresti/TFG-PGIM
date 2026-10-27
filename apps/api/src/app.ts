@@ -9,6 +9,7 @@ import { insumosRouter } from './routes/insumos';
 import { mesaComensalRouter } from './routes/mesa-comensal';
 import { mesasRouter } from './routes/mesas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
+import { pedidosRouter } from './routes/pedidos';
 import { personalRouter } from './routes/personal';
 import { recetasRouter } from './routes/recetas';
 import { reservasComensalRouter, reservasPanelRouter } from './routes/reservas';
@@ -60,6 +61,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/sucursales/:sucursalId/mesas`, mesasRouter);
   app.use(`${API_PREFIX}/sucursales`, sucursalesRouter);
   app.use(`${API_PREFIX}/reservas`, reservasPanelRouter);
+  app.use(`${API_PREFIX}/pedidos`, pedidosRouter);
   app.use(`${API_PREFIX}/roles`, rolesRouter);
   app.use(`${API_PREFIX}/personal`, personalRouter);
   app.use(`${API_PREFIX}/insumos`, insumosRouter);

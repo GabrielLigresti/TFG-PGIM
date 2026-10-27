@@ -49,6 +49,10 @@ function armar(cuenta: CuentaParaPedido | null = CUENTA) {
     buscarCuentaDelComensal: jest.fn().mockResolvedValue(cuenta),
     confirmar: jest.fn().mockResolvedValue(pedidoCreado),
     existencias: jest.fn(),
+    cola: jest.fn().mockResolvedValue([]),
+    buscarEnSucursal: jest.fn(),
+    cambiarEstado: jest.fn().mockResolvedValue({ listoEn: null }),
+    cancelar: jest.fn().mockResolvedValue(true),
   } as unknown as jest.Mocked<PedidoRepository>;
   const menuVisible: jest.MockedFunction<MenuVisible> = jest.fn().mockResolvedValue({
     sucursal: {
@@ -155,5 +159,86 @@ describe('pedidoService.confirmar', () => {
       sucursalId: 'centro',
       comensalId: 'C',
     });
+  });
+});
+
+describe('pedidoService.avanzar y cancelar', () => {
+  const MOZO = ['pedido.ver', 'pedido.avanzar'] as const;
+  const COCINERO = ['pedido.ver', 'pedido.gestionar_cola'] as const;
+
+  function conPedido(estado: 'CONFIRMADO' | 'EN_PREPARACION' | 'LISTO' | null) {
+    const armado = armar();
+    armado.repo.buscarEnSucursal.mockResolvedValue(estado && { id: 'P', estado, comensalId: 'C' });
+    return armado;
+  }
+
+  it('el mozo no puede empezar un pedido', async () => {
+    const { servicio } = conPedido('CONFIRMADO');
+    await expect(servicio.avanzar('r', 'centro', [...MOZO], 'P')).rejects.toMatchObject({
+      status: 403,
+      message: 'No tenés permiso para esta acción',
+    });
+  });
+
+  it('el cocinero no puede entregar', async () => {
+    const { servicio } = conPedido('LISTO');
+    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P')).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it('el mozo no puede cancelar', async () => {
+    const { servicio } = conPedido('CONFIRMADO');
+    await expect(servicio.cancelar('r', 'centro', [...MOZO], 'P', 'x')).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it('un pedido en preparación no se cancela', async () => {
+    const { servicio } = conPedido('EN_PREPARACION');
+    await expect(servicio.cancelar('r', 'centro', [...COCINERO], 'P', 'x')).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+
+  it('si otro lo cambió antes, responde 409', async () => {
+    const { servicio, repo } = conPedido('CONFIRMADO');
+    repo.cambiarEstado.mockResolvedValue(false);
+    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P')).rejects.toMatchObject({
+      status: 409,
+      message: 'El pedido ya cambió; recargá la cola',
+    });
+  });
+
+  it('un pedido de otra sucursal responde 404', async () => {
+    const { servicio } = conPedido(null);
+    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P')).rejects.toMatchObject({
+      status: 404,
+    });
+  });
+
+  it('al marcarlo listo avisa el cambio con la hora en que quedó listo', async () => {
+    const { servicio, repo, eventos } = conPedido('EN_PREPARACION');
+    repo.cambiarEstado.mockResolvedValue({ listoEn: new Date('2026-10-30T23:10:00.000Z') });
+
+    const cambio = await servicio.avanzar('r', 'centro', [...COCINERO], 'P');
+
+    expect(repo.cambiarEstado).toHaveBeenCalledWith('P', 'EN_PREPARACION', 'LISTO');
+    expect(cambio).toEqual({ id: 'P', estado: 'LISTO', listoEn: '2026-10-30T23:10:00.000Z' });
+    expect(eventos).toContainEqual({
+      tipo: 'PEDIDO_CAMBIO_ESTADO',
+      cambio,
+      sucursalId: 'centro',
+      comensalId: 'C',
+    });
+  });
+
+  it('al cancelar devuelve el stock y avisa PEDIDO_CANCELADO', async () => {
+    const { servicio, repo, eventos } = conPedido('CONFIRMADO');
+
+    await servicio.cancelar('r', 'centro', [...COCINERO], 'P', 'Sin stock');
+
+    expect(repo.cancelar).toHaveBeenCalledWith('P', 'Sin stock');
+    expect(eventos.some((e) => e.tipo === 'PEDIDO_CANCELADO')).toBe(true);
   });
 });

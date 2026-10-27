@@ -1,4 +1,5 @@
-import type { PedidoCola } from '@pgim/shared';
+import type { EstadoPedido, PedidoCola } from '@pgim/shared';
+import { ESTADOS_ACTIVOS } from '../domain/pedido';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
 
@@ -44,6 +45,27 @@ export interface PedidoRepository {
   confirmar(cuenta: CuentaParaPedido, lineas: LineaAConfirmar[]): Promise<PedidoCola>;
   // componenteId → cantidad actual en la sucursal.
   existencias(sucursalId: string): Promise<Map<string, number>>;
+  // CU-05: pedidos activos de la sucursal de trabajo, por orden de llegada.
+  cola(restauranteId: string, sucursalId: string): Promise<PedidoCola[]>;
+  buscarEnSucursal(
+    restauranteId: string,
+    sucursalId: string,
+    id: string,
+  ): Promise<{ id: string; estado: EstadoPedido; comensalId: string } | null>;
+  // Solo si sigue en `desde`; false si otra operación lo cambió antes. Al
+  // pasar a LISTO guarda listoEn.
+  cambiarEstado(
+    id: string,
+    desde: EstadoPedido,
+    hacia: EstadoPedido,
+  ): Promise<{ listoEn: Date | null } | false>;
+  // CONFIRMADO → CANCELADO con el motivo, y devolución de cada consumo de
+  // stock, en una transacción. false si ya no estaba CONFIRMADO.
+  cancelar(id: string, motivo: string): Promise<boolean>;
+}
+
+function deLaSucursal(restauranteId: string, sucursalId: string) {
+  return { sucursalId, sucursal: { restauranteId } };
 }
 
 export const seleccionPedidoCola = {
@@ -208,5 +230,62 @@ export const pedidoRepository: PedidoRepository = {
       select: { componenteId: true, cantidadActual: true },
     });
     return new Map(filas.map((f) => [f.componenteId, Number(f.cantidadActual)]));
+  },
+
+  async cola(restauranteId, sucursalId) {
+    const filas = await prisma.pedido.findMany({
+      where: { ...deLaSucursal(restauranteId, sucursalId), estado: { in: ESTADOS_ACTIVOS } },
+      select: seleccionPedidoCola,
+      orderBy: [{ creadoEn: 'asc' }, { numero: 'asc' }],
+    });
+    return filas.map(aPedidoCola);
+  },
+
+  async buscarEnSucursal(restauranteId, sucursalId, id) {
+    const fila = await prisma.pedido.findFirst({
+      where: { id, ...deLaSucursal(restauranteId, sucursalId) },
+      select: {
+        id: true,
+        estado: true,
+        cuentaMesa: { select: { reserva: { select: { comensalId: true } } } },
+      },
+    });
+    return (
+      fila && { id: fila.id, estado: fila.estado, comensalId: fila.cuentaMesa.reserva.comensalId }
+    );
+  },
+
+  async cambiarEstado(id, desde, hacia) {
+    const listoEn = hacia === 'LISTO' ? new Date() : null;
+    const { count } = await prisma.pedido.updateMany({
+      where: { id, estado: desde },
+      data: { estado: hacia, ...(listoEn && { listoEn }) },
+    });
+    return count === 1 && { listoEn };
+  },
+
+  cancelar(id, motivo) {
+    return prisma.$transaction(async (tx) => {
+      const { count } = await tx.pedido.updateMany({
+        where: { id, estado: 'CONFIRMADO' },
+        data: { estado: 'CANCELADO', motivoCancelacion: motivo },
+      });
+      if (count !== 1) return false;
+      const consumos = await tx.movimientoStock.findMany({
+        where: { tipo: 'CONSUMO_PEDIDO', lineaPedido: { pedidoId: id } },
+        select: { existenciaId: true, cantidad: true, costoUnitario: true, lineaPedidoId: true },
+        orderBy: { existenciaId: 'asc' },
+      });
+      for (const c of consumos) {
+        await tx.existencia.update({
+          where: { id: c.existenciaId },
+          data: { cantidadActual: { increment: c.cantidad } },
+        });
+      }
+      await tx.movimientoStock.createMany({
+        data: consumos.map((c) => ({ ...c, tipo: 'DEVOLUCION_PEDIDO' as const, motivo })),
+      });
+      return true;
+    });
   },
 };
