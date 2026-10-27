@@ -676,6 +676,7 @@ Sucursal "*" --> "0..1" Menu : menú activo
 ItemMenu "*" --> "1" Categoria
 ItemMenu "1" -- "0..1" ModeloRA
 ItemMenu "0..1" -- "0..1" Receta
+ItemMenu "*" --> "0..1" Insumo : revende
 ProductoIntermedio "0..1" -- "1" Receta : se elabora con
 Receta "1" *-- "1..*" LineaReceta
 RecetaBuilder ..> Receta : <<create>>

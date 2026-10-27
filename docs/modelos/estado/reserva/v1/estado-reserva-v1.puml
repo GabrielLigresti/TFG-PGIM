@@ -29,7 +29,7 @@ state VENCIDA
 [*] --> PENDIENTE : reservar (Comensal)\n/ bloquea la mesa en la franja
 PENDIENTE --> ACTIVA : activar (Staff)\n/ abre la cuenta de mesa
 PENDIENTE --> CANCELADA : cancelar (Comensal)\n[antes del inicio de la franja]\n/ libera la mesa
-PENDIENTE --> CANCELADA : cancelar (Staff)\n[antes del fin de la tolerancia]\n/ libera la mesa
+PENDIENTE --> CANCELADA : cancelar (Staff)\n[hasta el fin de la tolerancia]\n/ libera la mesa
 PENDIENTE --> VENCIDA : vencer (tarea programada)\n[inicio + tolerancia superado]\n/ libera la mesa
 ACTIVA --> FINALIZADA : cerrar mesa (Staff)\n[saldo pendiente: pide confirmación]\n/ cierra la cuenta; visita solo a quienes pagaron
 FINALIZADA --> [*]
