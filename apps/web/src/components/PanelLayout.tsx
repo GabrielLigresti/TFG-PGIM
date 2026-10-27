@@ -161,7 +161,7 @@ export function PanelLayout() {
         aria-label="Sucursal de trabajo"
         value={sesion.sucursalActiva?.id}
         onChange={(e) => seleccionarSucursal(e.target.value)}
-        className="min-h-11 max-w-44 rounded-control border border-line-strong bg-surface px-2 text-[16px] sm:min-h-9 sm:text-sm"
+        className="min-h-11 w-full min-w-0 max-w-44 truncate rounded-control border border-line-strong bg-surface px-2 text-[16px] sm:min-h-9 sm:text-sm"
       >
         {sesion.sucursales.map((s) => (
           <option key={s.id} value={s.id}>
@@ -170,24 +170,27 @@ export function PanelLayout() {
         ))}
       </select>
     ) : (
-      <span className="flex items-center gap-1 text-sm text-meta">
-        <MapPin aria-hidden className="size-4" />
-        {sesion.sucursalActiva?.nombre}
+      <span className="flex min-w-0 items-center gap-1 text-sm text-meta">
+        <MapPin aria-hidden className="size-4 shrink-0" />
+        <span className="truncate">{sesion.sucursalActiva?.nombre}</span>
       </span>
     );
 
   const usuario = (
-    <div className="flex min-w-0 items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2 sm:min-w-0 sm:shrink">
       <span className="hidden min-w-0 truncate text-sm text-meta sm:block">
         {sesion.usuario.nombre} · {sesion.rol?.nombre}
       </span>
       <button
         type="button"
         onClick={logout}
-        className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-control px-2 text-sm text-meta hover:bg-panel hover:text-text sm:min-h-9"
+        aria-label="Cerrar sesión"
+        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-sm text-meta hover:bg-panel hover:text-text sm:min-h-9"
       >
         <LogOut aria-hidden className="size-4" />
-        <span className="sr-only sm:not-sr-only">Cerrar sesión</span>
+        <span aria-hidden className="hidden sm:inline">
+          Cerrar sesión
+        </span>
       </button>
     </div>
   );
@@ -252,7 +255,7 @@ export function PanelLayout() {
                 Menú
               </button>
             )}
-            <div className="min-w-0 md:hidden">
+            <div className="hidden min-w-0 min-[420px]:block md:hidden">
               <Marca nombre={restaurante} />
             </div>
             <div className="ml-auto flex min-w-0 items-center gap-2">

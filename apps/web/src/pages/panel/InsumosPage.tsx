@@ -44,7 +44,13 @@ export function InsumosPage() {
   const confirmar = useConfirmar();
 
   async function darDeBaja(insumo: Insumo) {
-    if (!(await confirmar({ mensaje: `¿Dar de baja ${insumo.nombre}?`, accion: 'Dar de baja' })))
+    if (
+      !(await confirmar({
+        mensaje: `¿Dar de baja ${insumo.nombre}?`,
+        detalle: 'Deja de estar disponible para nuevas recetas. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
+    )
       return;
     if (await baja.enviar(`/insumos/${insumo.id}`, 'DELETE')) guardado();
   }
@@ -89,7 +95,7 @@ export function InsumosPage() {
             },
           ]}
           acciones={(i) => (
-            <span className="inline-flex gap-2">
+            <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
               {tienePermiso('insumo.editar') && (
                 <Boton variante="secundario" onClick={() => setEditando(i)}>
                   Editar

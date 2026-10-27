@@ -64,7 +64,9 @@ export function LayoutComensal({
 
       <div className="fixed inset-x-0 bottom-0 z-10">
         {accionFija && (
-          <div className="mx-auto flex max-w-[480px] flex-wrap gap-2 px-4 pb-2">{accionFija}</div>
+          <div className="border-t border-line bg-bg">
+            <div className="mx-auto flex max-w-[480px] flex-wrap gap-2 px-4 py-2">{accionFija}</div>
+          </div>
         )}
         <nav
           aria-label="Secciones"

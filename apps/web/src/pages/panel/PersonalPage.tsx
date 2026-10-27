@@ -94,7 +94,7 @@ export function PersonalPage() {
             { titulo: 'Horas/semana', valor: (e) => e.horasSemanalesMax },
           ]}
           acciones={(e) => (
-            <span className="inline-flex gap-2">
+            <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
               {tienePermiso('personal.editar') && (
                 <Boton variante="secundario" onClick={() => setEditando(e)}>
                   Editar

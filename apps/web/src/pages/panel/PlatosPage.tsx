@@ -40,7 +40,11 @@ export function PlatosPage() {
 
   async function darDeBaja(p: Plato) {
     if (
-      !(await confirmar({ mensaje: `¿Dar de baja el plato ${p.nombre}?`, accion: 'Dar de baja' }))
+      !(await confirmar({
+        mensaje: `¿Dar de baja el plato ${p.nombre}?`,
+        detalle: 'Deja de mostrarse en los menús. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
     )
       return;
     if (await baja.enviar(`/platos/${p.id}`, 'DELETE')) recargarTodo();
@@ -50,6 +54,7 @@ export function PlatosPage() {
     if (
       !(await confirmar({
         mensaje: `¿Borrar la categoría ${c.nombre}?`,
+        detalle: 'No se puede deshacer.',
         accion: 'Borrar categoría',
       }))
     )
@@ -122,7 +127,7 @@ export function PlatosPage() {
               },
             ]}
             acciones={(p) => (
-              <span className="inline-flex gap-2">
+              <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
                 {tienePermiso('menu.editar') && (
                   <Boton variante="secundario" onClick={() => setPlato(p)}>
                     Editar
@@ -166,7 +171,7 @@ export function PlatosPage() {
               { titulo: 'Platos', valor: (c) => c.cantidadPlatos },
             ]}
             acciones={(c) => (
-              <span className="inline-flex gap-2">
+              <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
                 {tienePermiso('menu.editar') && (
                   <Boton variante="secundario" onClick={() => setCategoria(c)}>
                     Editar

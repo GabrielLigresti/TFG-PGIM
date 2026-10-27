@@ -44,7 +44,13 @@ export function MenusPage() {
   const confirmar = useConfirmar();
 
   async function borrar(m: Menu) {
-    if (!(await confirmar({ mensaje: `¿Borrar el menú ${m.nombre}?`, accion: 'Borrar menú' })))
+    if (
+      !(await confirmar({
+        mensaje: `¿Borrar el menú ${m.nombre}?`,
+        detalle: 'Los clientes dejan de verlo. No se puede deshacer.',
+        accion: 'Borrar menú',
+      }))
+    )
       return;
     if (await baja.enviar(`/menus/${m.id}`, 'DELETE')) menus.recargar();
   }
@@ -87,7 +93,7 @@ export function MenusPage() {
             },
           ]}
           acciones={(m) => (
-            <span className="inline-flex gap-2">
+            <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
               {tienePermiso('menu.editar') && (
                 <Boton variante="secundario" onClick={() => setEditando(m)}>
                   Editar

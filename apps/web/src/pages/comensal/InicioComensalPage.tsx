@@ -39,7 +39,7 @@ export function InicioComensalPage() {
                   </Link>
                   <Link
                     to={`/s/${s.id}/reservar`}
-                    className="mr-3 shrink-0 rounded-control border border-line-strong px-3 py-2 text-sm font-medium text-text hover:bg-panel"
+                    className="mr-3 inline-flex min-h-11 shrink-0 items-center rounded-control border border-line-strong bg-surface px-3 text-sm font-semibold text-text hover:bg-panel"
                   >
                     Reservar mesa
                   </Link>

@@ -43,8 +43,8 @@ export default function App() {
   return (
     <SesionProvider>
       <ProveedorAvisos>
-        <ProveedorConfirmacion>
-          <BrowserRouter>
+        <BrowserRouter>
+          <ProveedorConfirmacion>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/registro" element={<RegistroPage />} />
@@ -89,8 +89,8 @@ export default function App() {
               <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
               <Route path="*" element={<Navigate to="/login" replace />} />
             </Routes>
-          </BrowserRouter>
-        </ProveedorConfirmacion>
+          </ProveedorConfirmacion>
+        </BrowserRouter>
       </ProveedorAvisos>
     </SesionProvider>
   );

@@ -82,7 +82,11 @@ export function RolesPage() {
 
   async function darDeBaja(rol: Rol) {
     if (
-      !(await confirmar({ mensaje: `¿Dar de baja el rol ${rol.nombre}?`, accion: 'Dar de baja' }))
+      !(await confirmar({
+        mensaje: `¿Dar de baja el rol ${rol.nombre}?`,
+        detalle: 'Deja de poder asignarse a empleados. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
     )
       return;
     if (await baja.enviar(`/roles/${rol.id}`, 'DELETE')) await guardado();
@@ -124,7 +128,7 @@ export function RolesPage() {
             { titulo: 'Empleados', valor: (r) => r.cantidadEmpleados },
           ]}
           acciones={(r) => (
-            <span className="inline-flex gap-2">
+            <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
               {tienePermiso('rol.editar') && (
                 <Boton variante="secundario" onClick={() => setEditando(r)}>
                   Editar

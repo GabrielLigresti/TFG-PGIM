@@ -9,7 +9,7 @@ import { useRecurso } from '../../lib/useRecurso';
 import { useConfirmar } from '../../components/Confirmacion';
 
 const claseLink =
-  'inline-block rounded-control border border-line-strong bg-white px-3 py-2 text-sm font-medium text-text hover:bg-panel';
+  'inline-block rounded-control border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-text hover:bg-panel';
 
 // CU-07: recetas de platos y de productos intermedios, con su costo.
 export function RecetasPage() {
@@ -23,6 +23,7 @@ export function RecetasPage() {
     if (
       !(await confirmar({
         mensaje: `¿Dar de baja la preparación ${nombre}?`,
+        detalle: 'Deja de estar disponible para nuevas recetas. Su historial se conserva.',
         accion: 'Dar de baja',
       }))
     )
@@ -116,7 +117,7 @@ export function RecetasPage() {
                 { titulo: 'Costo por unidad', valor: (i) => formatoPesos(i.costoUnitario) },
               ]}
               acciones={(i) => (
-                <span className="inline-flex gap-2">
+                <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
                   <Link to={`/panel/recetas/intermedio/${i.id}`} className={claseLink}>
                     Ver receta
                   </Link>
@@ -124,7 +125,7 @@ export function RecetasPage() {
                     <button
                       type="button"
                       onClick={() => darDeBaja(i.id, i.nombre)}
-                      className="rounded-control border border-bad/30 bg-white px-3 py-2 text-sm font-medium text-bad hover:bg-bad-soft"
+                      className="rounded-control border border-bad/30 bg-surface px-3 py-2 text-sm font-medium text-bad hover:bg-bad-soft"
                     >
                       Dar de baja
                     </button>

@@ -4,7 +4,7 @@ import {
   useEffect,
   useId,
   useRef,
-  type ButtonHTMLAttributes,
+  type ComponentProps,
   type KeyboardEvent,
   type ReactElement,
   type ReactNode,
@@ -55,7 +55,7 @@ export function Boton({
   densidad = 'compacta',
   className = '',
   ...props
-}: ButtonHTMLAttributes<HTMLButtonElement> & { variante?: Variante; densidad?: Densidad }) {
+}: ComponentProps<'button'> & { variante?: Variante; densidad?: Densidad }) {
   return (
     <button
       type="button"
@@ -356,7 +356,7 @@ export function Chip({
       type="button"
       aria-pressed={seleccionado}
       onClick={onClick}
-      className={`min-h-9 whitespace-nowrap rounded-full border px-3 text-sm font-medium ${
+      className={`min-h-11 whitespace-nowrap rounded-full border px-4 text-sm font-medium ${
         seleccionado
           ? 'border-accent bg-accent text-white'
           : 'border-line-strong bg-surface text-text hover:bg-panel'

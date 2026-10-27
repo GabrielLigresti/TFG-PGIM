@@ -56,7 +56,7 @@ export function ProveedorAvisos({ children }: { children: ReactNode }) {
                   a.deshacer?.();
                   quitar(a.id);
                 }}
-                className="min-h-9 rounded-control px-2 font-semibold text-accent-soft hover:bg-white/10"
+                className="min-h-9 rounded-control px-2 font-semibold text-accent-soft hover:bg-surface/10"
               >
                 Deshacer
               </button>

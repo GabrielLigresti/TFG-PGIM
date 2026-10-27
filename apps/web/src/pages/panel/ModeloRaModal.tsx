@@ -91,6 +91,7 @@ export function ModeloRaModal({
     if (
       !(await confirmar({
         mensaje: `¿Quitar el modelo RA de ${plato.nombre}?`,
+        detalle: 'El plato deja de mostrar "Ver en mi mesa" en el menú.',
         accion: 'Quitar modelo',
       }))
     )
@@ -111,7 +112,12 @@ export function ModeloRaModal({
             camera-controls
             touch-action="pan-y"
             scale={`${escalaNumero} ${escalaNumero} ${escalaNumero}`}
-            style={{ width: '100%', height: '16rem', background: '#f8fafc', borderRadius: 12 }}
+            style={{
+              width: '100%',
+              height: '16rem',
+              background: 'var(--color-bg)',
+              borderRadius: 8,
+            }}
           />
         )}
 

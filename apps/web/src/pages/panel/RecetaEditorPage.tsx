@@ -174,6 +174,8 @@ function Editor({
     if (!detalle) return;
     const ok = await confirmar({
       mensaje: `¿Borrar la receta de ${detalle.dueno.nombre}?`,
+      detalle:
+        'Si su categoría exige receta, el plato deja de mostrarse en el menú. No se puede deshacer.',
       accion: 'Borrar receta',
     });
     if (!ok) return;
@@ -237,7 +239,7 @@ function Editor({
           return (
             <div
               key={l.clave}
-              className={`rounded-control border bg-white p-3 ${error ? 'border-bad/30' : 'border-line'}`}
+              className={`rounded-control border bg-surface p-3 ${error ? 'border-bad/30' : 'border-line'}`}
             >
               <div className="grid gap-2 sm:grid-cols-[1fr_7rem_9rem_6rem_auto] sm:items-end">
                 <Campo etiqueta="Componente">

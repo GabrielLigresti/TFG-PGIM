@@ -5,7 +5,7 @@ import { destinoTrasLogin, useSesion } from '../auth/SesionProvider';
 import { Cargando } from '../components/Cargando';
 
 const claseCampo =
-  'w-full rounded-control border border-line-strong px-3 py-2 text-base focus:border-accent focus:outline-none';
+  'w-full rounded-control border border-line-strong min-h-11 bg-surface px-3 text-[16px] sm:min-h-9 sm:text-sm focus:border-accent focus:outline-none';
 
 // Registro simple de comensal. Al terminar vuelve a donde lo mandó el login
 // (por ejemplo, el menú de la sucursal que abrió con el QR).

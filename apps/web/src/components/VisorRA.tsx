@@ -116,7 +116,12 @@ export function VisorRA({
             camera-controls
             touch-action="pan-y"
             scale={escala}
-            style={{ width: '100%', height: '18rem', background: 'white', borderRadius: 8 }}
+            style={{
+              width: '100%',
+              height: '18rem',
+              background: 'var(--color-surface)',
+              borderRadius: 8,
+            }}
           >
             {arDeModelViewer && (
               <button slot="ar-button" type="button" className={claseBotonRa}>

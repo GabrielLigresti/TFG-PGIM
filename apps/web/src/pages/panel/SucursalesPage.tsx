@@ -65,6 +65,7 @@ export function SucursalesPage() {
     if (
       !(await confirmar({
         mensaje: `¿Dar de baja la sucursal ${s.nombre}?`,
+        detalle: 'Deja de recibir reservas. Su historial se conserva.',
         accion: 'Dar de baja',
       }))
     )
@@ -112,7 +113,7 @@ export function SucursalesPage() {
             { titulo: 'Menú activo', valor: (s) => s.menuActivo?.nombre ?? '—' },
           ]}
           acciones={(s) => (
-            <span className="inline-flex gap-2">
+            <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
               <Boton
                 variante="secundario"
                 onClick={() => navigate(`/panel/sucursales/${s.id}/salon`)}

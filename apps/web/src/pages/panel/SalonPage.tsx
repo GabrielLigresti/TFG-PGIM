@@ -67,7 +67,11 @@ export function SalonPage() {
 
   async function darDeBaja(mesa: Mesa) {
     if (
-      !(await confirmar({ mensaje: `¿Dar de baja la mesa ${mesa.numero}?`, accion: 'Dar de baja' }))
+      !(await confirmar({
+        mensaje: `¿Dar de baja la mesa ${mesa.numero}?`,
+        detalle: 'Deja de poder reservarse. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
     )
       return;
     if (await guardar.enviar(`${ruta}/${mesa.id}`, 'DELETE')) recargar();
@@ -123,7 +127,7 @@ export function SalonPage() {
             ]}
             acciones={(m) =>
               editable && (
-                <span className="inline-flex gap-2">
+                <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
                   <Boton variante="secundario" onClick={() => setEditando(m)}>
                     Editar
                   </Boton>
