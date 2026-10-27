@@ -1,5 +1,10 @@
 import { Router } from 'express';
-import { cancelarPedidoSchema, idParamSchema } from '@pgim/shared';
+import {
+  avanzarPedidoSchema,
+  cancelarPedidoSchema,
+  idParamSchema,
+  type EstadoPedido,
+} from '@pgim/shared';
 import { autenticar, requierePermiso, tenant, validar, validarParams } from '../middleware/auth';
 import { pedidoService } from '../services/pedido.service';
 import { sucursalDeTrabajo } from './reservas';
@@ -14,16 +19,22 @@ pedidosRouter.get('/cola', async (req, res) => {
   res.json(await pedidoService.cola(req.tenant!.restauranteId, sucursalDeTrabajo(req)));
 });
 
-pedidosRouter.post('/:id/avanzar', validarParams(idParamSchema), async (req, res) => {
-  res.json(
-    await pedidoService.avanzar(
-      req.tenant!.restauranteId,
-      sucursalDeTrabajo(req),
-      req.sesion!.permisos,
-      req.params.id as string,
-    ),
-  );
-});
+pedidosRouter.post(
+  '/:id/avanzar',
+  validarParams(idParamSchema),
+  validar(avanzarPedidoSchema),
+  async (req, res) => {
+    res.json(
+      await pedidoService.avanzar(
+        req.tenant!.restauranteId,
+        sucursalDeTrabajo(req),
+        req.sesion!.permisos,
+        req.params.id as string,
+        (req.body as { desde: EstadoPedido }).desde,
+      ),
+    );
+  },
+);
 
 pedidosRouter.post(
   '/:id/cancelar',

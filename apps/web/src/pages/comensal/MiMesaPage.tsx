@@ -64,7 +64,7 @@ export function MiMesaPage() {
   return (
     <LayoutComensal accionFija={accion || undefined}>
       <EstadoCarga cargando={mesa.cargando && !datos && !ultima} error={mesa.error} />
-      {!datos && !mesa.cargando && (
+      {!datos && !mesa.cargando && !mesa.error && (
         <div className="space-y-2">
           <TituloComensal>{ultima ? 'Gracias por tu visita' : 'Mi mesa'}</TituloComensal>
           <p className="text-sm text-meta">

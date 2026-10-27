@@ -52,38 +52,33 @@ export function useEventoSocket<T>(
   }, [evento, salaSucursalId]);
 }
 
-export type EstadoConexion = 'en-vivo' | 'sin-conexion' | 'reintentando';
+export type EstadoConexion = 'conectando' | 'en-vivo' | 'sin-conexion' | 'reintentando';
 
-// Estado de la conexión en tiempo real, para el indicador "En vivo". Al volver
-// la conexión llama a alReconectar (por ejemplo, para recargar la cola entera:
-// lo que pasó mientras estaba cortada no llegó).
-export function useConexionSocket(alReconectar?: () => void): EstadoConexion {
+// Estado de la conexión en tiempo real, para el indicador "En vivo". Cada vez
+// que conecta (la primera vez o al volver) llama a alConectar, por ejemplo para
+// recargar la cola entera: lo que pasó antes de entrar a la sala no llegó.
+export function useConexionSocket(alConectar?: () => void): EstadoConexion {
   const conexion = obtenerSocket();
   const [estado, setEstado] = useState<EstadoConexion>(
-    conexion.connected ? 'en-vivo' : 'sin-conexion',
+    conexion.connected ? 'en-vivo' : 'conectando',
   );
-  const reconectar = useRef(alReconectar);
+  const conectar = useRef(alConectar);
   useEffect(() => {
-    reconectar.current = alReconectar;
+    conectar.current = alConectar;
   });
 
   useEffect(() => {
-    let estuvoCortada = false;
-    const alConectar = () => {
+    const alConectarse = () => {
       setEstado('en-vivo');
-      if (estuvoCortada) reconectar.current?.();
-      estuvoCortada = false;
+      conectar.current?.();
     };
-    const alCortarse = () => {
-      estuvoCortada = true;
-      setEstado('sin-conexion');
-    };
+    const alCortarse = () => setEstado('sin-conexion');
     const alReintentar = () => setEstado('reintentando');
-    conexion.on('connect', alConectar);
+    conexion.on('connect', alConectarse);
     conexion.on('disconnect', alCortarse);
     conexion.io.on('reconnect_attempt', alReintentar);
     return () => {
-      conexion.off('connect', alConectar);
+      conexion.off('connect', alConectarse);
       conexion.off('disconnect', alCortarse);
       conexion.io.off('reconnect_attempt', alReintentar);
     };

@@ -52,7 +52,7 @@ export function PedidoPage() {
     >
       <TituloComensal>Tu pedido</TituloComensal>
       <EstadoCarga cargando={mesa.cargando && !mesa.datos} error={mesa.error} />
-      {!mesa.cargando && !mesa.datos && (
+      {!mesa.cargando && !mesa.datos && !mesa.error && (
         <p className="mt-4 rounded-panel border border-line bg-surface p-4 text-sm text-meta">
           Para pedir, tu mesa tiene que estar activa. Avisale al personal cuando llegues.
         </p>

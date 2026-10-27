@@ -166,7 +166,10 @@ describe('pedidoService.avanzar y cancelar', () => {
   const MOZO = ['pedido.ver', 'pedido.avanzar'] as const;
   const COCINERO = ['pedido.ver', 'pedido.gestionar_cola'] as const;
 
+  let ESTADO: 'CONFIRMADO' | 'EN_PREPARACION' | 'LISTO' = 'CONFIRMADO';
+
   function conPedido(estado: 'CONFIRMADO' | 'EN_PREPARACION' | 'LISTO' | null) {
+    if (estado) ESTADO = estado;
     const armado = armar();
     armado.repo.buscarEnSucursal.mockResolvedValue(estado && { id: 'P', estado, comensalId: 'C' });
     return armado;
@@ -174,7 +177,7 @@ describe('pedidoService.avanzar y cancelar', () => {
 
   it('el mozo no puede empezar un pedido', async () => {
     const { servicio } = conPedido('CONFIRMADO');
-    await expect(servicio.avanzar('r', 'centro', [...MOZO], 'P')).rejects.toMatchObject({
+    await expect(servicio.avanzar('r', 'centro', [...MOZO], 'P', ESTADO)).rejects.toMatchObject({
       status: 403,
       message: 'No tenés permiso para esta acción',
     });
@@ -182,9 +185,11 @@ describe('pedidoService.avanzar y cancelar', () => {
 
   it('el cocinero no puede entregar', async () => {
     const { servicio } = conPedido('LISTO');
-    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P')).rejects.toMatchObject({
-      status: 403,
-    });
+    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P', ESTADO)).rejects.toMatchObject(
+      {
+        status: 403,
+      },
+    );
   });
 
   it('el mozo no puede cancelar', async () => {
@@ -204,24 +209,36 @@ describe('pedidoService.avanzar y cancelar', () => {
   it('si otro lo cambió antes, responde 409', async () => {
     const { servicio, repo } = conPedido('CONFIRMADO');
     repo.cambiarEstado.mockResolvedValue(false);
-    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P')).rejects.toMatchObject({
-      status: 409,
-      message: 'El pedido ya cambió; recargá la cola',
-    });
+    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P', ESTADO)).rejects.toMatchObject(
+      {
+        status: 409,
+        message: 'El pedido ya cambió; recargá la cola',
+      },
+    );
+  });
+
+  it('si la pantalla vio otro estado, no avanza y responde 409', async () => {
+    const { servicio, repo } = conPedido('EN_PREPARACION');
+    await expect(
+      servicio.avanzar('r', 'centro', [...COCINERO], 'P', 'CONFIRMADO'),
+    ).rejects.toMatchObject({ status: 409, message: 'El pedido ya cambió; recargá la cola' });
+    expect(repo.cambiarEstado).not.toHaveBeenCalled();
   });
 
   it('un pedido de otra sucursal responde 404', async () => {
     const { servicio } = conPedido(null);
-    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P')).rejects.toMatchObject({
-      status: 404,
-    });
+    await expect(servicio.avanzar('r', 'centro', [...COCINERO], 'P', ESTADO)).rejects.toMatchObject(
+      {
+        status: 404,
+      },
+    );
   });
 
   it('al marcarlo listo avisa el cambio con la hora en que quedó listo', async () => {
     const { servicio, repo, eventos } = conPedido('EN_PREPARACION');
     repo.cambiarEstado.mockResolvedValue({ listoEn: new Date('2026-10-30T23:10:00.000Z') });
 
-    const cambio = await servicio.avanzar('r', 'centro', [...COCINERO], 'P');
+    const cambio = await servicio.avanzar('r', 'centro', [...COCINERO], 'P', ESTADO);
 
     expect(repo.cambiarEstado).toHaveBeenCalledWith('r', 'centro', 'P', 'EN_PREPARACION', 'LISTO');
     expect(cambio).toEqual({ id: 'P', estado: 'LISTO', listoEn: '2026-10-30T23:10:00.000Z' });

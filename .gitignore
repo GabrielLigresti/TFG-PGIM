@@ -24,3 +24,7 @@ apps/api/src/generated/
 .impeccable/*
 !.impeccable/config.json
 !.impeccable/design.json
+
+# Caché de fuentes de Java que deja PlantUML al regenerar los diagramas
+docs/modelos/?/
+.java/

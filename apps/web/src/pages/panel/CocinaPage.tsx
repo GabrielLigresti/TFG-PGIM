@@ -70,7 +70,10 @@ export function CocinaPage() {
   const [pedidos, setPedidos] = useState<PedidoCola[]>([]);
   // Avances esperando que venza el "Deshacer": se envían a la API recién después.
   const [pendientes, setPendientes] = useState<Record<string, EstadoPedido>>({});
-  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+  // Por pedido: el timer del "Deshacer" y el estado que se vio al tocar el botón.
+  const timers = useRef(
+    new Map<string, { timer: ReturnType<typeof setTimeout>; desde: EstadoCola }>(),
+  );
   const [resaltados, setResaltados] = useState<Set<string>>(new Set());
   const ahora = useAhora(15_000);
   const conexion = useConexionSocket(recurso.recargar);
@@ -79,11 +82,16 @@ export function CocinaPage() {
     if (recurso.datos) setPedidos(recurso.datos);
   }, [recurso.datos]);
 
-  // Al salir de la pantalla, los avances sin enviar se descartan.
+  // Al salir de la pantalla, los avances que esperaban el "Deshacer" se envían
+  // en el momento: el aviso ya los dio por hechos.
   useEffect(() => {
     const pendientesAlSalir = timers.current;
     return () => {
-      for (const timer of pendientesAlSalir.values()) clearTimeout(timer);
+      for (const [id, { timer, desde }] of pendientesAlSalir) {
+        clearTimeout(timer);
+        void api(`/pedidos/${id}/avanzar`, { method: 'POST', body: { desde } }).catch(() => {});
+      }
+      pendientesAlSalir.clear();
     };
   }, []);
 
@@ -111,16 +119,31 @@ export function CocinaPage() {
     );
     avisar(`Pedido nuevo: mesa ${pedido.mesa.numero}`);
   });
-  useEventoSocket<CambioPedido>(EVENTOS_SOCKET.pedidoCambio, aplicarCambio);
+  // Si otra pantalla cambió un pedido que acá esperaba el "Deshacer", el avance
+  // de acá ya no corresponde: se anula.
+  useEventoSocket<CambioPedido>(EVENTOS_SOCKET.pedidoCambio, (cambio) => {
+    const pendiente = timers.current.get(cambio.id);
+    if (pendiente) {
+      clearTimeout(pendiente.timer);
+      quitarPendiente(cambio.id);
+    }
+    aplicarCambio(cambio);
+  });
 
   function quitarPendiente(id: string) {
     timers.current.delete(id);
     setPendientes(({ [id]: _, ...resto }) => resto);
   }
 
-  async function enviarAvance(pedido: PedidoCola) {
+  async function enviarAvance(pedido: PedidoCola, desde: EstadoCola) {
+    timers.current.delete(pedido.id);
     try {
-      aplicarCambio(await api<CambioPedido>(`/pedidos/${pedido.id}/avanzar`, { method: 'POST' }));
+      aplicarCambio(
+        await api<CambioPedido>(`/pedidos/${pedido.id}/avanzar`, {
+          method: 'POST',
+          body: { desde },
+        }),
+      );
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) avisar('El pedido ya cambió');
       else avisar(e instanceof ApiError ? e.message : 'No se pudo actualizar el pedido');
@@ -133,10 +156,10 @@ export function CocinaPage() {
   function avanzar(pedido: PedidoCola, estado: EstadoCola) {
     const paso = PASOS[estado];
     setPendientes((p) => ({ ...p, [pedido.id]: paso.hacia }));
-    timers.current.set(
-      pedido.id,
-      setTimeout(() => void enviarAvance(pedido), DESHACER_MS),
-    );
+    timers.current.set(pedido.id, {
+      timer: setTimeout(() => void enviarAvance(pedido, estado), DESHACER_MS),
+      desde: estado,
+    });
     const texto =
       paso.hacia === 'LISTO'
         ? `Mesa ${pedido.mesa.numero}: pedido listo, le avisamos al cliente`
@@ -146,7 +169,7 @@ export function CocinaPage() {
     avisar(texto, {
       duracionMs: DESHACER_MS,
       deshacer: () => {
-        clearTimeout(timers.current.get(pedido.id));
+        clearTimeout(timers.current.get(pedido.id)?.timer);
         quitarPendiente(pedido.id);
       },
     });
@@ -251,6 +274,9 @@ export function CocinaPage() {
 }
 
 function IndicadorConexion({ estado }: { estado: ReturnType<typeof useConexionSocket> }) {
+  if (estado === 'conectando') {
+    return <span className="text-sm text-meta">Conectando…</span>;
+  }
   if (estado === 'en-vivo') {
     return (
       <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ok">

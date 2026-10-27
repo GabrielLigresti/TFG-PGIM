@@ -33,6 +33,9 @@ export const pedidoInputSchema = z.object({
 
 export type PedidoInput = z.infer<typeof pedidoInputSchema>;
 
+// El estado que vio la pantalla: si otro lo cambió antes, no se avanza dos veces.
+export const avanzarPedidoSchema = z.object({ desde: z.enum(ESTADOS_PEDIDO) });
+
 export const cancelarPedidoSchema = z.object({ motivo: z.string().trim().min(1).max(200) });
 
 // Motivos sugeridos al cancelar; "Otro" se completa con texto libre.

@@ -301,7 +301,7 @@ export function createReservaService(
       if (cierre.resultado === 'BLOQUEADA') {
         const { pedidosSinEntregar, saldoPendiente } = cierre.bloqueo;
         const mensaje = pedidosSinEntregar
-          ? `Hay ${pedidosSinEntregar} ${pedidosSinEntregar === 1 ? 'pedido' : 'pedidos'} sin entregar. Entregalos o cancelalos antes de cerrar la mesa.`
+          ? `Hay ${pedidosSinEntregar} ${pedidosSinEntregar === 1 ? 'pedido' : 'pedidos'} sin entregar. Esperá a que se entreguen antes de cerrar la mesa.`
           : `Queda un saldo de ${formatoPesos(saldoPendiente ?? 0)} sin pagar.`;
         throw new AppError(409, mensaje, cierre.bloqueo);
       }

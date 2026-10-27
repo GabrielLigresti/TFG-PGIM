@@ -482,7 +482,7 @@ describe('cierre de mesa (CU-18)', () => {
 
     await expect(servicio(repo).service.cerrar(R, S, 'R', true)).rejects.toMatchObject({
       status: 409,
-      message: 'Hay 2 pedidos sin entregar. Entregalos o cancelalos antes de cerrar la mesa.',
+      message: 'Hay 2 pedidos sin entregar. Esperá a que se entreguen antes de cerrar la mesa.',
       detalles: { pedidosSinEntregar: 2 },
     });
   });

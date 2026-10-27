@@ -1,4 +1,10 @@
-import type { CambioPedido, CodigoPermiso, PedidoCola, PedidoInput } from '@pgim/shared';
+import type {
+  CambioPedido,
+  CodigoPermiso,
+  EstadoPedido,
+  PedidoCola,
+  PedidoInput,
+} from '@pgim/shared';
 import { busEventos, type BusEventos } from '../domain/eventos';
 import { estadoDePedido, type Transicion } from '../domain/pedido';
 import { AppError } from '../lib/errors';
@@ -41,8 +47,10 @@ export function createPedidoService(
       sucursalId: string,
       permisos: readonly CodigoPermiso[],
       id: string,
+      desde: EstadoPedido,
     ): Promise<CambioPedido> {
       const pedido = await pedidoDeLaSucursal(restauranteId, sucursalId, id);
+      if (pedido.estado !== desde) throw new AppError(409, YA_CAMBIO);
       const transicion = estadoDePedido(pedido.estado).avanzar();
       exigir(permisos, transicion);
       const resultado = await repo.cambiarEstado(
