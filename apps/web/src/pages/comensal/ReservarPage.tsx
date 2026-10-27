@@ -11,7 +11,7 @@ import {
   type ReservaComensal,
   type RestauranteComensal,
 } from '@pgim/shared';
-import { LayoutComensal } from '../../components/LayoutComensal';
+import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { MapaSalon } from '../../components/MapaSalon';
 import { Aviso, Boton, Campo, EstadoCarga, claseInput } from '../../components/ui';
 import { formatoDiaYHora, formatoHora, sumarDias } from '../../lib/formato';
@@ -96,7 +96,7 @@ export function ReservarPage() {
     return (
       <LayoutComensal volver={volver}>
         <div className="space-y-3 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h1 className="text-xl font-semibold text-slate-800">¡Reserva confirmada!</h1>
+          <TituloComensal>¡Reserva confirmada!</TituloComensal>
           <p className="text-slate-700">
             Mesa {confirmada.mesa.numero} en {confirmada.sucursal.nombre}, el{' '}
             {formatoDiaYHora(confirmada.inicio)} h, para {confirmada.cantidadPersonas}{' '}
@@ -113,9 +113,32 @@ export function ReservarPage() {
     );
   }
 
+  const acciones = franjaVigente && (
+    <>
+      <Boton
+        densidad="comensal"
+        className="flex-1"
+        disabled={!mesaElegida || enviando}
+        onClick={() => reservar(mesaId)}
+      >
+        {mesaElegida ? `Reservar mesa ${mesaElegida.numero}` : 'Tocá una mesa libre'}
+      </Boton>
+      <Boton
+        densidad="comensal"
+        variante="secundario"
+        disabled={enviando}
+        onClick={() => reservar(null)}
+      >
+        Asignarme una mesa
+      </Boton>
+    </>
+  );
+
   return (
-    <LayoutComensal volver={volver}>
-      <h1 className="mb-1 text-xl font-semibold text-slate-800">Reservar mesa</h1>
+    <LayoutComensal volver={volver} accionFija={acciones}>
+      <div className="mb-1">
+        <TituloComensal>Reservar mesa</TituloComensal>
+      </div>
       <p className="mb-4 text-sm text-slate-500">
         {sucursal ? `${sucursal.nombre} · ` : ''}Turnos de una hora, hasta{' '}
         {DIAS_ANTICIPACION_RESERVA} días antes.
@@ -195,14 +218,6 @@ export function ReservarPage() {
             </>
           )}
           <Aviso>{error}</Aviso>
-          <div className="flex flex-wrap gap-2">
-            <Boton disabled={!mesaElegida || enviando} onClick={() => reservar(mesaId)}>
-              {mesaElegida ? `Reservar mesa ${mesaElegida.numero}` : 'Tocá una mesa libre'}
-            </Boton>
-            <Boton variante="secundario" disabled={enviando} onClick={() => reservar(null)}>
-              Asignarme una mesa
-            </Boton>
-          </div>
         </section>
       )}
     </LayoutComensal>

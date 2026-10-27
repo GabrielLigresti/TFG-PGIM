@@ -1,6 +1,6 @@
 import { useParams } from 'react-router';
 import type { DetallePlato } from '@pgim/shared';
-import { LayoutComensal } from '../../components/LayoutComensal';
+import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { VisorRA } from '../../components/VisorRA';
 import { EstadoCarga } from '../../components/ui';
 import { formatoCantidad, formatoPesos } from '../../lib/formato';
@@ -29,7 +29,7 @@ export function PlatoPage() {
           <div>
             <p className="text-sm text-slate-500">{plato.categoria.nombre}</p>
             <div className="flex items-start justify-between gap-3">
-              <h1 className="text-xl font-semibold text-slate-800">{plato.nombre}</h1>
+              <TituloComensal>{plato.nombre}</TituloComensal>
               <span className="text-lg text-slate-800">{formatoPesos(plato.precio)}</span>
             </div>
             {plato.descripcion && <p className="mt-1 text-slate-600">{plato.descripcion}</p>}

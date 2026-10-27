@@ -1,5 +1,5 @@
 import { EVENTOS_SOCKET, type ReservaComensal } from '@pgim/shared';
-import { LayoutComensal } from '../../components/LayoutComensal';
+import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { Aviso, Boton, Estado, EstadoCarga } from '../../components/ui';
 import { formatoDiaYHora, formatoHora } from '../../lib/formato';
 import { esCancelable } from '../../lib/reservas';
@@ -23,7 +23,9 @@ export function MisReservasPage() {
 
   return (
     <LayoutComensal volver={{ a: '/inicio', texto: 'Sucursales' }}>
-      <h1 className="mb-4 text-xl font-semibold text-slate-800">Mis reservas</h1>
+      <div className="mb-4">
+        <TituloComensal>Mis reservas</TituloComensal>
+      </div>
       <EstadoCarga cargando={cargando && !datos} error={error} />
       <div className="mb-3">
         <Aviso>{cancelacion.error}</Aviso>

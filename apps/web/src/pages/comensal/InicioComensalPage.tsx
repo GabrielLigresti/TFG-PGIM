@@ -1,6 +1,6 @@
 import { Link } from 'react-router';
 import type { RestauranteComensal } from '@pgim/shared';
-import { LayoutComensal } from '../../components/LayoutComensal';
+import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { EstadoCarga } from '../../components/ui';
 import { useRecurso } from '../../lib/useRecurso';
 
@@ -10,7 +10,9 @@ export function InicioComensalPage() {
 
   return (
     <LayoutComensal>
-      <h1 className="mb-1 text-xl font-semibold text-slate-800">¿Dónde estás?</h1>
+      <div className="mb-1">
+        <TituloComensal>¿Dónde estás?</TituloComensal>
+      </div>
       <p className="mb-4 text-sm text-slate-500">
         Elegí la sucursal para ver su menú, o escaneá el QR de la mesa.
       </p>

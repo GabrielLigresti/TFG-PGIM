@@ -1,6 +1,6 @@
 import { Link, useParams } from 'react-router';
 import type { MenuSucursal } from '@pgim/shared';
-import { LayoutComensal } from '../../components/LayoutComensal';
+import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { EstadoCarga, Etiqueta } from '../../components/ui';
 import { formatoPesos } from '../../lib/formato';
 import { useRecurso } from '../../lib/useRecurso';
@@ -18,7 +18,7 @@ export function MenuSucursalPage() {
       {datos && (
         <>
           <p className="text-sm text-slate-500">{datos.sucursal.restaurante.nombre}</p>
-          <h1 className="text-xl font-semibold text-slate-800">{datos.sucursal.nombre}</h1>
+          <TituloComensal>{datos.sucursal.nombre}</TituloComensal>
           <p className="mb-3 text-sm text-slate-500">{datos.sucursal.direccion}</p>
           <Link
             to={`/s/${datos.sucursal.id}/reservar`}
