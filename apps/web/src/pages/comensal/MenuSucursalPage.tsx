@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { Box, Utensils } from 'lucide-react';
-import type { MenuSucursal } from '@pgim/shared';
+import { Box, Plus, Utensils } from 'lucide-react';
+import type { MenuSucursal, PlatoMenu } from '@pgim/shared';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { Chip, EstadoCarga, Etiqueta } from '../../components/ui';
+import { useCarrito } from '../../lib/carrito';
 import { formatoPesos } from '../../lib/formato';
+import { useMiMesa } from '../../lib/miMesa';
 import { useRecurso } from '../../lib/useRecurso';
 
 // Destino del QR de la sucursal: el menú activo, por categoría.
@@ -15,21 +17,33 @@ export function MenuSucursalPage() {
   );
   // null = todas las categorías.
   const [categoria, setCategoria] = useState<string | null>(null);
+  // Con la mesa activa en esta sucursal, el comensal pide desde el menú.
+  const mesa = useMiMesa(sucursalId ?? null).datos;
+  const carrito = useCarrito(mesa?.cuentaMesaId ?? null);
 
-  const reservar = datos && (
-    <Link
-      to={`/s/${datos.sucursal.id}/reservar`}
-      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-control bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover"
-    >
+  const claseAccion =
+    'inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover';
+  const accion = !datos ? null : mesa ? (
+    carrito.unidades > 0 && (
+      <Link to={`/s/${datos.sucursal.id}/pedido`} className={claseAccion}>
+        Ver pedido · {carrito.unidades} · {formatoPesos(carrito.total)}
+      </Link>
+    )
+  ) : (
+    <Link to={`/s/${datos.sucursal.id}/reservar`} className={claseAccion}>
       Reservar mesa
     </Link>
   );
+
+  function agregar(p: PlatoMenu) {
+    carrito.agregar({ id: p.id, nombre: p.nombre, precio: p.precio }, 1);
+  }
 
   const categorias = datos?.menu?.categorias ?? [];
   const visibles = categoria ? categorias.filter((c) => c.id === categoria) : categorias;
 
   return (
-    <LayoutComensal volver={{ a: '/inicio', texto: 'Sucursales' }} accionFija={reservar}>
+    <LayoutComensal volver={{ a: '/inicio', texto: 'Sucursales' }} accionFija={accion || undefined}>
       <EstadoCarga cargando={cargando && !datos} error={error} />
       {datos && (
         <>
@@ -69,10 +83,10 @@ export function MenuSucursalPage() {
                     <h3 className="text-sm font-semibold text-meta">{c.nombre}</h3>
                     <ul className="divide-y divide-line">
                       {c.platos.map((p) => (
-                        <li key={p.id}>
+                        <li key={p.id} className="relative">
                           <Link
                             to={`/s/${sucursalId}/platos/${p.id}`}
-                            className="flex gap-3 py-3 hover:bg-panel"
+                            className={`flex gap-3 py-3 hover:bg-panel ${p.hayStock ? '' : 'opacity-60'}`}
                           >
                             <span className="min-w-0 flex-1">
                               <span className="block font-semibold text-ink">{p.nombre}</span>
@@ -85,6 +99,7 @@ export function MenuSucursalPage() {
                                 <span className="font-semibold text-ink">
                                   {formatoPesos(p.precio)}
                                 </span>
+                                {!p.hayStock && <Etiqueta>Sin stock</Etiqueta>}
                                 {p.modeloRa && (
                                   <Etiqueta tono="acento">
                                     <Box aria-hidden className="size-3.5" />
@@ -108,6 +123,13 @@ export function MenuSucursalPage() {
                               </span>
                             )}
                           </Link>
+                          {mesa && p.hayStock && (
+                            <BotonAgregar
+                              nombre={p.nombre}
+                              cantidad={carrito.cantidadDe(p.id)}
+                              onClick={() => agregar(p)}
+                            />
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -122,5 +144,33 @@ export function MenuSucursalPage() {
         </>
       )}
     </LayoutComensal>
+  );
+}
+
+// Sobre la foto: agrega una unidad y, si ya hay, muestra cuántas van en el pedido.
+function BotonAgregar({
+  nombre,
+  cantidad,
+  onClick,
+}: {
+  nombre: string;
+  cantidad: number;
+  onClick(): void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={
+        cantidad > 0 ? `${nombre}: ${cantidad} en el pedido. Agregar otro` : `Agregar ${nombre}`
+      }
+      className={`absolute right-1 bottom-1 grid size-11 place-items-center rounded-full font-semibold tabular-nums ${
+        cantidad > 0
+          ? 'bg-accent text-white hover:bg-accent-hover'
+          : 'border border-line-strong bg-surface text-accent-ink hover:bg-panel'
+      }`}
+    >
+      {cantidad > 0 ? cantidad : <Plus aria-hidden className="size-5" />}
+    </button>
   );
 }

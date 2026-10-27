@@ -6,12 +6,14 @@ import { SesionProvider } from './auth/SesionProvider';
 import { ProveedorAvisos } from './components/AvisoEmergente';
 import { ProveedorConfirmacion } from './components/Confirmacion';
 import { PanelLayout } from './components/PanelLayout';
+import { ProveedorCarrito } from './lib/carrito';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/PanelPage';
 import { RegistroPage } from './pages/RegistroPage';
 import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
 import { MisReservasPage } from './pages/comensal/MisReservasPage';
+import { PedidoPage } from './pages/comensal/PedidoPage';
 import { PlatoPage } from './pages/comensal/PlatoPage';
 import { ReservarPage } from './pages/comensal/ReservarPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
@@ -43,54 +45,60 @@ export default function App() {
   return (
     <SesionProvider>
       <ProveedorAvisos>
-        <BrowserRouter>
-          <ProveedorConfirmacion>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/registro" element={<RegistroPage />} />
-              <Route
-                path="/sucursal"
-                element={
-                  <RutaProtegida tipo="EMPLEADO">
-                    <SeleccionarSucursalPage />
-                  </RutaProtegida>
-                }
-              />
-              <Route
-                path="/panel"
-                element={
-                  <RutaProtegida tipo="EMPLEADO" requiereSucursal>
-                    <PanelLayout />
-                  </RutaProtegida>
-                }
-              >
-                <Route index element={<PanelPage />} />
-                <Route path="reservas" element={conPermiso('reserva.ver', <ReservasPage />)} />
-                <Route path="sucursales" element={conPermiso('sucursal.ver', <SucursalesPage />)} />
+        <ProveedorCarrito>
+          <BrowserRouter>
+            <ProveedorConfirmacion>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/registro" element={<RegistroPage />} />
                 <Route
-                  path="sucursales/:id/salon"
-                  element={conPermiso('sucursal.ver', <SalonPage />)}
+                  path="/sucursal"
+                  element={
+                    <RutaProtegida tipo="EMPLEADO">
+                      <SeleccionarSucursalPage />
+                    </RutaProtegida>
+                  }
                 />
-                <Route path="roles" element={conPermiso('rol.ver', <RolesPage />)} />
-                <Route path="personal" element={conPermiso('personal.ver', <PersonalPage />)} />
-                <Route path="insumos" element={conPermiso('insumo.ver', <InsumosPage />)} />
-                <Route path="recetas" element={conPermiso('receta.ver', <RecetasPage />)} />
                 <Route
-                  path="recetas/:tipo/:id"
-                  element={conPermiso('receta.ver', <RecetaEditorPage />)}
-                />
-                <Route path="platos" element={conPermiso('menu.ver', <PlatosPage />)} />
-                <Route path="menus" element={conPermiso('menu.ver', <MenusPage />)} />
-              </Route>
-              <Route path="/inicio" element={paraComensal(<InicioComensalPage />)} />
-              <Route path="/s/:sucursalId/menu" element={paraComensal(<MenuSucursalPage />)} />
-              <Route path="/s/:sucursalId/platos/:id" element={paraComensal(<PlatoPage />)} />
-              <Route path="/s/:sucursalId/reservar" element={paraComensal(<ReservarPage />)} />
-              <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
-              <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
-          </ProveedorConfirmacion>
-        </BrowserRouter>
+                  path="/panel"
+                  element={
+                    <RutaProtegida tipo="EMPLEADO" requiereSucursal>
+                      <PanelLayout />
+                    </RutaProtegida>
+                  }
+                >
+                  <Route index element={<PanelPage />} />
+                  <Route path="reservas" element={conPermiso('reserva.ver', <ReservasPage />)} />
+                  <Route
+                    path="sucursales"
+                    element={conPermiso('sucursal.ver', <SucursalesPage />)}
+                  />
+                  <Route
+                    path="sucursales/:id/salon"
+                    element={conPermiso('sucursal.ver', <SalonPage />)}
+                  />
+                  <Route path="roles" element={conPermiso('rol.ver', <RolesPage />)} />
+                  <Route path="personal" element={conPermiso('personal.ver', <PersonalPage />)} />
+                  <Route path="insumos" element={conPermiso('insumo.ver', <InsumosPage />)} />
+                  <Route path="recetas" element={conPermiso('receta.ver', <RecetasPage />)} />
+                  <Route
+                    path="recetas/:tipo/:id"
+                    element={conPermiso('receta.ver', <RecetaEditorPage />)}
+                  />
+                  <Route path="platos" element={conPermiso('menu.ver', <PlatosPage />)} />
+                  <Route path="menus" element={conPermiso('menu.ver', <MenusPage />)} />
+                </Route>
+                <Route path="/inicio" element={paraComensal(<InicioComensalPage />)} />
+                <Route path="/s/:sucursalId/menu" element={paraComensal(<MenuSucursalPage />)} />
+                <Route path="/s/:sucursalId/platos/:id" element={paraComensal(<PlatoPage />)} />
+                <Route path="/s/:sucursalId/reservar" element={paraComensal(<ReservarPage />)} />
+                <Route path="/s/:sucursalId/pedido" element={paraComensal(<PedidoPage />)} />
+                <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+              </Routes>
+            </ProveedorConfirmacion>
+          </BrowserRouter>
+        </ProveedorCarrito>
       </ProveedorAvisos>
     </SesionProvider>
   );
