@@ -6,7 +6,7 @@ import { EstadoCarga } from '../../components/ui';
 import { formatoCantidad, formatoPesos } from '../../lib/formato';
 import { useRecurso } from '../../lib/useRecurso';
 
-// Detalle del plato (CU-10). "Ver en RA" aparece solo si el plato tiene modelo (E1).
+// Detalle del plato (CU-10). "Ver en mi mesa" (RA) aparece solo si el plato tiene modelo (E1).
 export function PlatoPage() {
   const { sucursalId, id } = useParams();
   const { datos, cargando, error } = useRecurso<DetallePlato>(
@@ -23,18 +23,20 @@ export function PlatoPage() {
             <img
               src={plato.fotoUrl}
               alt={plato.nombre}
-              className="aspect-video w-full rounded-xl object-cover"
+              className="aspect-[4/3] w-full rounded-panel object-cover"
             />
           )}
           <div>
-            <p className="text-sm text-slate-500">{plato.categoria.nombre}</p>
+            <p className="text-sm text-meta">{plato.categoria.nombre}</p>
             <div className="flex items-start justify-between gap-3">
               <TituloComensal>{plato.nombre}</TituloComensal>
-              <span className="text-lg text-slate-800">{formatoPesos(plato.precio)}</span>
+              <span className="shrink-0 pt-1 text-lg font-semibold text-ink">
+                {formatoPesos(plato.precio)}
+              </span>
             </div>
-            {plato.descripcion && <p className="mt-1 text-slate-600">{plato.descripcion}</p>}
+            {plato.descripcion && <p className="mt-1 text-meta">{plato.descripcion}</p>}
             {plato.modeloRa && (
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-meta">
                 Porción: {formatoCantidad(plato.modeloRa.porcionGramos, 'GRAMO')}
               </p>
             )}

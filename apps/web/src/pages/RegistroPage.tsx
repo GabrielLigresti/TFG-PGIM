@@ -5,7 +5,7 @@ import { destinoTrasLogin, useSesion } from '../auth/SesionProvider';
 import { Cargando } from '../components/Cargando';
 
 const claseCampo =
-  'w-full rounded-lg border border-slate-300 px-3 py-2 text-base focus:border-slate-500 focus:outline-none';
+  'w-full rounded-control border border-line-strong px-3 py-2 text-base focus:border-accent focus:outline-none';
 
 // Registro simple de comensal. Al terminar vuelve a donde lo mandó el login
 // (por ejemplo, el menú de la sucursal que abrió con el QR).
@@ -42,18 +42,18 @@ export function RegistroPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+    <main className="flex min-h-screen items-center justify-center bg-bg px-4">
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-sm space-y-4 rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+        className="w-full max-w-sm space-y-4 rounded-panel border border-line bg-surface p-6"
       >
         <div className="space-y-1 text-center">
-          <h1 className="text-2xl font-semibold text-slate-800">Crear cuenta</h1>
-          <p className="text-sm text-slate-500">Para reservar mesa y pedir desde la app</p>
+          <h1 className="text-2xl font-semibold text-ink">Crear cuenta</h1>
+          <p className="text-sm text-meta">Para reservar mesa y pedir desde la app</p>
         </div>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Nombre</span>
+          <span className="text-sm font-medium text-text">Nombre</span>
           <input
             autoComplete="name"
             required
@@ -65,7 +65,7 @@ export function RegistroPage() {
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Email</span>
+          <span className="text-sm font-medium text-text">Email</span>
           <input
             type="email"
             autoComplete="email"
@@ -77,7 +77,7 @@ export function RegistroPage() {
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Contraseña</span>
+          <span className="text-sm font-medium text-text">Contraseña</span>
           <input
             type="password"
             autoComplete="new-password"
@@ -87,11 +87,11 @@ export function RegistroPage() {
             onChange={(e) => setPassword(e.target.value)}
             className={claseCampo}
           />
-          <span className="block text-xs text-slate-500">Al menos 8 caracteres</span>
+          <span className="block text-xs text-meta">Al menos 8 caracteres</span>
         </label>
 
         <label className="block space-y-1">
-          <span className="text-sm font-medium text-slate-700">Teléfono (opcional)</span>
+          <span className="text-sm font-medium text-text">Teléfono (opcional)</span>
           <input
             type="tel"
             autoComplete="tel"
@@ -103,7 +103,7 @@ export function RegistroPage() {
         </label>
 
         {error && (
-          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p role="alert" className="rounded-control bg-bad-soft px-3 py-2 text-sm text-bad">
             {error}
           </p>
         )}
@@ -111,14 +111,18 @@ export function RegistroPage() {
         <button
           type="submit"
           disabled={enviando}
-          className="w-full rounded-lg bg-slate-800 px-4 py-2 font-medium text-white hover:bg-slate-700 disabled:opacity-60"
+          className="w-full inline-flex min-h-11 items-center justify-center rounded-control bg-accent px-4 py-2 text-sm font-medium text-white hover:bg-accent-hover sm:min-h-9 disabled:opacity-60"
         >
           {enviando ? 'Creando la cuenta…' : 'Crear cuenta'}
         </button>
 
-        <p className="text-center text-sm text-slate-600">
+        <p className="text-center text-sm text-meta">
           ¿Ya tenés cuenta?{' '}
-          <Link to="/login" state={state} className="font-medium text-slate-800 underline">
+          <Link
+            to="/login"
+            state={state}
+            className="font-medium text-accent-ink underline underline-offset-2"
+          >
             Iniciá sesión
           </Link>
         </p>
