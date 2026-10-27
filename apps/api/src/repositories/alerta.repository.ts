@@ -54,8 +54,9 @@ export const alertaRepository: AlertaRepository = {
     return prisma.$transaction(async (tx) => {
       // Una alerta por vez en la sucursal: dos pedidos rechazados juntos no la duplican.
       await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${`alerta|${sucursalId}`}::text))) AS bloqueo`;
-      const plato = await tx.itemMenu.findUniqueOrThrow({
-        where: { id: itemMenuId },
+      // El plato tiene que ser del restaurante de la sucursal.
+      const plato = await tx.itemMenu.findFirstOrThrow({
+        where: { id: itemMenuId, restaurante: { sucursales: { some: { id: sucursalId } } } },
         select: { nombre: true },
       });
 

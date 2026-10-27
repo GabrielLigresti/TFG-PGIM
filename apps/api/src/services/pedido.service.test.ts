@@ -223,7 +223,7 @@ describe('pedidoService.avanzar y cancelar', () => {
 
     const cambio = await servicio.avanzar('r', 'centro', [...COCINERO], 'P');
 
-    expect(repo.cambiarEstado).toHaveBeenCalledWith('P', 'EN_PREPARACION', 'LISTO');
+    expect(repo.cambiarEstado).toHaveBeenCalledWith('r', 'centro', 'P', 'EN_PREPARACION', 'LISTO');
     expect(cambio).toEqual({ id: 'P', estado: 'LISTO', listoEn: '2026-10-30T23:10:00.000Z' });
     expect(eventos).toContainEqual({
       tipo: 'PEDIDO_CAMBIO_ESTADO',
@@ -238,7 +238,7 @@ describe('pedidoService.avanzar y cancelar', () => {
 
     await servicio.cancelar('r', 'centro', [...COCINERO], 'P', 'Sin stock');
 
-    expect(repo.cancelar).toHaveBeenCalledWith('P', 'Sin stock');
+    expect(repo.cancelar).toHaveBeenCalledWith('r', 'centro', 'P', 'Sin stock');
     expect(eventos.some((e) => e.tipo === 'PEDIDO_CANCELADO')).toBe(true);
   });
 });

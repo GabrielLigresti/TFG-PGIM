@@ -16,18 +16,22 @@ export interface FilaMesa {
   pagado: number;
 }
 
+export type ResultadoPago = 'APROBADO' | 'RECHAZADO' | 'SIN_SALDO' | 'CERRADA';
+
 export interface CuentaMesaRepository {
   // La cuenta ABIERTA del comensal en esa sucursal o, sin sucursal, en cualquiera.
   mesaAbiertaDelComensal(comensalId: string, sucursalId?: string): Promise<FilaMesa | null>;
   // Solo la cuenta cuya reserva es del comensal, abierta o cerrada.
   buscarDelComensal(comensalId: string, cuentaMesaId: string): Promise<FilaMesa | null>;
-  // Crea el pago PENDIENTE, lo cobra con `resolver` y lo deja APROBADO o RECHAZADO.
+  // Con la cuenta bloqueada (un cierre no entra en el medio): recalcula el
+  // saldo, crea el pago PENDIENTE por ese monto, lo cobra con `cobrar` y lo
+  // deja APROBADO o RECHAZADO, todo en una transacción. Si `cobrar` falla, no
+  // queda ningún pago.
   registrarPago(
     cuentaMesaId: string,
     comensalId: string,
-    monto: number,
-    resolver: (pagoId: string) => Promise<ResultadoCobro>,
-  ): Promise<'APROBADO' | 'RECHAZADO'>;
+    cobrar: (pago: { id: string; monto: number }) => Promise<ResultadoCobro>,
+  ): Promise<ResultadoPago>;
   // RegistroVisitas: si el titular pagó algo, alta de la cuenta de fidelidad
   // (si no tenía) y una visita por cuenta de mesa. true si la visita es nueva.
   registrarVisita(
@@ -148,20 +152,36 @@ export const cuentaMesaRepository: CuentaMesaRepository = {
     return fila && aFilaMesa(fila);
   },
 
-  async registrarPago(cuentaMesaId, comensalId, monto, resolver) {
-    const pago = await prisma.pago.create({
-      data: { cuentaMesaId, comensalId, monto, metodo: 'TARJETA' },
-      select: { id: true },
-    });
-    const resultado = await resolver(pago.id);
-    await prisma.pago.update({
-      where: { id: pago.id },
-      data:
-        resultado.estado === 'APROBADO'
-          ? { estado: 'APROBADO', referenciaExterna: resultado.referenciaExterna }
-          : { estado: 'RECHAZADO' },
-    });
-    return resultado.estado;
+  registrarPago(cuentaMesaId, comensalId, cobrar) {
+    return prisma.$transaction(
+      async (tx): Promise<ResultadoPago> => {
+        const abierta = await tx.$queryRaw<{ id: string }[]>`
+          SELECT c.id FROM cuenta_mesa c JOIN reserva r ON r.id = c.reserva_id
+          WHERE c.id = ${cuentaMesaId}::uuid AND r.comensal_id = ${comensalId}::uuid
+            AND c.estado = 'ABIERTA'
+          FOR UPDATE OF c`;
+        if (abierta.length === 0) return 'CERRADA';
+
+        const { total, pagado } = await totalesDeCuenta(tx, cuentaMesaId);
+        const saldo = centavos(total - pagado);
+        if (saldo <= 0) return 'SIN_SALDO';
+
+        const pago = await tx.pago.create({
+          data: { cuentaMesaId, comensalId, monto: saldo, metodo: 'TARJETA' },
+          select: { id: true },
+        });
+        const resultado = await cobrar({ id: pago.id, monto: saldo });
+        await tx.pago.update({
+          where: { id: pago.id },
+          data:
+            resultado.estado === 'APROBADO'
+              ? { estado: 'APROBADO', referenciaExterna: resultado.referenciaExterna }
+              : { estado: 'RECHAZADO' },
+        });
+        return resultado.estado;
+      },
+      { timeout: 15_000 },
+    );
   },
 
   registrarVisita(cuentaMesaId, restauranteId, comensalId) {

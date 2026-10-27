@@ -53,9 +53,12 @@ export function createCuentaMesaService(
       if (saldo <= 0) throw new AppError(409, 'La mesa no tiene saldo para pagar');
       if (!pasarela.habilitada) throw new AppError(503, 'El pago de prueba no está habilitado');
 
-      const estado = await repo.registrarPago(cuentaMesaId, comensalId, saldo, (pagoId) =>
-        pasarela.cobrar({ id: pagoId, monto: saldo }),
+      // El repositorio vuelve a controlar estado y saldo con la cuenta bloqueada.
+      const estado = await repo.registrarPago(cuentaMesaId, comensalId, (pago) =>
+        pasarela.cobrar(pago),
       );
+      if (estado === 'CERRADA') throw new AppError(409, 'La mesa ya está cerrada');
+      if (estado === 'SIN_SALDO') throw new AppError(409, 'La mesa no tiene saldo para pagar');
       if (estado !== 'APROBADO') throw new AppError(402, 'No se pudo hacer el pago');
       bus.publicar({ tipo: 'PAGO_APROBADO', cuentaMesaId, comensalId });
       return aMiMesa(await mesaDelComensal(comensalId, cuentaMesaId));

@@ -27,9 +27,9 @@ async function entregar(id: string) {
   await prisma.pedido.update({ where: { id }, data: { estado: 'ENTREGADO' } });
 }
 
-const aprobar = async (pagoId: string) => ({
+const aprobar = async (pago: { id: string; monto: number }) => ({
   estado: 'APROBADO' as const,
-  referenciaExterna: `SIM-${pagoId}`,
+  referenciaExterna: `SIM-${pago.id}`,
 });
 
 describe('cuentaMesaRepository', () => {
@@ -53,9 +53,10 @@ describe('cuentaMesaRepository', () => {
   });
 
   it('registra un pago aprobado con la referencia de la pasarela', async () => {
-    expect(
-      await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, 600, aprobar),
-    ).toBe('APROBADO');
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
+      'APROBADO',
+    );
     const pago = await prisma.pago.findFirstOrThrow();
     expect(pago.estado).toBe('APROBADO');
     expect(pago.referenciaExterna).toBe(`SIM-${pago.id}`);
@@ -64,9 +65,46 @@ describe('cuentaMesaRepository', () => {
     expect(mesa!.pagado).toBe(600);
   });
 
+  it('cobra el saldo calculado al bloquear la cuenta', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    const cobrado: number[] = [];
+    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async (pago) => {
+      cobrado.push(pago.monto);
+      return aprobar(pago);
+    });
+    expect(cobrado).toEqual([600]);
+  });
+
+  it('sin saldo no crea el pago', async () => {
+    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
+      'SIN_SALDO',
+    );
+    expect(await prisma.pago.count()).toBe(0);
+  });
+
+  it('una mesa cerrada no recibe pagos', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    await prisma.cuentaMesa.update({ where: { id: e.cuentaMesaId }, data: { estado: 'CERRADA' } });
+    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
+      'CERRADA',
+    );
+    expect(await prisma.pago.count()).toBe(0);
+  });
+
+  it('si la pasarela falla no queda un pago pendiente', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    await expect(
+      cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async () => {
+        throw new Error('pasarela caída');
+      }),
+    ).rejects.toThrow('pasarela caída');
+    expect(await prisma.pago.count()).toBe(0);
+  });
+
   it('un pago rechazado queda RECHAZADO y no suma a lo pagado', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
     expect(
-      await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, 600, async () => ({
+      await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async () => ({
         estado: 'RECHAZADO',
       })),
     ).toBe('RECHAZADO');
@@ -113,14 +151,14 @@ describe('reservaRepository.cerrar', () => {
   it('pagada, cierra sin pedir confirmación', async () => {
     const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
     await entregar(pedido.id);
-    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, 600, aprobar);
+    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar);
 
     expect((await cerrar(false)).resultado).toBe('CERRADA');
   });
 
   it('un pedido cancelado no bloquea ni suma al saldo', async () => {
     const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
-    await pedidoRepository.cancelar(pedido.id, 'x');
+    await pedidoRepository.cancelar(e.restauranteId, e.sucursalId, pedido.id, 'x');
 
     expect((await cerrar(false)).resultado).toBe('CERRADA');
   });
@@ -142,14 +180,15 @@ describe('cuentaMesaRepository.registrarVisita', () => {
     cuentaMesaRepository.registrarVisita(e.cuentaMesaId, e.restauranteId, e.comensalId);
 
   it('con un pago aprobado registra una visita, una sola vez', async () => {
-    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, 600, aprobar);
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar);
 
     expect(await visitar()).toBe(true);
     expect(await visitar()).toBe(false);
 
     expect(await prisma.visita.count()).toBe(1);
-    const cuenta = await prisma.cuentaFidelidad.findFirstOrThrow();
-    expect(cuenta.cantidadVisitas).toBe(1);
+    const fidelidad = await prisma.cuentaFidelidad.findFirstOrThrow();
+    expect(fidelidad.cantidadVisitas).toBe(1);
   });
 
   it('sin pago no registra visita ni crea la cuenta de fidelidad', async () => {

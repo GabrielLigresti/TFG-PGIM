@@ -66,4 +66,22 @@ describe('alertaRepository', () => {
     expect(await alertaRepository.listarSinResolver(e.restauranteId, e.harinaId)).toEqual([]);
     expect(await alertaRepository.resolver(e.restauranteId, e.harinaId, alerta!.id)).toBe(false);
   });
+
+  it('un plato de otro restaurante no genera alertas en esta sucursal', async () => {
+    const otro = await prisma.restaurante.create({ data: { nombre: 'Otro', cuit: 'otro-cuit' } });
+    const categoria = await prisma.categoria.create({
+      data: { restauranteId: otro.id, nombre: 'Varios' },
+    });
+    const ajeno = await prisma.itemMenu.create({
+      data: { restauranteId: otro.id, categoriaId: categoria.id, nombre: 'Ajeno', precio: 1 },
+    });
+    await expect(
+      alertaRepository.crearSiNoHay({
+        sucursalId: e.sucursalId,
+        tipo: 'PLATO_SIN_RECETA',
+        itemMenuId: ajeno.id,
+      }),
+    ).rejects.toThrow();
+    expect(await prisma.alerta.count()).toBe(0);
+  });
 });

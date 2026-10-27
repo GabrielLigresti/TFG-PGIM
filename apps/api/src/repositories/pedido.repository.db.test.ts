@@ -143,7 +143,14 @@ describe('pedidoRepository.cancelar', () => {
   it('devuelve exactamente lo descontado, con una devolución por cada consumo', async () => {
     const pedido = await pedidoRepository.confirmar(cuenta, [pizzas(1), pizzas(1)]);
 
-    expect(await pedidoRepository.cancelar(pedido.id, 'Lo pidió el cliente')).toBe(true);
+    expect(
+      await pedidoRepository.cancelar(
+        e.restauranteId,
+        e.sucursalId,
+        pedido.id,
+        'Lo pidió el cliente',
+      ),
+    ).toBe(true);
 
     expect(await stock(e.harinaId)).toBe(1000);
     expect(await stock(e.quesoId)).toBe(100);
@@ -158,7 +165,7 @@ describe('pedidoRepository.cancelar', () => {
           (d) =>
             d.lineaPedidoId === c.lineaPedidoId &&
             d.existenciaId === c.existenciaId &&
-            Number(d.cantidad) === Number(c.cantidad),
+            Number(d.cantidad) === -Number(c.cantidad),
         ),
       ).toBe(true);
     }
@@ -169,19 +176,101 @@ describe('pedidoRepository.cancelar', () => {
 
   it('un pedido en preparación no se cancela ni mueve stock', async () => {
     const pedido = await pedidoRepository.confirmar(cuenta, [pizzas(1)]);
-    await pedidoRepository.cambiarEstado(pedido.id, 'CONFIRMADO', 'EN_PREPARACION');
+    await pedidoRepository.cambiarEstado(
+      e.restauranteId,
+      e.sucursalId,
+      pedido.id,
+      'CONFIRMADO',
+      'EN_PREPARACION',
+    );
 
-    expect(await pedidoRepository.cancelar(pedido.id, 'x')).toBe(false);
+    expect(await pedidoRepository.cancelar(e.restauranteId, e.sucursalId, pedido.id, 'x')).toBe(
+      false,
+    );
     expect(await stock(e.quesoId)).toBe(50);
+  });
+});
+
+describe('signo de los movimientos', () => {
+  async function sumaMovimientos(componenteId: string) {
+    const movimientos = await prisma.movimientoStock.findMany({
+      where: { existencia: { componenteId } },
+    });
+    return movimientos.reduce((t, m) => t + Number(m.cantidad), 0);
+  }
+
+  it('la suma de los movimientos explica el cambio de stock', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [pizzas(1)]);
+    expect(await sumaMovimientos(e.harinaId)).toBe((await stock(e.harinaId)) - 1000);
+    expect(await sumaMovimientos(e.harinaId)).toBe(-50);
+
+    await pedidoRepository.cancelar(e.restauranteId, e.sucursalId, pedido.id, 'x');
+    expect(await sumaMovimientos(e.harinaId)).toBe(0);
+    expect(await stock(e.harinaId)).toBe(1000);
+  });
+});
+
+describe('confirmar y cancelar a la vez', () => {
+  it('no se traban aunque las existencias se hayan creado en otro orden', async () => {
+    // Existencias recreadas al revés: el id de la de queso queda antes que el de harina.
+    await prisma.existencia.deleteMany();
+    await prisma.existencia.create({
+      data: { sucursalId: e.sucursalId, componenteId: e.quesoId, cantidadActual: 100000 },
+    });
+    await prisma.existencia.create({
+      data: { sucursalId: e.sucursalId, componenteId: e.harinaId, cantidadActual: 100000 },
+    });
+    for (let i = 0; i < 40; i++) {
+      const aCancelar = await Promise.all(
+        [1, 2, 3].map(() => pedidoRepository.confirmar(cuenta, [pizzas(1)])),
+      );
+      await Promise.all([
+        pedidoRepository.confirmar(cuenta, [pizzas(1)]),
+        pedidoRepository.confirmar(cuenta, [pizzas(1)]),
+        ...aCancelar.map((p) =>
+          pedidoRepository.cancelar(e.restauranteId, e.sucursalId, p.id, 'x'),
+        ),
+      ]);
+    }
+  });
+});
+
+describe('alcance por sucursal', () => {
+  it('no cambia ni cancela pedidos de otra sucursal', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
+    expect(
+      await pedidoRepository.cambiarEstado(
+        e.restauranteId,
+        e.harinaId,
+        pedido.id,
+        'CONFIRMADO',
+        'EN_PREPARACION',
+      ),
+    ).toBe(false);
+    expect(await pedidoRepository.cancelar(e.restauranteId, e.harinaId, pedido.id, 'x')).toBe(
+      false,
+    );
   });
 });
 
 describe('pedidoRepository.cambiarEstado', () => {
   it('al pasar a LISTO guarda cuándo quedó listo', async () => {
     const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
-    await pedidoRepository.cambiarEstado(pedido.id, 'CONFIRMADO', 'EN_PREPARACION');
+    await pedidoRepository.cambiarEstado(
+      e.restauranteId,
+      e.sucursalId,
+      pedido.id,
+      'CONFIRMADO',
+      'EN_PREPARACION',
+    );
 
-    const resultado = await pedidoRepository.cambiarEstado(pedido.id, 'EN_PREPARACION', 'LISTO');
+    const resultado = await pedidoRepository.cambiarEstado(
+      e.restauranteId,
+      e.sucursalId,
+      pedido.id,
+      'EN_PREPARACION',
+      'LISTO',
+    );
 
     expect(resultado && resultado.listoEn).toBeInstanceOf(Date);
   });
@@ -189,8 +278,20 @@ describe('pedidoRepository.cambiarEstado', () => {
   it('de dos avances simultáneos desde el mismo estado, gana uno solo', async () => {
     const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
     const resultados = await Promise.all([
-      pedidoRepository.cambiarEstado(pedido.id, 'CONFIRMADO', 'EN_PREPARACION'),
-      pedidoRepository.cambiarEstado(pedido.id, 'CONFIRMADO', 'EN_PREPARACION'),
+      pedidoRepository.cambiarEstado(
+        e.restauranteId,
+        e.sucursalId,
+        pedido.id,
+        'CONFIRMADO',
+        'EN_PREPARACION',
+      ),
+      pedidoRepository.cambiarEstado(
+        e.restauranteId,
+        e.sucursalId,
+        pedido.id,
+        'CONFIRMADO',
+        'EN_PREPARACION',
+      ),
     ]);
     expect(resultados.filter((r) => r !== false)).toHaveLength(1);
   });
@@ -202,8 +303,14 @@ describe('pedidoRepository.cola', () => {
     const entregado = await pedidoRepository.confirmar(cuenta, [agua()]);
     const cancelado = await pedidoRepository.confirmar(cuenta, [agua()]);
     const ultimo = await pedidoRepository.confirmar(cuenta, [agua()]);
-    await pedidoRepository.cambiarEstado(entregado.id, 'CONFIRMADO', 'ENTREGADO');
-    await pedidoRepository.cancelar(cancelado.id, 'x');
+    await pedidoRepository.cambiarEstado(
+      e.restauranteId,
+      e.sucursalId,
+      entregado.id,
+      'CONFIRMADO',
+      'ENTREGADO',
+    );
+    await pedidoRepository.cancelar(e.restauranteId, e.sucursalId, cancelado.id, 'x');
 
     const cola = await pedidoRepository.cola(e.restauranteId, e.sucursalId);
 

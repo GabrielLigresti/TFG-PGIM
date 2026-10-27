@@ -27,7 +27,9 @@ function armar(fila: FilaMesa | null, habilitada = true) {
   const repo: jest.Mocked<CuentaMesaRepository> = {
     mesaAbiertaDelComensal: jest.fn().mockResolvedValue(fila),
     buscarDelComensal: jest.fn().mockResolvedValue(fila),
-    registrarPago: jest.fn(async (_c, _co, _m, resolver) => (await resolver('pago')).estado),
+    registrarPago: jest.fn(
+      async (_c, _co, cobrar) => (await cobrar({ id: 'pago', monto: 600 })).estado,
+    ),
     registrarVisita: jest.fn(),
   };
   const bus = crearBusEventos();
@@ -93,13 +95,19 @@ describe('cuentaMesaService.pagar', () => {
 
     const resultado = await servicio.pagar('C', 'cuenta');
 
-    expect(repo.registrarPago).toHaveBeenCalledWith('cuenta', 'C', 600, expect.any(Function));
+    expect(repo.registrarPago).toHaveBeenCalledWith('cuenta', 'C', expect.any(Function));
     expect(resultado.saldo).toBe(0);
     expect(eventos).toContainEqual({
       tipo: 'PAGO_APROBADO',
       cuentaMesaId: 'cuenta',
       comensalId: 'C',
     });
+  });
+
+  it('si la mesa se cerró mientras tanto responde 409', async () => {
+    const { servicio, repo } = armar(mesa());
+    repo.registrarPago.mockResolvedValue('CERRADA');
+    await expect(servicio.pagar('C', 'cuenta')).rejects.toMatchObject({ status: 409 });
   });
 
   it('si la pasarela rechaza responde 402', async () => {

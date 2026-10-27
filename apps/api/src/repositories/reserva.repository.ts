@@ -281,7 +281,8 @@ export const reservaRepository: ReservaRepository = {
       });
       if (!reserva?.cuentaMesa) return { resultado: 'CAMBIO' };
       const cuentaMesaId = reserva.cuentaMesa.id;
-      // Bloquea la cuenta: un pedido o un pago no entran mientras se cierra.
+      // Bloquea la cuenta: un pedido o un pago no entran mientras se cierra (los
+      // dos la bloquean igual).
       await tx.$queryRaw`SELECT id FROM cuenta_mesa WHERE id = ${cuentaMesaId}::uuid FOR UPDATE`;
 
       const { total, pagado, pedidosActivos } = await totalesDeCuenta(tx, cuentaMesaId);

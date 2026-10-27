@@ -63,13 +63,15 @@ export interface PedidoRepository {
   // Solo si sigue en `desde`; false si otra operación lo cambió antes. Al
   // pasar a LISTO guarda listoEn.
   cambiarEstado(
+    restauranteId: string,
+    sucursalId: string,
     id: string,
     desde: EstadoPedido,
     hacia: EstadoPedido,
   ): Promise<{ listoEn: Date | null } | false>;
   // CONFIRMADO → CANCELADO con el motivo, y devolución de cada consumo de
   // stock, en una transacción. false si ya no estaba CONFIRMADO.
-  cancelar(id: string, motivo: string): Promise<boolean>;
+  cancelar(restauranteId: string, sucursalId: string, id: string, motivo: string): Promise<boolean>;
 }
 
 function deLaSucursal(restauranteId: string, sucursalId: string) {
@@ -119,6 +121,12 @@ export function aPedidoCola(fila: FilaPedido): PedidoCola {
 // sumarlo, para que la devolución reponga exactamente lo descontado.
 const redondear = (valor: number) => Math.round(valor * 1000) / 1000;
 
+// Confirmaciones y cancelaciones de una sucursal, de a una: el número de
+// pedido es correlativo y las dos mueven las mismas existencias.
+async function bloquearPedidosDeSucursal(tx: Prisma.TransactionClient, sucursalId: string) {
+  await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${`pedido|${sucursalId}`}::text))) AS bloqueo`;
+}
+
 export const pedidoRepository: PedidoRepository = {
   async buscarCuentaDelComensal(comensalId, cuentaMesaId) {
     const fila = await prisma.cuentaMesa.findFirst({
@@ -155,8 +163,8 @@ export const pedidoRepository: PedidoRepository = {
       const abierta = await tx.$queryRaw<{ id: string }[]>`
         SELECT id FROM cuenta_mesa WHERE id = ${cuenta.id}::uuid AND estado = 'ABIERTA' FOR UPDATE`;
       if (abierta.length === 0) throw new MesaCerradaError();
-      // Un pedido por vez en la sucursal: el número es correlativo (max + 1).
-      await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${`pedido|${cuenta.sucursalId}`}::text))) AS bloqueo`;
+      // Número correlativo de la sucursal (max + 1), con el bloqueo tomado.
+      await bloquearPedidosDeSucursal(tx, cuenta.sucursalId);
       const ultimo = await tx.pedido.aggregate({
         where: { sucursalId: cuenta.sucursalId },
         _max: { numero: true },
@@ -167,22 +175,30 @@ export const pedidoRepository: PedidoRepository = {
           cuentaMesaId: cuenta.id,
           sucursalId: cuenta.sucursalId,
           numero: (ultimo._max.numero ?? 0) + 1,
-          lineas: {
-            create: lineas.map((l) => ({
-              itemMenuId: l.itemMenuId,
-              cantidad: l.cantidad,
-              precioUnitario: l.precioUnitario,
-              observaciones: l.observaciones,
-            })),
-          },
         },
-        select: { id: true, lineas: { select: { id: true }, orderBy: { id: 'asc' } } },
+        select: { id: true },
       });
+      // Una línea por vez, para asociar cada consumo a su línea sin depender
+      // del orden en que la base devuelve los ids.
+      const idsLineas: string[] = [];
+      for (const l of lineas) {
+        const linea = await tx.lineaPedido.create({
+          data: {
+            pedidoId: pedido.id,
+            itemMenuId: l.itemMenuId,
+            cantidad: l.cantidad,
+            precioUnitario: l.precioUnitario,
+            observaciones: l.observaciones,
+          },
+          select: { id: true },
+        });
+        idsLineas.push(linea.id);
+      }
 
       // Consumo por línea e insumo, y el total por insumo.
       const consumos = lineas.flatMap((l, i) =>
         [...l.insumos].map(([componenteId, cantidad]) => ({
-          lineaPedidoId: pedido.lineas[i]!.id,
+          lineaPedidoId: idsLineas[i]!,
           itemMenuId: l.itemMenuId,
           componenteId,
           cantidad: redondear(cantidad),
@@ -221,7 +237,8 @@ export const pedidoRepository: PedidoRepository = {
           data: consumos.map((c) => ({
             existenciaId: existencias.get(c.componenteId)!,
             tipo: 'CONSUMO_PEDIDO' as const,
-            cantidad: c.cantidad,
+            // Con signo, como pide el modelo: el consumo resta.
+            cantidad: -c.cantidad,
             costoUnitario: costo.get(c.componenteId) ?? 0,
             lineaPedidoId: c.lineaPedidoId,
           })),
@@ -268,35 +285,43 @@ export const pedidoRepository: PedidoRepository = {
     );
   },
 
-  async cambiarEstado(id, desde, hacia) {
+  async cambiarEstado(restauranteId, sucursalId, id, desde, hacia) {
     const listoEn = hacia === 'LISTO' ? new Date() : null;
     const { count } = await prisma.pedido.updateMany({
-      where: { id, estado: desde },
+      where: { id, estado: desde, ...deLaSucursal(restauranteId, sucursalId) },
       data: { estado: hacia, ...(listoEn && { listoEn }) },
     });
     return count === 1 && { listoEn };
   },
 
-  cancelar(id, motivo) {
+  cancelar(restauranteId, sucursalId, id, motivo) {
     return prisma.$transaction(async (tx) => {
+      // El mismo bloqueo que confirmar: nunca se cruzan sobre las existencias.
+      await bloquearPedidosDeSucursal(tx, sucursalId);
       const { count } = await tx.pedido.updateMany({
-        where: { id, estado: 'CONFIRMADO' },
+        where: { id, estado: 'CONFIRMADO', ...deLaSucursal(restauranteId, sucursalId) },
         data: { estado: 'CANCELADO', motivoCancelacion: motivo },
       });
       if (count !== 1) return false;
       const consumos = await tx.movimientoStock.findMany({
         where: { tipo: 'CONSUMO_PEDIDO', lineaPedido: { pedidoId: id } },
         select: { existenciaId: true, cantidad: true, costoUnitario: true, lineaPedidoId: true },
-        orderBy: { existenciaId: 'asc' },
+        orderBy: { existencia: { componenteId: 'asc' } },
       });
+      // El consumo se guardó negativo: la devolución suma lo mismo, en positivo.
       for (const c of consumos) {
         await tx.existencia.update({
           where: { id: c.existenciaId },
-          data: { cantidadActual: { increment: c.cantidad } },
+          data: { cantidadActual: { decrement: c.cantidad } },
         });
       }
       await tx.movimientoStock.createMany({
-        data: consumos.map((c) => ({ ...c, tipo: 'DEVOLUCION_PEDIDO' as const, motivo })),
+        data: consumos.map((c) => ({
+          ...c,
+          cantidad: c.cantidad.negated(),
+          tipo: 'DEVOLUCION_PEDIDO' as const,
+          motivo,
+        })),
       });
       return true;
     });

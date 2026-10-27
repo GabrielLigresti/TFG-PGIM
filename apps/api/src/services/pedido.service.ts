@@ -45,7 +45,13 @@ export function createPedidoService(
       const pedido = await pedidoDeLaSucursal(restauranteId, sucursalId, id);
       const transicion = estadoDePedido(pedido.estado).avanzar();
       exigir(permisos, transicion);
-      const resultado = await repo.cambiarEstado(id, pedido.estado, transicion.hacia);
+      const resultado = await repo.cambiarEstado(
+        restauranteId,
+        sucursalId,
+        id,
+        pedido.estado,
+        transicion.hacia,
+      );
       if (!resultado) throw new AppError(409, YA_CAMBIO);
       const cambio: CambioPedido = {
         id,
@@ -72,7 +78,9 @@ export function createPedidoService(
       const pedido = await pedidoDeLaSucursal(restauranteId, sucursalId, id);
       const transicion = estadoDePedido(pedido.estado).cancelar();
       exigir(permisos, transicion);
-      if (!(await repo.cancelar(id, motivo))) throw new AppError(409, YA_CAMBIO);
+      if (!(await repo.cancelar(restauranteId, sucursalId, id, motivo))) {
+        throw new AppError(409, YA_CAMBIO);
+      }
       const cambio: CambioPedido = { id, estado: 'CANCELADO', listoEn: null };
       bus.publicar({ tipo: 'PEDIDO_CANCELADO', cambio, sucursalId, comensalId: pedido.comensalId });
       return cambio;
