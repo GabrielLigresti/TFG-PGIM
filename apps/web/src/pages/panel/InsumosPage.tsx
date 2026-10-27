@@ -17,6 +17,7 @@ import {
 import { NOMBRE_UNIDAD, aNumero, formatoCantidad, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 const COSTO_POR: Record<UnidadBase, string> = {
   GRAMO: 'por gramo',
@@ -40,8 +41,11 @@ export function InsumosPage() {
     recargar();
   }
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(insumo: Insumo) {
-    if (!confirm(`¿Dar de baja ${insumo.nombre}?`)) return;
+    if (!(await confirmar({ mensaje: `¿Dar de baja ${insumo.nombre}?`, accion: 'Dar de baja' })))
+      return;
     if (await baja.enviar(`/insumos/${insumo.id}`, 'DELETE')) guardado();
   }
 

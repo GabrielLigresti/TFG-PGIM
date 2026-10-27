@@ -35,11 +35,11 @@ export function QrMenuModal({ sucursal, onCerrar }: { sucursal: Sucursal; onCerr
           />
         )}
         {!sucursal.menuActivo && (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <p className="rounded-control bg-warn-soft px-3 py-2 text-sm text-warn">
             La sucursal no tiene menú activo: el comensal verá que no hay menú disponible.
           </p>
         )}
-        <p className="break-all text-sm text-slate-600 select-all">{url}</p>
+        <p className="break-all text-sm text-meta select-all">{url}</p>
         <Boton variante="secundario" onClick={copiar}>
           {copiado ? 'Enlace copiado' : 'Copiar enlace'}
         </Boton>

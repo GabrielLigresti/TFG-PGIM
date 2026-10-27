@@ -22,6 +22,7 @@ import {
 import { aNumero, formatoLista } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 // CU-15: alta de empleados con rol, sucursales y tope de horas semanales.
 export function PersonalPage() {
@@ -40,9 +41,15 @@ export function PersonalPage() {
     await recargarSesion();
   }
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(empleado: Empleado) {
-    if (!confirm(`¿Dar de baja a ${empleado.nombreCompleto}? No va a poder iniciar sesión.`))
-      return;
+    const ok = await confirmar({
+      mensaje: `¿Dar de baja a ${empleado.nombreCompleto}?`,
+      detalle: 'No va a poder iniciar sesión. Su historial se conserva.',
+      accion: 'Dar de baja',
+    });
+    if (!ok) return;
     if (await baja.enviar(`/personal/${empleado.id}`, 'DELETE')) await guardado();
   }
 
@@ -254,7 +261,7 @@ function FormularioEmpleado({
           </Campo>
         </div>
         <fieldset className="space-y-1">
-          <legend className="text-sm font-medium text-slate-700">Sucursales</legend>
+          <legend className="text-sm font-medium text-text">Sucursales</legend>
           {sucursales.map((s) => (
             <Casilla
               key={s.id}

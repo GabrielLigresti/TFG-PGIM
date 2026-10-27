@@ -19,6 +19,7 @@ import { aNumero, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 import { ModeloRaModal } from './ModeloRaModal';
+import { useConfirmar } from '../../components/Confirmacion';
 
 // CU-16: platos (con su modelo RA) y categorías. Los menús van en su propia pantalla.
 export function PlatosPage() {
@@ -35,13 +36,24 @@ export function PlatosPage() {
     categorias.recargar();
   }
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(p: Plato) {
-    if (!confirm(`¿Dar de baja el plato ${p.nombre}?`)) return;
+    if (
+      !(await confirmar({ mensaje: `¿Dar de baja el plato ${p.nombre}?`, accion: 'Dar de baja' }))
+    )
+      return;
     if (await baja.enviar(`/platos/${p.id}`, 'DELETE')) recargarTodo();
   }
 
   async function borrarCategoria(c: Categoria) {
-    if (!confirm(`¿Borrar la categoría ${c.nombre}?`)) return;
+    if (
+      !(await confirmar({
+        mensaje: `¿Borrar la categoría ${c.nombre}?`,
+        accion: 'Borrar categoría',
+      }))
+    )
+      return;
     if (await baja.enviar(`/categorias/${c.id}`, 'DELETE')) recargarTodo();
   }
 
@@ -65,9 +77,7 @@ export function PlatosPage() {
         <div className="mb-3">
           <Aviso>{baja.error}</Aviso>
         </div>
-        {sinCategorias && (
-          <p className="mb-3 text-sm text-slate-500">Primero creá una categoría.</p>
-        )}
+        {sinCategorias && <p className="mb-3 text-sm text-meta">Primero creá una categoría.</p>}
         {platos.datos && (
           <Lista
             filas={platos.datos}
@@ -100,7 +110,7 @@ export function PlatosPage() {
                   tienePermiso('receta.ver') && (p.tieneReceta || tienePermiso('receta.crear')) ? (
                     <Link
                       to={`/panel/recetas/plato/${p.id}`}
-                      className="inline-block py-2 text-slate-700 underline md:py-0"
+                      className="inline-block py-2 text-text underline md:py-0"
                     >
                       {p.tieneReceta ? 'Ver receta' : 'Cargar receta'}
                     </Link>

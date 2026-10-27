@@ -16,6 +16,7 @@ import {
 import { formatoFecha, formatoLista } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 function EstadoVigencia({ menu, hoy }: { menu: Menu; hoy: string }) {
   if (menu.vigenciaDesde > hoy) {
@@ -40,8 +41,11 @@ export function MenusPage() {
   const baja = useGuardar();
   const hoy = hoyArgentina();
 
+  const confirmar = useConfirmar();
+
   async function borrar(m: Menu) {
-    if (!confirm(`¿Borrar el menú ${m.nombre}?`)) return;
+    if (!(await confirmar({ mensaje: `¿Borrar el menú ${m.nombre}?`, accion: 'Borrar menú' })))
+      return;
     if (await baja.enviar(`/menus/${m.id}`, 'DELETE')) menus.recargar();
   }
 
@@ -211,15 +215,15 @@ function FormularioMenu({
         </div>
 
         <fieldset className="space-y-3">
-          <legend className="text-sm font-medium text-slate-700">
+          <legend className="text-sm font-medium text-text">
             Platos ({elegidos.size} elegidos)
           </legend>
           {platos.length === 0 && (
-            <p className="text-sm text-slate-500">Primero cargá platos en la sección Platos.</p>
+            <p className="text-sm text-meta">Primero cargá platos en la sección Platos.</p>
           )}
           {porCategoria(platos).map(([categoria, delGrupo]) => (
             <div key={categoria}>
-              <p className="mb-1 text-xs font-medium uppercase text-slate-500">{categoria}</p>
+              <p className="mb-1 text-xs font-medium uppercase text-meta">{categoria}</p>
               <div className="space-y-1">
                 {delGrupo.map((p) => (
                   <div key={p.id} className="flex items-center gap-2">

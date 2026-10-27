@@ -18,6 +18,7 @@ import {
 import { aNumero } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 function datosDe(mesa: Mesa): MesaInput {
   return {
@@ -62,15 +63,20 @@ export function SalonPage() {
     if (await guardar.enviar(ruta, 'POST', nueva)) recargar();
   }
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(mesa: Mesa) {
-    if (!confirm(`¿Dar de baja la mesa ${mesa.numero}?`)) return;
+    if (
+      !(await confirmar({ mensaje: `¿Dar de baja la mesa ${mesa.numero}?`, accion: 'Dar de baja' }))
+    )
+      return;
     if (await guardar.enviar(`${ruta}/${mesa.id}`, 'DELETE')) recargar();
   }
 
   return (
     <section>
       <p className="mb-2 text-sm">
-        <Link to="/panel/sucursales" className="text-slate-600 underline">
+        <Link to="/panel/sucursales" className="text-meta underline">
           ← Sucursales
         </Link>
       </p>

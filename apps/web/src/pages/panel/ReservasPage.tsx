@@ -81,9 +81,7 @@ export function ReservasPage() {
       <div className="mb-3">
         <Aviso>{activacion.error}</Aviso>
       </div>
-      {filas?.length === 0 && (
-        <p className="text-sm text-slate-500">No hay reservas para mostrar.</p>
-      )}
+      {filas?.length === 0 && <p className="text-sm text-meta">No hay reservas para mostrar.</p>}
       {filas && filas.length > 0 && (
         <Lista
           filas={filas}
@@ -91,7 +89,7 @@ export function ReservasPage() {
           columnas={[
             { titulo: 'Hora', valor: (r) => formatoHora(r.inicio) },
             { titulo: 'Mesa', valor: (r) => r.mesa.numero },
-            { titulo: 'Comensal', valor: (r) => r.comensal.nombre },
+            { titulo: 'A nombre de', valor: (r) => r.comensal.nombre },
             { titulo: 'Teléfono', valor: (r) => r.comensal.telefono ?? '—' },
             { titulo: 'Personas', valor: (r) => r.cantidadPersonas },
             {
@@ -100,7 +98,7 @@ export function ReservasPage() {
                 <span className="inline-flex flex-wrap items-center gap-2">
                   <Estado entidad="reserva" valor={r.estado} />
                   {r.estado === 'PENDIENTE' && (
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-meta">
                       Tolerancia hasta {formatoHora(r.limiteLlegada)}
                     </span>
                   )}
@@ -111,8 +109,8 @@ export function ReservasPage() {
           acciones={(r) =>
             esActivable(r, ahora) &&
             tienePermiso('reserva.activar') && (
-              <Boton disabled={activacion.enviando} onClick={() => activar(r)}>
-                Activar
+              <Boton variante="tonal" disabled={activacion.enviando} onClick={() => activar(r)}>
+                Activar mesa
               </Boton>
             )
           }

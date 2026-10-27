@@ -7,6 +7,7 @@ import { useEventoSocket } from '../../lib/socket';
 import { useAhora } from '../../lib/useAhora';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 export function MisReservasPage() {
   const { datos, cargando, error, recargar } = useRecurso<ReservaComensal[]>('/comensal/reservas');
@@ -15,8 +16,15 @@ export function MisReservasPage() {
   // Activación desde el panel o vencimiento: el estado cambia sin recargar.
   useEventoSocket(EVENTOS_SOCKET.cambioReserva, recargar);
 
+  const confirmar = useConfirmar();
+
   async function cancelar(r: ReservaComensal) {
-    if (!confirm(`¿Cancelar la reserva de la mesa ${r.mesa.numero}?`)) return;
+    const ok = await confirmar({
+      mensaje: `¿Cancelar tu reserva en ${r.sucursal.nombre}?`,
+      detalle: `Mesa ${r.mesa.numero}, ${formatoDiaYHora(r.inicio)} h.`,
+      accion: 'Cancelar reserva',
+    });
+    if (!ok) return;
     await cancelacion.enviar(`/comensal/reservas/${r.id}/cancelar`, 'POST');
     recargar();
   }
