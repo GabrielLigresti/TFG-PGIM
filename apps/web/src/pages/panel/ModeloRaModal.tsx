@@ -4,6 +4,7 @@ import { Aviso, Boton, Campo, Modal, claseInput, propsDecimal } from '../../comp
 import { ApiError, api, subirArchivo } from '../../lib/api';
 import { aNumero, formatoCantidad } from '../../lib/formato';
 import { useModelViewer } from '../../lib/useModelViewer';
+import { useConfirmar } from '../../components/Confirmacion';
 
 function verificarArchivo(archivo: File, extension: string): string | null {
   if (!archivo.name.toLowerCase().endsWith(extension)) return `Elegí un archivo ${extension}`;
@@ -84,8 +85,18 @@ export function ModeloRaModal({
     });
   }
 
-  function quitar() {
-    if (!confirm(`¿Quitar el modelo RA de ${plato.nombre}?`)) return;
+  const confirmar = useConfirmar();
+
+  async function quitar() {
+    if (
+      !(await confirmar({
+        mensaje: `¿Quitar el modelo RA de ${plato.nombre}?`,
+        detalle:
+          'Se borran los archivos del modelo y el plato deja de mostrar "Ver en mi mesa". No se puede deshacer.',
+        accion: 'Quitar modelo',
+      }))
+    )
+      return;
     void ejecutar(() => api(`/platos/${plato.id}/modelo-ra`, { method: 'DELETE' }));
   }
 
@@ -102,7 +113,12 @@ export function ModeloRaModal({
             camera-controls
             touch-action="pan-y"
             scale={`${escalaNumero} ${escalaNumero} ${escalaNumero}`}
-            style={{ width: '100%', height: '16rem', background: '#f8fafc', borderRadius: 12 }}
+            style={{
+              width: '100%',
+              height: '16rem',
+              background: 'var(--color-bg)',
+              borderRadius: 8,
+            }}
           />
         )}
 
@@ -155,14 +171,14 @@ export function ModeloRaModal({
           </Campo>
         </div>
         {usaUsdzSinEscala && (
-          <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <p className="rounded-control bg-warn-soft px-3 py-2 text-sm text-warn">
             iOS no aplica la escala a un .usdz subido: se verá con el tamaño del archivo. Subí un
             .usdz a tamaño real, o quitá el modelo y volvé a subir solo el .glb para que el de iOS
             se genere con la escala.
           </p>
         )}
         {actual && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-meta">
             Guardado: escala {actual.escalaReal}, porción{' '}
             {formatoCantidad(actual.porcionGramos, 'GRAMO')}
             {actual.urlModeloIos ? ', con .usdz' : ''}.

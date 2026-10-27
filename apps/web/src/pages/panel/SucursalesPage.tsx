@@ -27,6 +27,7 @@ import { aNumero } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 import { QrMenuModal } from './QrMenuModal';
+import { useConfirmar } from '../../components/Confirmacion';
 
 const NOMBRE_FRANJA: Record<Franja, string> = { ALMUERZO: 'Almuerzo', CENA: 'Cena' };
 
@@ -58,8 +59,17 @@ export function SucursalesPage() {
     await recargarSesion();
   }
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(s: Sucursal) {
-    if (!confirm(`¿Dar de baja la sucursal ${s.nombre}?`)) return;
+    if (
+      !(await confirmar({
+        mensaje: `¿Dar de baja la sucursal ${s.nombre}?`,
+        detalle: 'Deja de recibir reservas. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
+    )
+      return;
     if (await baja.enviar(`/sucursales/${s.id}`, 'DELETE')) await guardado();
   }
 
@@ -103,7 +113,7 @@ export function SucursalesPage() {
             { titulo: 'Menú activo', valor: (s) => s.menuActivo?.nombre ?? '—' },
           ]}
           acciones={(s) => (
-            <span className="inline-flex gap-2">
+            <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
               <Boton
                 variante="secundario"
                 onClick={() => navigate(`/panel/sucursales/${s.id}/salon`)}
@@ -238,7 +248,7 @@ function FormularioSucursal({
             />
           </Campo>
         </div>
-        <Campo etiqueta="Tolerancia de no-show (minutos)">
+        <Campo etiqueta="Tolerancia para inasistencias (minutos)">
           <input
             type="number"
             inputMode="numeric"
@@ -252,7 +262,7 @@ function FormularioSucursal({
         </Campo>
 
         <fieldset className="space-y-2">
-          <legend className="text-sm font-medium text-slate-700">Horarios de servicio</legend>
+          <legend className="text-sm font-medium text-text">Horarios de servicio</legend>
           {servicio.map((h) => (
             <div key={h.franja} className="grid grid-cols-[7rem_1fr_1fr] items-center gap-2">
               <Casilla
@@ -282,7 +292,7 @@ function FormularioSucursal({
 
         <Campo
           etiqueta="Menú activo"
-          ayuda="Es el que ven los comensales; fuera de su vigencia deja de mostrarse"
+          ayuda="Es el que ven los clientes; fuera de su vigencia deja de mostrarse"
         >
           {puedeElegirMenu ? (
             <select
@@ -299,7 +309,7 @@ function FormularioSucursal({
               ))}
             </select>
           ) : (
-            <p className="py-2 text-sm text-slate-700">{sucursal?.menuActivo?.nombre ?? '—'}</p>
+            <p className="py-2 text-sm text-text">{sucursal?.menuActivo?.nombre ?? '—'}</p>
           )}
         </Campo>
 

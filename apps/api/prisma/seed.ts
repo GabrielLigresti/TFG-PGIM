@@ -160,6 +160,7 @@ const SALSA_CRIOLLA: RecetaSeed = {
   ],
 };
 
+// Las fotos están en apps/web/public/fotos-demo (licencias en su LICENCIA.md).
 // "Milanesa con puré" queda sin receta a propósito: es un principal y la
 // categoría la exige, así que la pantalla de platos lo marca.
 const PLATOS: {
@@ -167,6 +168,7 @@ const PLATOS: {
   categoria: NombreCategoria;
   precio: number;
   descripcion: string;
+  foto: string;
   receta?: RecetaSeed;
 }[] = [
   {
@@ -174,6 +176,7 @@ const PLATOS: {
     categoria: 'Entradas',
     precio: 7500,
     descripcion: 'Queso provolone a la parrilla con orégano.',
+    foto: 'provoleta.jpg',
     receta: {
       rendimiento: 1,
       instrucciones: 'Grillar el queso en la plancha de hierro hasta dorar.',
@@ -188,12 +191,14 @@ const PLATOS: {
     categoria: 'Entradas',
     precio: 2500,
     descripcion: 'Cortada a cuchillo, al horno.',
+    foto: 'empanada-de-carne.jpg',
   },
   {
     nombre: 'Bife de chorizo con papas',
     categoria: 'Principales',
     precio: 18000,
     descripcion: 'Bife de 400 g con papas fritas y salsa criolla.',
+    foto: 'bife-de-chorizo-con-papas.jpg',
     receta: {
       rendimiento: 1,
       instrucciones: 'Sellar el bife a fuego fuerte; freír las papas en bastones.',
@@ -211,12 +216,14 @@ const PLATOS: {
     categoria: 'Principales',
     precio: 14000,
     descripcion: 'Milanesa de ternera con puré de papas.',
+    foto: 'milanesa-con-pure.jpg',
   },
   {
     nombre: 'Flan casero',
     categoria: 'Postres',
     precio: 5500,
     descripcion: 'Con dulce de leche o crema.',
+    foto: 'flan-casero.jpg',
     receta: {
       rendimiento: 4,
       instrucciones: 'Batir, colar y cocinar a baño María en el horno durante 50 minutos.',
@@ -232,6 +239,7 @@ const PLATOS: {
     categoria: 'Bebidas',
     precio: 2000,
     descripcion: 'Botella de 500 ml, con o sin gas.',
+    foto: 'agua-mineral.jpg',
   },
 ];
 
@@ -402,6 +410,7 @@ async function seedMenuEInventario(
       categoriaId: categoriaIds.get(plato.categoria)!,
       precio: plato.precio,
       descripcion: plato.descripcion,
+      fotoUrl: `/fotos-demo/${plato.foto}`,
       disponible: true,
       activo: true,
     };

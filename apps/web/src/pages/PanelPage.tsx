@@ -1,32 +1,45 @@
 import { Link } from 'react-router';
+import { LayoutGrid } from 'lucide-react';
 import { useSesion } from '../auth/SesionProvider';
 import { SECCIONES } from '../components/PanelLayout';
+import { EncabezadoPagina, Vacio } from '../components/ui';
 
 export function PanelPage() {
-  const { tienePermiso } = useSesion();
+  const { sesion, tienePermiso } = useSesion();
   const visibles = SECCIONES.filter((s) => tienePermiso(s.permiso));
 
-  if (visibles.length === 0) {
-    return (
-      <p className="text-sm text-slate-600">
-        Tu rol todavía no tiene pantallas de gestión disponibles.
-      </p>
-    );
-  }
-
   return (
-    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {visibles.map((s) => (
-        <li key={s.ruta}>
-          <Link
-            to={`/panel/${s.ruta}`}
-            className="block rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 hover:ring-slate-400"
-          >
-            <p className="font-medium text-slate-800">{s.titulo}</p>
-            <p className="text-sm text-slate-500">{s.descripcion}</p>
-          </Link>
-        </li>
-      ))}
-    </ul>
+    <>
+      <EncabezadoPagina
+        titulo={`Hola, ${sesion?.usuario.nombre ?? ''}`}
+        descripcion={
+          sesion?.sucursalActiva ? `Trabajando en ${sesion.sucursalActiva.nombre}` : undefined
+        }
+      />
+      {visibles.length === 0 ? (
+        <Vacio
+          icono={LayoutGrid}
+          titulo="Todavía no tenés secciones disponibles"
+          texto="Pedile al administrador que le sume permisos a tu rol."
+        />
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {visibles.map((s) => (
+            <li key={s.ruta}>
+              <Link
+                to={`/panel/${s.ruta}`}
+                className="flex h-full gap-3 rounded-panel border border-line bg-surface p-4 hover:border-line-strong hover:bg-panel"
+              >
+                <s.icono aria-hidden className="mt-0.5 size-5 shrink-0 text-accent" />
+                <span className="min-w-0">
+                  <span className="block font-semibold text-ink">{s.titulo}</span>
+                  <span className="block text-sm text-meta">{s.descripcion}</span>
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
   );
 }

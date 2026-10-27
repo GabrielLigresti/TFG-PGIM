@@ -6,9 +6,10 @@ import { Aviso, EncabezadoPagina, EstadoCarga, Etiqueta } from '../../components
 import { NOMBRE_UNIDAD, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 const claseLink =
-  'inline-block rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50';
+  'inline-block rounded-control border border-line-strong bg-surface px-3 py-2 text-sm font-medium text-text hover:bg-panel';
 
 // CU-07: recetas de platos y de productos intermedios, con su costo.
 export function RecetasPage() {
@@ -16,8 +17,17 @@ export function RecetasPage() {
   const { datos, cargando, error, recargar } = useRecurso<ResumenRecetas>('/recetas');
   const baja = useGuardar();
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(id: string, nombre: string) {
-    if (!confirm(`¿Dar de baja el producto intermedio ${nombre}?`)) return;
+    if (
+      !(await confirmar({
+        mensaje: `¿Dar de baja la preparación ${nombre}?`,
+        detalle: 'Deja de estar disponible para nuevas recetas. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
+    )
+      return;
     if (await baja.enviar(`/recetas/intermedio/${id}`, 'DELETE')) recargar();
   }
 
@@ -50,7 +60,7 @@ export function RecetasPage() {
                   titulo: 'Receta',
                   valor: (p) =>
                     p.tieneReceta ? (
-                      <Etiqueta color="verde">Cargada</Etiqueta>
+                      <Etiqueta tono="ok">Cargada</Etiqueta>
                     ) : (
                       <Etiqueta>Sin receta</Etiqueta>
                     ),
@@ -73,15 +83,15 @@ export function RecetasPage() {
 
           <div>
             <EncabezadoPagina
-              titulo="Productos intermedios"
+              titulo="Preparaciones"
               descripcion="Preparaciones que se usan en otras recetas, como una salsa base. No tienen stock propio."
               accion={
                 tienePermiso('receta.crear') && (
                   <Link
                     to="/panel/recetas/intermedio/nuevo"
-                    className="rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-white hover:bg-slate-700"
+                    className="inline-flex min-h-11 items-center justify-center rounded-control bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover sm:min-h-9"
                   >
-                    Nuevo intermedio
+                    Nueva preparación
                   </Link>
                 )
               }
@@ -93,10 +103,10 @@ export function RecetasPage() {
               filas={datos.intermedios}
               clave={(i) => i.id}
               inactiva={(i) => !i.activo}
-              vacio="Todavía no hay productos intermedios."
+              vacio="Todavía no hay preparaciones."
               columnas={[
                 {
-                  titulo: 'Intermedio',
+                  titulo: 'Preparación',
                   valor: (i) => (
                     <span>
                       {i.nombre} {!i.activo && <Etiqueta>Dado de baja</Etiqueta>}
@@ -107,7 +117,7 @@ export function RecetasPage() {
                 { titulo: 'Costo por unidad', valor: (i) => formatoPesos(i.costoUnitario) },
               ]}
               acciones={(i) => (
-                <span className="inline-flex gap-2">
+                <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
                   <Link to={`/panel/recetas/intermedio/${i.id}`} className={claseLink}>
                     Ver receta
                   </Link>
@@ -115,7 +125,7 @@ export function RecetasPage() {
                     <button
                       type="button"
                       onClick={() => darDeBaja(i.id, i.nombre)}
-                      className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                      className="rounded-control border border-bad/30 bg-surface px-3 py-2 text-sm font-medium text-bad hover:bg-bad-soft"
                     >
                       Dar de baja
                     </button>

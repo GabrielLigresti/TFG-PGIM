@@ -116,11 +116,16 @@ export function VisorRA({
             camera-controls
             touch-action="pan-y"
             scale={escala}
-            style={{ width: '100%', height: '18rem', background: 'white', borderRadius: 12 }}
+            style={{
+              width: '100%',
+              height: '18rem',
+              background: 'var(--color-surface)',
+              borderRadius: 8,
+            }}
           >
             {arDeModelViewer && (
               <button slot="ar-button" type="button" className={claseBotonRa}>
-                Ver en RA
+                Ver en mi mesa
               </button>
             )}
           </model-viewer>
@@ -131,38 +136,38 @@ export function VisorRA({
               disabled={sesion !== null}
               className={claseBotonRa}
             >
-              {sesion === 'abriendo' ? 'Abriendo…' : 'Ver en RA'}
+              {sesion === 'abriendo' ? 'Abriendo…' : 'Ver en mi mesa'}
             </button>
           )}
         </div>
       )}
-      {estado === 'cargando' && <p className="text-sm text-slate-500">Cargando el modelo 3D…</p>}
+      {estado === 'cargando' && <p className="text-sm text-meta">Cargando el modelo 3D…</p>}
       {estado === 'listo' && (
-        <p className="text-sm text-slate-500">
-          Tocá “Ver en RA” y apuntá al centro del plato: aparece a tamaño real ({porcion}).
+        <p className="text-sm text-meta">
+          Tocá “Ver en mi mesa” y apuntá al centro del plato: aparece a tamaño real ({porcion}).
         </p>
       )}
       {mensaje && (
-        <div className="space-y-2 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200">
-          <p className="text-sm text-slate-600">{mensaje}</p>
+        <div className="space-y-2 rounded-panel border border-line bg-surface p-3">
+          <p className="text-sm text-meta">{mensaje}</p>
           {fotoUrl && (
             <img
               src={fotoUrl}
               alt={nombre}
-              className="aspect-video w-full rounded-lg object-cover"
+              className="aspect-video w-full rounded-control object-cover"
             />
           )}
-          <p className="text-sm text-slate-600">Porción: {porcion}</p>
+          <p className="text-sm text-meta">Porción: {porcion}</p>
         </div>
       )}
 
       {/* Capa sobre la cámara durante la RA propia (dom-overlay de WebXR). */}
       <div ref={capa} className={sesion ? 'fixed inset-0 z-50' : 'hidden'}>
-        <div className="absolute inset-x-4 top-4 rounded-xl bg-black/60 px-4 py-3 text-center text-white">
+        <div className="absolute inset-x-4 top-4 rounded-panel bg-black/60 px-4 py-3 text-center text-white">
           <p className="font-medium">{nombre}</p>
           <p className="text-sm">{sesion && INSTRUCCIONES[sesion]}</p>
           <p className="text-xs opacity-80">Porción: {porcion}</p>
-          {diagnostico && <p className="mt-1 font-mono text-[10px] opacity-90">{diagnostico}</p>}
+          {diagnostico && <p className="mt-1 font-mono text-xs opacity-90">{diagnostico}</p>}
         </div>
         <button
           type="button"
@@ -170,7 +175,7 @@ export function VisorRA({
             b?.addEventListener('beforexrselect', frenarSeleccion);
           }}
           onClick={() => salir.current?.()}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full bg-white px-6 py-3 font-medium text-slate-800 shadow"
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full bg-surface px-6 py-3 font-semibold text-ink shadow-flotante"
         >
           Salir
         </button>
@@ -180,4 +185,4 @@ export function VisorRA({
 }
 
 const claseBotonRa =
-  'absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-slate-800 px-5 py-2.5 font-medium text-white shadow disabled:opacity-70';
+  'absolute bottom-3 left-1/2 min-h-11 -translate-x-1/2 rounded-full bg-accent px-5 font-semibold text-white shadow-flotante hover:bg-accent-hover disabled:opacity-70';

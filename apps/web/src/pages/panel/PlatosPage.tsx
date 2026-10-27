@@ -19,6 +19,7 @@ import { aNumero, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 import { ModeloRaModal } from './ModeloRaModal';
+import { useConfirmar } from '../../components/Confirmacion';
 
 // CU-16: platos (con su modelo RA) y categorías. Los menús van en su propia pantalla.
 export function PlatosPage() {
@@ -35,13 +36,29 @@ export function PlatosPage() {
     categorias.recargar();
   }
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(p: Plato) {
-    if (!confirm(`¿Dar de baja el plato ${p.nombre}?`)) return;
+    if (
+      !(await confirmar({
+        mensaje: `¿Dar de baja el plato ${p.nombre}?`,
+        detalle: 'Deja de mostrarse en los menús. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
+    )
+      return;
     if (await baja.enviar(`/platos/${p.id}`, 'DELETE')) recargarTodo();
   }
 
   async function borrarCategoria(c: Categoria) {
-    if (!confirm(`¿Borrar la categoría ${c.nombre}?`)) return;
+    if (
+      !(await confirmar({
+        mensaje: `¿Borrar la categoría ${c.nombre}?`,
+        detalle: 'No se puede deshacer.',
+        accion: 'Borrar categoría',
+      }))
+    )
+      return;
     if (await baja.enviar(`/categorias/${c.id}`, 'DELETE')) recargarTodo();
   }
 
@@ -65,9 +82,7 @@ export function PlatosPage() {
         <div className="mb-3">
           <Aviso>{baja.error}</Aviso>
         </div>
-        {sinCategorias && (
-          <p className="mb-3 text-sm text-slate-500">Primero creá una categoría.</p>
-        )}
+        {sinCategorias && <p className="mb-3 text-sm text-meta">Primero creá una categoría.</p>}
         {platos.datos && (
           <Lista
             filas={platos.datos}
@@ -79,7 +94,7 @@ export function PlatosPage() {
                 valor: (p) => (
                   <span className="inline-flex flex-wrap items-center gap-1">
                     {p.nombre}
-                    {p.sinReceta && <Etiqueta color="ambar">Sin receta</Etiqueta>}
+                    {p.sinReceta && <Etiqueta tono="warn">Sin receta</Etiqueta>}
                     {!p.activo && <Etiqueta>Dado de baja</Etiqueta>}
                   </span>
                 ),
@@ -88,11 +103,11 @@ export function PlatosPage() {
               { titulo: 'Precio', valor: (p) => formatoPesos(p.precio) },
               {
                 titulo: 'Disponible',
-                valor: (p) => (p.disponible ? 'Sí' : <Etiqueta color="rojo">Agotado</Etiqueta>),
+                valor: (p) => (p.disponible ? 'Sí' : <Etiqueta tono="bad">Agotado</Etiqueta>),
               },
               {
                 titulo: 'RA',
-                valor: (p) => (p.modeloRa ? <Etiqueta color="verde">Con modelo</Etiqueta> : '—'),
+                valor: (p) => (p.modeloRa ? <Etiqueta tono="ok">Con modelo</Etiqueta> : '—'),
               },
               {
                 titulo: 'Receta',
@@ -100,7 +115,7 @@ export function PlatosPage() {
                   tienePermiso('receta.ver') && (p.tieneReceta || tienePermiso('receta.crear')) ? (
                     <Link
                       to={`/panel/recetas/plato/${p.id}`}
-                      className="inline-block py-2 text-slate-700 underline md:py-0"
+                      className="inline-block py-2 text-text underline md:py-0"
                     >
                       {p.tieneReceta ? 'Ver receta' : 'Cargar receta'}
                     </Link>
@@ -112,7 +127,7 @@ export function PlatosPage() {
               },
             ]}
             acciones={(p) => (
-              <span className="inline-flex gap-2">
+              <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
                 {tienePermiso('menu.editar') && (
                   <Boton variante="secundario" onClick={() => setPlato(p)}>
                     Editar
@@ -156,7 +171,7 @@ export function PlatosPage() {
               { titulo: 'Platos', valor: (c) => c.cantidadPlatos },
             ]}
             acciones={(c) => (
-              <span className="inline-flex gap-2">
+              <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
                 {tienePermiso('menu.editar') && (
                   <Boton variante="secundario" onClick={() => setCategoria(c)}>
                     Editar

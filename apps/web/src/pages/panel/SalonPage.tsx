@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router';
 import type { Mesa, MesaInput, Sucursal } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { Lista } from '../../components/Lista';
-import { MapaSalon } from '../../components/MapaSalon';
+import { LeyendaSalon, MapaSalon } from '../../components/MapaSalon';
 import {
   Aviso,
   Boton,
@@ -18,6 +18,7 @@ import {
 import { aNumero } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 function datosDe(mesa: Mesa): MesaInput {
   return {
@@ -62,15 +63,24 @@ export function SalonPage() {
     if (await guardar.enviar(ruta, 'POST', nueva)) recargar();
   }
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(mesa: Mesa) {
-    if (!confirm(`¿Dar de baja la mesa ${mesa.numero}?`)) return;
+    if (
+      !(await confirmar({
+        mensaje: `¿Dar de baja la mesa ${mesa.numero}?`,
+        detalle: 'Deja de poder reservarse. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
+    )
+      return;
     if (await guardar.enviar(`${ruta}/${mesa.id}`, 'DELETE')) recargar();
   }
 
   return (
     <section>
       <p className="mb-2 text-sm">
-        <Link to="/panel/sucursales" className="text-slate-600 underline">
+        <Link to="/panel/sucursales" className="text-meta underline">
           ← Sucursales
         </Link>
       </p>
@@ -99,6 +109,7 @@ export function SalonPage() {
             mesas={mesas.map((m) => ({ ...m, inactiva: !m.activa }))}
             onMover={editable ? mover : undefined}
           />
+          {mesas.some((m) => !m.activa) && <LeyendaSalon estados={[]} inactiva />}
           <Lista
             filas={mesas}
             clave={(m) => m.id}
@@ -116,7 +127,7 @@ export function SalonPage() {
             ]}
             acciones={(m) =>
               editable && (
-                <span className="inline-flex gap-2">
+                <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
                   <Boton variante="secundario" onClick={() => setEditando(m)}>
                     Editar
                   </Boton>

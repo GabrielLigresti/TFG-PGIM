@@ -22,6 +22,7 @@ import {
 } from '../../components/ui';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 const NOMBRE_ARQUETIPO: Record<Arquetipo, string> = {
   MOZO: 'Mozo',
@@ -77,8 +78,17 @@ export function RolesPage() {
     await recargarSesion();
   }
 
+  const confirmar = useConfirmar();
+
   async function darDeBaja(rol: Rol) {
-    if (!confirm(`¿Dar de baja el rol ${rol.nombre}?`)) return;
+    if (
+      !(await confirmar({
+        mensaje: `¿Dar de baja el rol ${rol.nombre}?`,
+        detalle: 'Deja de poder asignarse a empleados. Su historial se conserva.',
+        accion: 'Dar de baja',
+      }))
+    )
+      return;
     if (await baja.enviar(`/roles/${rol.id}`, 'DELETE')) await guardado();
   }
 
@@ -113,12 +123,12 @@ export function RolesPage() {
                 </span>
               ),
             },
-            { titulo: 'Arquetipo', valor: (r) => NOMBRE_ARQUETIPO[r.arquetipo] },
+            { titulo: 'Tipo de puesto', valor: (r) => NOMBRE_ARQUETIPO[r.arquetipo] },
             { titulo: 'Permisos', valor: (r) => r.permisos.length },
             { titulo: 'Empleados', valor: (r) => r.cantidadEmpleados },
           ]}
           acciones={(r) => (
-            <span className="inline-flex gap-2">
+            <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
               {tienePermiso('rol.editar') && (
                 <Boton variante="secundario" onClick={() => setEditando(r)}>
                   Editar
@@ -201,7 +211,7 @@ function FormularioRol({
               className={claseInput}
             />
           </Campo>
-          <Campo etiqueta="Arquetipo" ayuda="Lo usa el optimizador de turnos">
+          <Campo etiqueta="Tipo de puesto" ayuda="Lo usa el optimizador de turnos">
             <select
               value={arquetipo}
               onChange={(e) => setArquetipo(e.target.value as Arquetipo)}
@@ -217,13 +227,13 @@ function FormularioRol({
         </div>
 
         <fieldset>
-          <legend className="mb-2 text-sm font-medium text-slate-700">
+          <legend className="mb-2 text-sm font-medium text-text">
             Permisos ({permisos.size} elegidos)
           </legend>
           <div className="grid gap-3 sm:grid-cols-2">
             {catalogo.map((grupo) => (
-              <div key={grupo.modulo} className="rounded-lg border border-slate-200 p-3">
-                <p className="mb-2 text-sm font-medium text-slate-800">
+              <div key={grupo.modulo} className="rounded-control border border-line p-3">
+                <p className="mb-2 text-sm font-medium text-ink">
                   {NOMBRE_MODULO[grupo.modulo] ?? grupo.modulo}
                 </p>
                 <div className="flex flex-wrap gap-x-4 gap-y-1">
@@ -276,16 +286,14 @@ function PermisosDelRol({
 
   return (
     <Modal titulo={`Permisos de ${rol.nombre}`} onCerrar={onCerrar}>
-      <p className="mb-3 text-sm text-slate-500">
+      <p className="mb-3 text-sm text-meta">
         {NOMBRE_ARQUETIPO[rol.arquetipo]} · {rol.permisos.length} permisos · {rol.cantidadEmpleados}{' '}
         empleado(s)
       </p>
-      <dl className="divide-y divide-slate-100">
+      <dl className="divide-y divide-line">
         {grupos.map((grupo) => (
           <div key={grupo.modulo} className="flex flex-wrap justify-between gap-2 py-2 text-sm">
-            <dt className="font-medium text-slate-800">
-              {NOMBRE_MODULO[grupo.modulo] ?? grupo.modulo}
-            </dt>
+            <dt className="font-medium text-ink">{NOMBRE_MODULO[grupo.modulo] ?? grupo.modulo}</dt>
             <dd className="flex flex-wrap justify-end gap-1">
               {grupo.permisos.map((p) => (
                 <Etiqueta key={p.codigo}>{NOMBRE_ACCION[p.accion] ?? p.accion}</Etiqueta>

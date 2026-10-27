@@ -16,13 +16,14 @@ import {
 import { formatoFecha, formatoLista } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 function EstadoVigencia({ menu, hoy }: { menu: Menu; hoy: string }) {
   if (menu.vigenciaDesde > hoy) {
-    return <Etiqueta color="ambar">Desde el {formatoFecha(menu.vigenciaDesde)}</Etiqueta>;
+    return <Etiqueta tono="warn">Desde el {formatoFecha(menu.vigenciaDesde)}</Etiqueta>;
   }
-  if (!estaVigente(menu, hoy)) return <Etiqueta color="rojo">Vencido</Etiqueta>;
-  return <Etiqueta color="verde">Vigente</Etiqueta>;
+  if (!estaVigente(menu, hoy)) return <Etiqueta tono="bad">Vencido</Etiqueta>;
+  return <Etiqueta tono="ok">Vigente</Etiqueta>;
 }
 
 function vigencia(menu: Menu) {
@@ -40,8 +41,17 @@ export function MenusPage() {
   const baja = useGuardar();
   const hoy = hoyArgentina();
 
+  const confirmar = useConfirmar();
+
   async function borrar(m: Menu) {
-    if (!confirm(`¿Borrar el menú ${m.nombre}?`)) return;
+    if (
+      !(await confirmar({
+        mensaje: `¿Borrar el menú ${m.nombre}?`,
+        detalle: 'Se elimina el menú. No se puede deshacer.',
+        accion: 'Borrar menú',
+      }))
+    )
+      return;
     if (await baja.enviar(`/menus/${m.id}`, 'DELETE')) menus.recargar();
   }
 
@@ -83,7 +93,7 @@ export function MenusPage() {
             },
           ]}
           acciones={(m) => (
-            <span className="inline-flex gap-2">
+            <span className="inline-flex flex-wrap justify-end gap-x-6 gap-y-2">
               {tienePermiso('menu.editar') && (
                 <Boton variante="secundario" onClick={() => setEditando(m)}>
                   Editar
@@ -211,15 +221,15 @@ function FormularioMenu({
         </div>
 
         <fieldset className="space-y-3">
-          <legend className="text-sm font-medium text-slate-700">
+          <legend className="text-sm font-medium text-text">
             Platos ({elegidos.size} elegidos)
           </legend>
           {platos.length === 0 && (
-            <p className="text-sm text-slate-500">Primero cargá platos en la sección Platos.</p>
+            <p className="text-sm text-meta">Primero cargá platos en la sección Platos.</p>
           )}
           {porCategoria(platos).map(([categoria, delGrupo]) => (
             <div key={categoria}>
-              <p className="mb-1 text-xs font-medium uppercase text-slate-500">{categoria}</p>
+              <p className="mb-1 text-xs font-medium uppercase text-meta">{categoria}</p>
               <div className="space-y-1">
                 {delGrupo.map((p) => (
                   <div key={p.id} className="flex items-center gap-2">
@@ -228,7 +238,7 @@ function FormularioMenu({
                       checked={elegidos.has(p.id)}
                       onChange={(elegido) => alternar(p.id, elegido)}
                     />
-                    {p.sinReceta && <Etiqueta color="ambar">Sin receta: no se muestra</Etiqueta>}
+                    {p.sinReceta && <Etiqueta tono="warn">Sin receta: no se muestra</Etiqueta>}
                   </div>
                 ))}
               </div>

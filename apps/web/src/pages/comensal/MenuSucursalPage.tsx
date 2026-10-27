@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
+import { Box, Utensils } from 'lucide-react';
 import type { MenuSucursal } from '@pgim/shared';
-import { LayoutComensal } from '../../components/LayoutComensal';
-import { EstadoCarga, Etiqueta } from '../../components/ui';
+import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
+import { Chip, EstadoCarga, Etiqueta } from '../../components/ui';
 import { formatoPesos } from '../../lib/formato';
 import { useRecurso } from '../../lib/useRecurso';
 
@@ -11,78 +13,108 @@ export function MenuSucursalPage() {
   const { datos, cargando, error } = useRecurso<MenuSucursal>(
     `/comensal/sucursales/${sucursalId}/menu`,
   );
+  // null = todas las categorías.
+  const [categoria, setCategoria] = useState<string | null>(null);
+
+  const reservar = datos && (
+    <Link
+      to={`/s/${datos.sucursal.id}/reservar`}
+      className="inline-flex min-h-11 flex-1 items-center justify-center rounded-control bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover"
+    >
+      Reservar mesa
+    </Link>
+  );
+
+  const categorias = datos?.menu?.categorias ?? [];
+  const visibles = categoria ? categorias.filter((c) => c.id === categoria) : categorias;
 
   return (
-    <LayoutComensal volver={{ a: '/inicio', texto: 'Sucursales' }}>
+    <LayoutComensal volver={{ a: '/inicio', texto: 'Sucursales' }} accionFija={reservar}>
       <EstadoCarga cargando={cargando && !datos} error={error} />
       {datos && (
         <>
-          <p className="text-sm text-slate-500">{datos.sucursal.restaurante.nombre}</p>
-          <h1 className="text-xl font-semibold text-slate-800">{datos.sucursal.nombre}</h1>
-          <p className="mb-3 text-sm text-slate-500">{datos.sucursal.direccion}</p>
-          <Link
-            to={`/s/${datos.sucursal.id}/reservar`}
-            className="mb-5 inline-block rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-          >
-            Reservar mesa
-          </Link>
+          <p className="text-sm text-meta">{datos.sucursal.restaurante.nombre}</p>
+          <TituloComensal>{datos.sucursal.nombre}</TituloComensal>
+          <p className="mb-5 text-sm text-meta">{datos.sucursal.direccion}</p>
 
           {!datos.menu ? (
-            <p className="rounded-xl bg-white p-4 text-sm text-slate-600 shadow-sm ring-1 ring-slate-200">
+            <p className="rounded-panel border border-line bg-surface p-4 text-sm text-meta">
               Esta sucursal no tiene un menú disponible en este momento.
             </p>
           ) : (
             <>
-              <h2 className="text-lg font-semibold text-slate-800">{datos.menu.nombre}</h2>
+              <h2 className="text-lg font-semibold text-ink">{datos.menu.nombre}</h2>
               {datos.menu.descripcion && (
-                <p className="text-sm text-slate-500">{datos.menu.descripcion}</p>
+                <p className="text-sm text-meta">{datos.menu.descripcion}</p>
+              )}
+              {categorias.length > 1 && (
+                <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1">
+                  <Chip seleccionado={categoria === null} onClick={() => setCategoria(null)}>
+                    Todo
+                  </Chip>
+                  {categorias.map((c) => (
+                    <Chip
+                      key={c.id}
+                      seleccionado={categoria === c.id}
+                      onClick={() => setCategoria(c.id)}
+                    >
+                      {c.nombre}
+                    </Chip>
+                  ))}
+                </div>
               )}
               <div className="mt-4 space-y-6">
-                {datos.menu.categorias.map((c) => (
+                {visibles.map((c) => (
                   <section key={c.id}>
-                    <h3 className="mb-2 text-sm font-medium uppercase text-slate-500">
-                      {c.nombre}
-                    </h3>
-                    <ul className="space-y-2">
+                    <h3 className="text-sm font-semibold text-meta">{c.nombre}</h3>
+                    <ul className="divide-y divide-line">
                       {c.platos.map((p) => (
                         <li key={p.id}>
                           <Link
                             to={`/s/${sucursalId}/platos/${p.id}`}
-                            className="flex gap-3 rounded-xl bg-white p-3 shadow-sm ring-1 ring-slate-200 hover:bg-slate-50"
+                            className="flex gap-3 py-3 hover:bg-panel"
                           >
-                            {p.fotoUrl && (
-                              <img
-                                src={p.fotoUrl}
-                                alt=""
-                                className="size-16 shrink-0 rounded-lg object-cover"
-                              />
-                            )}
                             <span className="min-w-0 flex-1">
-                              <span className="flex items-start justify-between gap-2">
-                                <span className="font-medium text-slate-800">{p.nombre}</span>
-                                <span className="shrink-0 text-slate-700">
-                                  {formatoPesos(p.precio)}
-                                </span>
-                              </span>
+                              <span className="block font-semibold text-ink">{p.nombre}</span>
                               {p.descripcion && (
-                                <span className="line-clamp-2 block text-sm text-slate-500">
+                                <span className="line-clamp-2 block text-sm text-meta">
                                   {p.descripcion}
                                 </span>
                               )}
-                              {p.modeloRa && (
-                                <span className="mt-1 block">
-                                  <Etiqueta color="verde">Ver en RA</Etiqueta>
+                              <span className="mt-1.5 flex flex-wrap items-center gap-2">
+                                <span className="font-semibold text-ink">
+                                  {formatoPesos(p.precio)}
                                 </span>
-                              )}
+                                {p.modeloRa && (
+                                  <Etiqueta tono="acento">
+                                    <Box aria-hidden className="size-3.5" />
+                                    Ver en mi mesa
+                                  </Etiqueta>
+                                )}
+                              </span>
                             </span>
+                            {p.fotoUrl ? (
+                              <img
+                                src={p.fotoUrl}
+                                alt=""
+                                className="size-[76px] shrink-0 rounded-panel object-cover"
+                              />
+                            ) : (
+                              <span
+                                aria-hidden
+                                className="grid size-[76px] shrink-0 place-items-center rounded-panel border border-line bg-panel text-meta"
+                              >
+                                <Utensils className="size-6" strokeWidth={1.6} />
+                              </span>
+                            )}
                           </Link>
                         </li>
                       ))}
                     </ul>
                   </section>
                 ))}
-                {datos.menu.categorias.length === 0 && (
-                  <p className="text-sm text-slate-500">El menú no tiene platos disponibles.</p>
+                {categorias.length === 0 && (
+                  <p className="text-sm text-meta">El menú no tiene platos disponibles.</p>
                 )}
               </div>
             </>

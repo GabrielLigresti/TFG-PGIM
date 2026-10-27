@@ -17,6 +17,7 @@ import { Aviso, Boton, Campo, EstadoCarga, claseInput, propsDecimal } from '../.
 import { NOMBRE_UNIDAD, aNumero, formatoCantidad, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
+import { useConfirmar } from '../../components/Confirmacion';
 
 interface LineaFormulario {
   clave: number;
@@ -39,10 +40,7 @@ export function RecetaEditorPage() {
   const listo = componentes.datos && (esNuevo || detalle.datos);
   return (
     <section>
-      <Link
-        to="/panel/recetas"
-        className="inline-block py-2 text-sm text-slate-500 hover:text-slate-700"
-      >
+      <Link to="/panel/recetas" className="inline-block py-2 text-sm text-meta hover:text-text">
         ← Volver a recetas
       </Link>
       <EstadoCarga
@@ -170,14 +168,23 @@ function Editor({
     }
   }
 
+  const confirmar = useConfirmar();
+
   async function borrarReceta() {
-    if (!detalle || !confirm(`¿Borrar la receta de ${detalle.dueno.nombre}?`)) return;
+    if (!detalle) return;
+    const ok = await confirmar({
+      mensaje: `¿Borrar la receta de ${detalle.dueno.nombre}?`,
+      detalle:
+        'Si su categoría exige receta, el plato deja de mostrarse en el menú. No se puede deshacer.',
+      accion: 'Borrar receta',
+    });
+    if (!ok) return;
     if (await borrar.enviar(`/recetas/plato/${detalle.dueno.id}`, 'DELETE')) {
       navigate('/panel/recetas');
     }
   }
 
-  const titulo = esNuevo ? 'Nuevo producto intermedio' : `Receta de ${detalle.dueno.nombre}`;
+  const titulo = esNuevo ? 'Nueva preparación' : `Receta de ${detalle.dueno.nombre}`;
   const unidadRendimiento =
     tipo === 'plato'
       ? 'porciones'
@@ -186,17 +193,17 @@ function Editor({
   return (
     <form onSubmit={onSubmit} className="mt-3 space-y-5">
       <div>
-        <h1 className="text-xl font-semibold text-slate-800">{titulo}</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-ink">{titulo}</h1>
+        <p className="text-sm text-meta">
           {tipo === 'plato'
             ? 'La cantidad bruta que se descuenta del stock es la neta ÷ (1 − merma).'
-            : 'El costo por unidad del intermedio es el costo de la receta ÷ lo que rinde.'}
+            : 'El costo por unidad de la preparación es el costo de la receta ÷ lo que rinde.'}
         </p>
       </div>
 
       {esNuevo && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Campo etiqueta="Nombre del intermedio">
+          <Campo etiqueta="Nombre de la preparación">
             <input
               required
               value={nombre}
@@ -221,9 +228,9 @@ function Editor({
       )}
 
       <fieldset disabled={!puedeGuardar} className="space-y-2">
-        <legend className="mb-1 text-sm font-medium text-slate-700">Líneas</legend>
+        <legend className="mb-1 text-sm font-medium text-text">Líneas</legend>
         {lineas.length === 0 && (
-          <p className="text-sm text-slate-500">La receta todavía no tiene líneas.</p>
+          <p className="text-sm text-meta">La receta todavía no tiene líneas.</p>
         )}
         {lineas.map((l, indice) => {
           const componente = porId.get(l.componenteId);
@@ -232,7 +239,7 @@ function Editor({
           return (
             <div
               key={l.clave}
-              className={`rounded-lg border bg-white p-3 ${error ? 'border-red-300' : 'border-slate-200'}`}
+              className={`rounded-control border bg-surface p-3 ${error ? 'border-bad/30' : 'border-line'}`}
             >
               <div className="grid gap-2 sm:grid-cols-[1fr_7rem_9rem_6rem_auto] sm:items-end">
                 <Campo etiqueta="Componente">
@@ -243,7 +250,7 @@ function Editor({
                     className={claseInput}
                   >
                     <option value="" disabled>
-                      Elegí un insumo o intermedio
+                      Elegí un insumo o una preparación
                     </option>
                     <optgroup label="Insumos">
                       {disponibles
@@ -254,7 +261,7 @@ function Editor({
                           </option>
                         ))}
                     </optgroup>
-                    <optgroup label="Productos intermedios">
+                    <optgroup label="Preparaciones">
                       {disponibles
                         .filter((c) => c.tipo === 'INTERMEDIO')
                         .map((c) => (
@@ -305,7 +312,7 @@ function Editor({
                   Quitar
                 </Boton>
               </div>
-              {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
+              {error && <p className="mt-2 text-sm text-bad">{error}</p>}
             </div>
           );
         })}
@@ -334,20 +341,20 @@ function Editor({
         </Campo>
       </fieldset>
 
-      <div className="rounded-xl bg-white p-4 text-sm shadow-sm ring-1 ring-slate-200">
-        <p className="font-medium text-slate-800">Costo</p>
-        <p className="text-slate-600">
+      <div className="rounded-panel border border-line bg-surface p-4 text-sm">
+        <p className="font-medium text-ink">Costo</p>
+        <p className="text-meta">
           Estimado: {formatoPesos(costoEstimado)} en total
           {rinde > 0 &&
             ` · ${formatoPesos(costoEstimado / rinde)} por ${tipo === 'plato' ? 'porción' : 'unidad'}`}
         </p>
         {receta && (
           <>
-            <p className="text-slate-600">
+            <p className="text-meta">
               Guardado: {formatoPesos(receta.costoTotal)} en total ·{' '}
               {formatoPesos(receta.costoPorPorcion)} por {tipo === 'plato' ? 'porción' : 'unidad'}
             </p>
-            <ul className="mt-2 space-y-0.5 text-xs text-slate-500">
+            <ul className="mt-2 space-y-0.5 text-xs text-meta">
               {receta.lineas.map((l) => (
                 <li key={l.componenteId}>
                   {l.componente}: descuenta{' '}
@@ -370,7 +377,7 @@ function Editor({
         {erroresGenerales.length === 0 && <Aviso>{guardar.error}</Aviso>}
         <Aviso>{borrar.error}</Aviso>
         {guardada && (
-          <p role="status" className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+          <p role="status" className="rounded-control bg-ok-soft px-3 py-2 text-sm text-ok">
             Receta guardada.
           </p>
         )}

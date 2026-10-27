@@ -11,9 +11,9 @@ import {
   type ReservaComensal,
   type RestauranteComensal,
 } from '@pgim/shared';
-import { LayoutComensal } from '../../components/LayoutComensal';
-import { MapaSalon } from '../../components/MapaSalon';
-import { Aviso, Boton, Campo, EstadoCarga, claseInput } from '../../components/ui';
+import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
+import { LeyendaSalon, MapaSalon } from '../../components/MapaSalon';
+import { Aviso, Boton, Campo, Chip, EstadoCarga, claseInput } from '../../components/ui';
 import { formatoDiaYHora, formatoHora, sumarDias } from '../../lib/formato';
 import { useEventoSocket } from '../../lib/socket';
 import { useAhora } from '../../lib/useAhora';
@@ -95,17 +95,20 @@ export function ReservarPage() {
   if (confirmada) {
     return (
       <LayoutComensal volver={volver}>
-        <div className="space-y-3 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-          <h1 className="text-xl font-semibold text-slate-800">¡Reserva confirmada!</h1>
-          <p className="text-slate-700">
+        <div className="space-y-3 rounded-panel border border-line bg-surface p-5">
+          <TituloComensal>¡Reserva confirmada!</TituloComensal>
+          <p className="text-text">
             Mesa {confirmada.mesa.numero} en {confirmada.sucursal.nombre}, el{' '}
             {formatoDiaYHora(confirmada.inicio)} h, para {confirmada.cantidadPersonas}{' '}
             {confirmada.cantidadPersonas === 1 ? 'persona' : 'personas'}.
           </p>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-meta">
             Tenés tolerancia hasta las {formatoHora(confirmada.limiteLlegada)}.
           </p>
-          <Link to="/reservas" className="inline-block font-medium text-slate-800 underline">
+          <Link
+            to="/reservas"
+            className="inline-block font-medium text-accent-ink underline underline-offset-2"
+          >
             Ver mis reservas
           </Link>
         </div>
@@ -113,10 +116,33 @@ export function ReservarPage() {
     );
   }
 
+  const acciones = franjaVigente && (
+    <>
+      <Boton
+        densidad="comensal"
+        className="flex-1"
+        disabled={!mesaElegida || enviando}
+        onClick={() => reservar(mesaId)}
+      >
+        {mesaElegida ? `Reservar mesa ${mesaElegida.numero}` : 'Tocá una mesa libre'}
+      </Boton>
+      <Boton
+        densidad="comensal"
+        variante="secundario"
+        disabled={enviando}
+        onClick={() => reservar(null)}
+      >
+        Asignarme una mesa
+      </Boton>
+    </>
+  );
+
   return (
-    <LayoutComensal volver={volver}>
-      <h1 className="mb-1 text-xl font-semibold text-slate-800">Reservar mesa</h1>
-      <p className="mb-4 text-sm text-slate-500">
+    <LayoutComensal volver={volver} accionFija={acciones}>
+      <div className="mb-1">
+        <TituloComensal>Reservar mesa</TituloComensal>
+      </div>
+      <p className="mb-4 text-sm text-meta">
         {sucursal ? `${sucursal.nombre} · ` : ''}Turnos de una hora, hasta{' '}
         {DIAS_ANTICIPACION_RESERVA} días antes.
       </p>
@@ -149,19 +175,18 @@ export function ReservarPage() {
 
       <EstadoCarga cargando={franjas.cargando && !franjas.datos} error={franjas.error} />
       {ofrecidas?.length === 0 && (
-        <p className="rounded-xl bg-white p-4 text-sm text-slate-600 shadow-sm ring-1 ring-slate-200">
+        <p className="rounded-panel border border-line bg-surface p-4 text-sm text-meta">
           No hay mesas disponibles para esa fecha y cantidad de personas. Probá con otra fecha.
         </p>
       )}
       {ofrecidas && ofrecidas.length > 0 && (
         <section className="mb-5">
-          <h2 className="mb-2 text-sm font-medium text-slate-700">Horario</h2>
+          <h2 className="mb-2 text-sm font-medium text-text">Horario</h2>
           <div className="flex flex-wrap gap-2">
             {ofrecidas.map((f) => (
-              <Boton
+              <Chip
                 key={f.inicio}
-                variante={f.inicio === franja ? 'primario' : 'secundario'}
-                aria-pressed={f.inicio === franja}
+                seleccionado={f.inicio === franja}
                 onClick={() => {
                   setFranja(f.inicio);
                   setMesaId(null);
@@ -169,7 +194,7 @@ export function ReservarPage() {
                 }}
               >
                 {f.hora}
-              </Boton>
+              </Chip>
             ))}
           </div>
         </section>
@@ -183,26 +208,15 @@ export function ReservarPage() {
       )}
       {franjaVigente && (
         <section className="space-y-3">
-          <h2 className="text-sm font-medium text-slate-700">Elegí tu mesa</h2>
+          <h2 className="text-sm font-medium text-text">Elegí tu mesa</h2>
           <EstadoCarga cargando={mapa.cargando && !mapa.datos} error={mapa.error} />
           {mapa.datos && (
             <>
               <MapaSalon mesas={mapa.datos.mesas} seleccionadaId={mesaId} onElegir={setMesaId} />
-              <p className="text-xs text-slate-500">
-                En verde, las libres. Las grises están reservadas o son chicas para {personas}{' '}
-                {personas === 1 ? 'persona' : 'personas'}.
-              </p>
+              <LeyendaSalon estados={['LIBRE', 'RESERVADA', 'CHICA']} />
             </>
           )}
           <Aviso>{error}</Aviso>
-          <div className="flex flex-wrap gap-2">
-            <Boton disabled={!mesaElegida || enviando} onClick={() => reservar(mesaId)}>
-              {mesaElegida ? `Reservar mesa ${mesaElegida.numero}` : 'Tocá una mesa libre'}
-            </Boton>
-            <Boton variante="secundario" disabled={enviando} onClick={() => reservar(null)}>
-              Asignarme una mesa
-            </Boton>
-          </div>
         </section>
       )}
     </LayoutComensal>
