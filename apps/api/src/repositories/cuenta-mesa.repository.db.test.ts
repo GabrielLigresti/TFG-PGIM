@@ -136,3 +136,25 @@ describe('reservaRepository.cerrar', () => {
     });
   });
 });
+
+describe('cuentaMesaRepository.registrarVisita', () => {
+  const visitar = () =>
+    cuentaMesaRepository.registrarVisita(e.cuentaMesaId, e.restauranteId, e.comensalId);
+
+  it('con un pago aprobado registra una visita, una sola vez', async () => {
+    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, 600, aprobar);
+
+    expect(await visitar()).toBe(true);
+    expect(await visitar()).toBe(false);
+
+    expect(await prisma.visita.count()).toBe(1);
+    const cuenta = await prisma.cuentaFidelidad.findFirstOrThrow();
+    expect(cuenta.cantidadVisitas).toBe(1);
+  });
+
+  it('sin pago no registra visita ni crea la cuenta de fidelidad', async () => {
+    expect(await visitar()).toBe(false);
+    expect(await prisma.visita.count()).toBe(0);
+    expect(await prisma.cuentaFidelidad.count()).toBe(0);
+  });
+});

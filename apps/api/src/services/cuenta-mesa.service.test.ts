@@ -28,6 +28,7 @@ function armar(fila: FilaMesa | null, habilitada = true) {
     mesaAbiertaDelComensal: jest.fn().mockResolvedValue(fila),
     buscarDelComensal: jest.fn().mockResolvedValue(fila),
     registrarPago: jest.fn(async (_c, _co, _m, resolver) => (await resolver('pago')).estado),
+    registrarVisita: jest.fn(),
   };
   const bus = crearBusEventos();
   const eventos: EventoDominio[] = [];

@@ -28,6 +28,13 @@ export interface CuentaMesaRepository {
     monto: number,
     resolver: (pagoId: string) => Promise<ResultadoCobro>,
   ): Promise<'APROBADO' | 'RECHAZADO'>;
+  // RegistroVisitas: si el titular pagó algo, alta de la cuenta de fidelidad
+  // (si no tenía) y una visita por cuenta de mesa. true si la visita es nueva.
+  registrarVisita(
+    cuentaMesaId: string,
+    restauranteId: string,
+    comensalId: string,
+  ): Promise<boolean>;
 }
 
 const seleccionMesa = {
@@ -155,5 +162,32 @@ export const cuentaMesaRepository: CuentaMesaRepository = {
           : { estado: 'RECHAZADO' },
     });
     return resultado.estado;
+  },
+
+  registrarVisita(cuentaMesaId, restauranteId, comensalId) {
+    return prisma.$transaction(async (tx) => {
+      const pagado = await tx.pago.aggregate({
+        where: { cuentaMesaId, comensalId, estado: 'APROBADO' },
+        _sum: { monto: true },
+      });
+      if (!(Number(pagado._sum.monto ?? 0) > 0)) return false;
+
+      const cuenta = await tx.cuentaFidelidad.upsert({
+        where: { comensalId_restauranteId: { comensalId, restauranteId } },
+        create: { comensalId, restauranteId },
+        update: {},
+        select: { id: true },
+      });
+      const { count } = await tx.visita.createMany({
+        data: [{ cuentaFidelidadId: cuenta.id, cuentaMesaId }],
+        skipDuplicates: true,
+      });
+      if (count === 0) return false;
+      await tx.cuentaFidelidad.update({
+        where: { id: cuenta.id },
+        data: { cantidadVisitas: { increment: 1 } },
+      });
+      return true;
+    });
   },
 };
