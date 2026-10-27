@@ -19,3 +19,8 @@ apps/api/src/generated/
 
 # Skills de agentes (se restauran desde skills-lock.json)
 .claude/skills/
+
+# Impeccable: se suben config.json y design.json; lo demás es de trabajo o personal
+.impeccable/*
+!.impeccable/config.json
+!.impeccable/design.json
