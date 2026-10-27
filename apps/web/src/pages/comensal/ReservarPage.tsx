@@ -160,7 +160,7 @@ export function ReservarPage() {
             {ofrecidas.map((f) => (
               <Boton
                 key={f.inicio}
-                variante={f.inicio === franja ? 'primario' : 'secundario'}
+                variante={f.inicio === franja ? 'principal' : 'secundario'}
                 aria-pressed={f.inicio === franja}
                 onClick={() => {
                   setFranja(f.inicio);
