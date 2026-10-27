@@ -334,9 +334,9 @@ function FormularioPlato({
             className={claseInput}
           />
         </Campo>
-        <Campo etiqueta="Foto (URL)" ayuda="Opcional">
+        <Campo etiqueta="Foto" ayuda="Opcional. Pegá el enlace de una imagen (https://…).">
           <input
-            type="url"
+            type="text"
             value={fotoUrl}
             onChange={(e) => setFotoUrl(e.target.value)}
             className={claseInput}

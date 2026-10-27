@@ -1,6 +1,7 @@
 import {
   estaVigente,
   hoyArgentina,
+  platoInputSchema,
   type Categoria,
   type Menu,
   type MenuInput,
@@ -327,4 +328,32 @@ describe('vigencia del menú', () => {
       );
     });
   });
+});
+
+describe('foto del plato', () => {
+  const conFoto = (fotoUrl: string) =>
+    platoInputSchema.safeParse({
+      categoriaId: '01900000-0000-7000-8000-000000000001',
+      nombre: 'Flan',
+      precio: 100,
+      disponible: true,
+      fotoUrl,
+    });
+
+  it.each([
+    'https://upload.wikimedia.org/flan.jpg',
+    'http://localhost/flan.jpg',
+    '/fotos-demo/flan.jpg',
+  ])('acepta %s', (url) => {
+    expect(conFoto(url).success).toBe(true);
+  });
+
+  it.each(['flan.jpg', 'www.foto.com/flan.jpg', '//otro.sitio/flan.jpg', 'javascript:alert(1)'])(
+    'rechaza %s',
+    (url) => {
+      const resultado = conFoto(url);
+      expect(resultado.success).toBe(false);
+      expect(resultado.error?.issues[0]?.message).toBe('Pegá un enlace que empiece con https://');
+    },
+  );
 });
