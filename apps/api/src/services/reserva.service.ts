@@ -282,7 +282,62 @@ export function createReservaService(
       publicar('RESERVA_ACTIVADA', fila, hacia);
       return aReservaPanel({ ...fila, estado: hacia });
     },
+
+    // CU-18 Cerrar mesa: sin pedidos sin entregar y, si queda saldo, con
+    // confirmación. La visita la registra RegistroVisitas con el evento.
+    async cerrar(
+      restauranteId: string,
+      sucursalId: string,
+      id: string,
+      confirmarSaldo: boolean,
+    ): Promise<ReservaPanel> {
+      const fila = await repo.buscarEnSucursal(restauranteId, sucursalId, id);
+      if (!fila) throw new AppError(404, 'La reserva no existe');
+      const hacia = estadoDeReserva(fila.estado).cerrar();
+      const cierre = await repo.cerrar(restauranteId, sucursalId, id, confirmarSaldo);
+      if (cierre.resultado === 'CAMBIO') {
+        throw new AppError(409, 'La reserva cambió de estado; recargá la pantalla');
+      }
+      if (cierre.resultado === 'BLOQUEADA') {
+        const { pedidosSinEntregar, saldoPendiente } = cierre.bloqueo;
+        const mensaje = pedidosSinEntregar
+          ? `Hay ${pedidosSinEntregar} ${pedidosSinEntregar === 1 ? 'pedido' : 'pedidos'} sin entregar. Entregalos o cancelalos antes de cerrar la mesa.`
+          : `Queda un saldo de ${formatoPesos(saldoPendiente ?? 0)} sin pagar.`;
+        throw new AppError(409, mensaje, cierre.bloqueo);
+      }
+      publicar('RESERVA_FINALIZADA', fila, hacia);
+      bus.publicar({
+        tipo: 'CUENTA_MESA_CERRADA',
+        cuentaMesaId: cierre.cuentaMesaId,
+        restauranteId,
+        comensalId: cierre.comensalId,
+      });
+      return aReservaPanel({ ...fila, estado: hacia });
+    },
+
+    // El staff cancela una pendiente hasta el fin de la tolerancia.
+    async cancelarDesdePanel(
+      restauranteId: string,
+      sucursalId: string,
+      id: string,
+    ): Promise<ReservaPanel> {
+      const fila = await repo.buscarEnSucursal(restauranteId, sucursalId, id);
+      if (!fila) throw new AppError(404, 'La reserva no existe');
+      const hacia = estadoDeReserva(fila.estado).cancelarPorStaff({
+        inicio: fila.inicio,
+        toleranciaNoShowMin: fila.toleranciaNoShowMin,
+        ahora: ahora(),
+      });
+      if (!(await repo.cambiarEstado({ restauranteId, sucursalId }, id, fila.estado, hacia))) {
+        throw new AppError(409, 'La reserva cambió de estado; recargá la pantalla');
+      }
+      publicar('RESERVA_CANCELADA', fila, hacia);
+      return aReservaPanel({ ...fila, estado: hacia });
+    },
   };
 }
+
+const formatoPesos = (monto: number) =>
+  monto.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 2 });
 
 export const reservaService = createReservaService(reservaRepository, busEventos);

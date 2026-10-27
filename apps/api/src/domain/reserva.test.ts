@@ -53,6 +53,38 @@ describe('estados de la reserva', () => {
     });
   });
 
+  describe('cancelación por el staff', () => {
+    const pendiente = estadoDeReserva('PENDIENTE');
+
+    it('se cancela ya empezada la franja, hasta el fin de la tolerancia', () => {
+      expect(pendiente.cancelarPorStaff(ctx('2026-10-30T23:15:00.000Z'))).toBe('CANCELADA');
+    });
+
+    it('pasada la tolerancia ya venció', () => {
+      expect(() => pendiente.cancelarPorStaff(ctx('2026-10-30T23:15:00.001Z'))).toThrow(
+        expect.objectContaining({ status: 409, message: 'La reserva ya venció' }),
+      );
+    });
+
+    it('una activa no se cancela: se cierra la mesa', () => {
+      expect(() =>
+        estadoDeReserva('ACTIVA').cancelarPorStaff(ctx('2026-10-30T23:05:00.000Z')),
+      ).toThrow(expect.objectContaining({ status: 409 }));
+    });
+  });
+
+  describe('cierre de mesa', () => {
+    it('una activa se finaliza', () => {
+      expect(estadoDeReserva('ACTIVA').cerrar()).toBe('FINALIZADA');
+    });
+
+    it('una pendiente no se cierra', () => {
+      expect(() => estadoDeReserva('PENDIENTE').cerrar()).toThrow(
+        expect.objectContaining({ status: 409 }),
+      );
+    });
+  });
+
   describe('ACTIVA', () => {
     const activa = estadoDeReserva('ACTIVA');
     const momento = ctx('2026-10-30T23:05:00.000Z');

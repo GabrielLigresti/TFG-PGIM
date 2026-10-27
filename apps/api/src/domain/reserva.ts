@@ -3,7 +3,7 @@ import { AppError } from '../lib/errors';
 
 // Patrón State de la reserva (diagrama de estados estado/reserva/v1). Cada
 // estado decide qué transiciones admite y devuelve el estado siguiente; el
-// servicio persiste el cambio. El cierre de mesa (cerrar) llega con el Hito 4.
+// servicio persiste el cambio.
 
 export interface ContextoReserva {
   inicio: Date;
@@ -16,6 +16,10 @@ export interface EstadoDeReserva {
   activar(ctx: ContextoReserva): EstadoReserva;
   cancelar(ctx: ContextoReserva): EstadoReserva;
   vencer(ctx: ContextoReserva): EstadoReserva;
+  // El staff la cancela desde el panel (por ejemplo, avisaron que no vienen).
+  cancelarPorStaff(ctx: ContextoReserva): EstadoReserva;
+  // CU-18 Cerrar mesa.
+  cerrar(): EstadoReserva;
 }
 
 const MINUTO = 60_000;
@@ -74,6 +78,14 @@ abstract class EstadoBase implements EstadoDeReserva {
   vencer(_ctx: ContextoReserva): EstadoReserva {
     return this.invalida();
   }
+
+  cancelarPorStaff(_ctx: ContextoReserva): EstadoReserva {
+    return this.invalida();
+  }
+
+  cerrar(): EstadoReserva {
+    return this.invalida();
+  }
 }
 
 class ReservaPendiente extends EstadoBase {
@@ -105,11 +117,22 @@ class ReservaPendiente extends EstadoBase {
     }
     return 'VENCIDA';
   }
+
+  // Hasta el fin de la tolerancia; después la vence la tarea programada.
+  override cancelarPorStaff(ctx: ContextoReserva): EstadoReserva {
+    if (ctx.ahora > limiteDeLlegada(ctx)) throw new AppError(409, 'La reserva ya venció');
+    return 'CANCELADA';
+  }
 }
 
 class ReservaActiva extends EstadoBase {
   constructor() {
     super('ACTIVA');
+  }
+
+  // Las condiciones (pedidos sin entregar, saldo) las controla el cierre.
+  override cerrar(): EstadoReserva {
+    return 'FINALIZADA';
   }
 }
 

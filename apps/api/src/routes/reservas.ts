@@ -1,5 +1,6 @@
 import { Router, type Request } from 'express';
 import {
+  cerrarMesaSchema,
   consultaFranjasSchema,
   consultaMapaSchema,
   consultaReservasPanelSchema,
@@ -72,6 +73,41 @@ reservasPanelRouter.post(
   async (req, res) => {
     res.json(
       await reservaService.activar(
+        req.tenant!.restauranteId,
+        sucursalDeTrabajo(req),
+        req.params.id as string,
+      ),
+    );
+  },
+);
+
+// CU-18 Cerrar mesa.
+reservasPanelRouter.post(
+  '/:id/cerrar',
+  requierePermiso('mesa.cerrar'),
+  validarParams(idParamSchema),
+  validar(cerrarMesaSchema),
+  async (req, res) => {
+    const { confirmarSaldo } = req.body as { confirmarSaldo?: boolean };
+    res.json(
+      await reservaService.cerrar(
+        req.tenant!.restauranteId,
+        sucursalDeTrabajo(req),
+        req.params.id as string,
+        confirmarSaldo ?? false,
+      ),
+    );
+  },
+);
+
+// El staff cancela una reserva pendiente (por ejemplo, avisaron que no vienen).
+reservasPanelRouter.post(
+  '/:id/cancelar',
+  requierePermiso('reserva.activar'),
+  validarParams(idParamSchema),
+  async (req, res) => {
+    res.json(
+      await reservaService.cancelarDesdePanel(
         req.tenant!.restauranteId,
         sucursalDeTrabajo(req),
         req.params.id as string,
