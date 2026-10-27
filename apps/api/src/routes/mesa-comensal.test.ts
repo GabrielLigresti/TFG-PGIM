@@ -36,3 +36,21 @@ describe('/api/comensal/pedidos', () => {
       .expect(400);
   });
 });
+
+describe('/api/comensal/mesa', () => {
+  const app = createApp();
+
+  it('un sucursalId inválido responde 400', async () => {
+    await request(app)
+      .get('/api/comensal/mesa?sucursalId=centro')
+      .set('Cookie', cookieDeComensal())
+      .expect(400);
+  });
+
+  it('pagar con un id inválido responde 400', async () => {
+    await request(app)
+      .post('/api/comensal/mesa/no-es-uuid/pagos')
+      .set('Cookie', cookieDeComensal())
+      .expect(400);
+  });
+});

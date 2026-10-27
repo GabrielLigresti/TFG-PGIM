@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { crearEscenario, limpiarBase, type Escenario } from '../test/db-setup';
 import {
+  MesaCerradaError,
   pedidoRepository,
   StockInsuficienteError,
   type CuentaParaPedido,
@@ -73,6 +74,14 @@ describe('pedidoRepository.confirmar', () => {
     const deQueso = movimientos.find((m) => m.existencia.componenteId === e.quesoId)!;
     expect(Number(deHarina.costoUnitario)).toBe(2);
     expect(Number(deQueso.costoUnitario)).toBe(0);
+  });
+
+  it('una mesa que se cerró mientras tanto no recibe el pedido', async () => {
+    await prisma.cuentaMesa.update({ where: { id: e.cuentaMesaId }, data: { estado: 'CERRADA' } });
+    await expect(pedidoRepository.confirmar(cuenta, [agua()])).rejects.toBeInstanceOf(
+      MesaCerradaError,
+    );
+    expect(await prisma.pedido.count()).toBe(0);
   });
 
   it('numera los pedidos en forma correlativa por sucursal', async () => {

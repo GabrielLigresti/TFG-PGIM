@@ -3,6 +3,7 @@ import { busEventos, type BusEventos } from '../domain/eventos';
 import { estadoDePedido, type Transicion } from '../domain/pedido';
 import { AppError } from '../lib/errors';
 import {
+  MesaCerradaError,
   pedidoRepository,
   StockInsuficienteError,
   type LineaAConfirmar,
@@ -104,6 +105,7 @@ export function createPedidoService(
       try {
         pedido = await repo.confirmar(cuenta, lineas);
       } catch (err) {
+        if (err instanceof MesaCerradaError) throw new AppError(409, 'La mesa ya está cerrada');
         if (!(err instanceof StockInsuficienteError)) throw err;
         // 5a: el pedido no se confirmó; la alerta se guarda igual (fuera de
         // la transacción que se revirtió).

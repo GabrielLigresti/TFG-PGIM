@@ -33,6 +33,14 @@ export class StockInsuficienteError extends Error {
   }
 }
 
+// La mesa se cerró entre la validación del servicio y la transacción.
+export class MesaCerradaError extends Error {
+  constructor() {
+    super('La mesa ya está cerrada');
+    this.name = 'MesaCerradaError';
+  }
+}
+
 export interface PedidoRepository {
   // Solo la cuenta de mesa cuya reserva es del comensal.
   buscarCuentaDelComensal(
@@ -142,6 +150,11 @@ export const pedidoRepository: PedidoRepository = {
 
   confirmar(cuenta, lineas) {
     return prisma.$transaction(async (tx) => {
+      // La cuenta sigue abierta y nadie la cierra mientras tanto (el cierre
+      // la bloquea igual).
+      const abierta = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM cuenta_mesa WHERE id = ${cuenta.id}::uuid AND estado = 'ABIERTA' FOR UPDATE`;
+      if (abierta.length === 0) throw new MesaCerradaError();
       // Un pedido por vez en la sucursal: el número es correlativo (max + 1).
       await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${`pedido|${cuenta.sucursalId}`}::text))) AS bloqueo`;
       const ultimo = await tx.pedido.aggregate({
