@@ -18,6 +18,8 @@ export interface PlatoDelMenu {
   tieneReceta: boolean;
   // Para calcular el stock que consume: null si el plato no tiene receta.
   receta: RecetaFila | null;
+  // Reventa: descuenta 1 unidad de este insumo por porción.
+  insumoReventaId: string | null;
   modeloRa: ModeloRa | null;
 }
 
@@ -51,6 +53,7 @@ const seleccionPlato = {
   activo: true,
   categoria: { select: { id: true, nombre: true, requiereReceta: true } },
   receta: { select: seleccionReceta },
+  insumoId: true,
   modeloRa: {
     select: { urlModelo: true, urlModeloIos: true, escalaReal: true, porcionGramos: true },
   },
@@ -58,9 +61,10 @@ const seleccionPlato = {
 
 type FilaPlato = Prisma.ItemMenuGetPayload<{ select: typeof seleccionPlato }>;
 
-function aPlato({ receta, modeloRa, ...fila }: FilaPlato): PlatoDelMenu {
+function aPlato({ receta, insumoId, modeloRa, ...fila }: FilaPlato): PlatoDelMenu {
   return {
     ...fila,
+    insumoReventaId: insumoId,
     precio: Number(fila.precio),
     tieneReceta: receta !== null,
     receta: receta && aRecetaFila(receta),

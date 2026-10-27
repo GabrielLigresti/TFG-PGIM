@@ -21,6 +21,7 @@ function plato(id: string, cambios: Partial<PlatoDelMenu> = {}): PlatoDelMenu {
     categoria: { id: 'principales', nombre: 'Principales', requiereReceta: true },
     tieneReceta: true,
     receta: null,
+    insumoReventaId: null,
     modeloRa: null,
     ...cambios,
   };
@@ -133,5 +134,18 @@ describe('comensalService', () => {
   it('un plato sin receta figura con stock', async () => {
     const { menu } = await servicio(sucursal(), 0).obtenerMenu('centro');
     expect(menu?.categorias.flatMap((c) => c.platos).every((p) => p.hayStock)).toBe(true);
+  });
+
+  it('un plato de reventa descuenta del insumo y sale sin stock si no queda', async () => {
+    // Categoría que pide receta: la reventa también la cumple.
+    const conReventa = sucursal({
+      platos: [plato('agua', { tieneReceta: false, insumoReventaId: 'queso' })],
+    });
+
+    const sinStock = await servicio(conReventa, 0).obtenerMenu('centro');
+    expect(sinStock.menu?.categorias[0]?.platos[0]).toMatchObject({ id: 'agua', hayStock: false });
+
+    const conStock = await servicio(conReventa, 1).obtenerMenu('centro');
+    expect(conStock.menu?.categorias[0]?.platos[0]?.hayStock).toBe(true);
   });
 });

@@ -137,6 +137,8 @@ const INSUMOS: { nombre: string; unidadBase: UnidadBase; costo: number; stock: n
   { nombre: 'Huevo', unidadBase: 'UNIDAD', costo: 250, stock: 120 },
   { nombre: 'Leche', unidadBase: 'MILILITRO', costo: 1.5, stock: 10000 },
   { nombre: 'Azúcar', unidadBase: 'GRAMO', costo: 1.2, stock: 5000 },
+  // Reventa: las bebidas se venden como vienen y descuentan una botella.
+  { nombre: 'Agua mineral 500 ml', unidadBase: 'UNIDAD', costo: 600, stock: 48 },
 ];
 
 type LineaSeed = [componente: string, cantidad: number, unidad: UnidadMedida, merma?: number];
@@ -170,6 +172,8 @@ const PLATOS: {
   descripcion: string;
   foto: string;
   receta?: RecetaSeed;
+  // Nombre del insumo que se revende como viene (sin receta).
+  reventa?: string;
 }[] = [
   {
     nombre: 'Provoleta',
@@ -240,6 +244,7 @@ const PLATOS: {
     precio: 2000,
     descripcion: 'Botella de 500 ml, con o sin gas.',
     foto: 'agua-mineral.jpg',
+    reventa: 'Agua mineral 500 ml',
   },
 ];
 
@@ -413,6 +418,7 @@ async function seedMenuEInventario(
       fotoUrl: `/fotos-demo/${plato.foto}`,
       disponible: true,
       activo: true,
+      insumoId: plato.reventa ? componentes.get(plato.reventa)! : null,
     };
     const existente = await tx.itemMenu.findFirst({
       where: { restauranteId, nombre: plato.nombre },

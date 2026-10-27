@@ -7,7 +7,7 @@ import {
   type Plato,
   type PlatoInput,
 } from '@pgim/shared';
-import type { MenuRepository } from '../repositories/menu.repository';
+import type { InsumoReventa, MenuRepository } from '../repositories/menu.repository';
 import { createMenuService, type ArchivosModelo } from './menu.service';
 
 const R = 'restaurante';
@@ -32,6 +32,7 @@ const platoBase: Plato = {
   categoria: { id: 'principales', nombre: 'Principales', requiereReceta: true },
   tieneReceta: true,
   sinReceta: false,
+  reventa: null,
   modeloRa: null,
 };
 
@@ -81,6 +82,7 @@ function repoFalso(categoria: Categoria | null = principales): jest.Mocked<MenuR
     buscarPlato: jest.fn(),
     existePlato: jest.fn().mockResolvedValue(false),
     crearPlato: jest.fn(),
+    buscarInsumoReventa: jest.fn(),
     actualizarPlato: jest.fn(),
     desactivarPlato: jest.fn(),
     guardarModeloRa: jest.fn(),
@@ -273,5 +275,56 @@ describe('vigencia del menú', () => {
   it('toma el día en hora de Argentina', () => {
     // 01:30 UTC del 23/10 son las 22:30 del 22/10 en Argentina.
     expect(hoyArgentina(new Date('2026-10-23T01:30:00Z'))).toBe('2026-10-22');
+  });
+
+  describe('reventa', () => {
+    const R2 = 'restaurante';
+    const agua = {
+      categoriaId: 'principales',
+      nombre: 'Agua',
+      precio: 300,
+      disponible: true,
+      insumoReventaId: 'botella',
+    };
+    const botella: InsumoReventa = {
+      id: 'botella',
+      nombre: 'Agua 500 ml',
+      tipo: 'INSUMO',
+      unidadBase: 'UNIDAD',
+      activo: true,
+    };
+
+    it('se revende un insumo que se cuenta por unidades', async () => {
+      const repo = repoFalso();
+      repo.buscarInsumoReventa.mockResolvedValue(botella);
+      await createMenuService(repo).crearPlato(R2, agua);
+      expect(repo.buscarInsumoReventa).toHaveBeenCalledWith(R2, 'botella');
+      expect(repo.crearPlato).toHaveBeenCalledWith(R2, agua);
+    });
+
+    it.each([
+      ['un insumo en gramos', { ...botella, unidadBase: 'GRAMO' }],
+      ['un producto intermedio', { ...botella, tipo: 'INTERMEDIO' as const }],
+      ['un insumo dado de baja', { ...botella, activo: false }],
+      ['un insumo de otro restaurante', null],
+    ] as [string, InsumoReventa | null][])('no se revende %s', async (_, insumo) => {
+      const repo = repoFalso();
+      repo.buscarInsumoReventa.mockResolvedValue(insumo);
+      await expect(createMenuService(repo).crearPlato(R2, agua)).rejects.toMatchObject({
+        status: 400,
+      });
+      expect(repo.crearPlato).not.toHaveBeenCalled();
+    });
+
+    it('un plato con receta no se pasa a reventa', async () => {
+      const repo = repoFalso();
+      repo.buscarPlato.mockResolvedValue({ ...platoBase, tieneReceta: true });
+      repo.buscarInsumoReventa.mockResolvedValue(botella);
+      await expect(createMenuService(repo).actualizarPlato(R2, 'bife', agua)).rejects.toMatchObject(
+        {
+          status: 409,
+        },
+      );
+    });
   });
 });

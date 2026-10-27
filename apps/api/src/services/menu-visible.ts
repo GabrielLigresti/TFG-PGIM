@@ -38,8 +38,18 @@ export type MenuVisible = (sucursalId: string) => Promise<MenuDeSucursal>;
 
 // El comensal ve el menú activo de la sucursal solo si está vigente, y de él
 // los platos activos, disponibles y con receta cuando su categoría la exige.
+// Un plato de reventa cumple con la receta: descuenta su insumo.
 function visible(plato: PlatoDelMenu): boolean {
-  return plato.activo && plato.disponible && (!plato.categoria.requiereReceta || plato.tieneReceta);
+  const descuentaStock = plato.tieneReceta || plato.insumoReventaId !== null;
+  return plato.activo && plato.disponible && (!plato.categoria.requiereReceta || descuentaStock);
+}
+
+// Insumos que consume una porción: por receta, o 1 unidad si es de reventa;
+// null si el plato no descuenta stock.
+function insumosPorPorcion(plato: PlatoDelMenu, catalogo: Catalogo): Map<string, number> | null {
+  if (plato.receta) return insumosNecesarios(armarReceta(plato.receta, catalogo), 1);
+  if (plato.insumoReventaId) return new Map([[plato.insumoReventaId, 1]]);
+  return null;
 }
 
 function aPlatoMenu(
@@ -74,9 +84,11 @@ export function createMenuVisible(
 
     let catalogo: Catalogo = new Map();
     let existencias = new Map<string, number>();
-    if (platos.some((p) => p.receta)) {
+    if (platos.some((p) => p.receta || p.insumoReventaId)) {
       [catalogo, existencias] = await Promise.all([
-        stock.cargarCatalogo(datos.restaurante.id),
+        platos.some((p) => p.receta)
+          ? stock.cargarCatalogo(datos.restaurante.id)
+          : Promise.resolve(catalogo),
         stock.existencias(datos.id),
       ]);
     }
@@ -85,7 +97,7 @@ export function createMenuVisible(
       sucursal: datos,
       menu: menu && { nombre: menu.nombre, descripcion: menu.descripcion },
       platos: platos.map((p) => {
-        const insumos = p.receta ? insumosNecesarios(armarReceta(p.receta, catalogo), 1) : null;
+        const insumos = insumosPorPorcion(p, catalogo);
         // Sin existencia en la sucursal, el insumo cuenta como 0.
         const hayStock = [...(insumos ?? [])].every(
           ([id, cantidad]) => (existencias.get(id) ?? 0) >= cantidad,

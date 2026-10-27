@@ -26,6 +26,8 @@ export const platoInputSchema = z.object({
   fotoUrl: z.url('La foto tiene que ser una URL').nullish(),
   disponible: z.boolean(),
   activo: z.boolean().optional(),
+  // Reventa: el plato se vende como viene y descuenta 1 unidad de este insumo.
+  insumoReventaId: z.uuid('Elegí un insumo').nullish(),
 });
 
 export type PlatoInput = z.infer<typeof platoInputSchema>;
@@ -56,8 +58,11 @@ export interface Plato {
   activo: boolean;
   categoria: { id: string; nombre: string; requiereReceta: boolean };
   tieneReceta: boolean;
-  // La categoría pide receta y el plato no la tiene (anticipa PLATO_SIN_RECETA).
+  // La categoría pide receta y el plato no la tiene ni es de reventa
+  // (anticipa PLATO_SIN_RECETA).
   sinReceta: boolean;
+  // Insumo que se revende como viene (por ejemplo, una bebida), o null.
+  reventa: { id: string; nombre: string } | null;
   modeloRa: ModeloRa | null;
 }
 
