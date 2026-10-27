@@ -3,29 +3,34 @@
 /* Tokens del sistema visual. Las pantallas usan estos nombres (bg-panel,
    text-meta, bg-accent…) y no la paleta de Tailwind directamente. */
 @theme {
-  --color-bg: var(--color-stone-50);
-  --color-panel: var(--color-stone-100);
+  --color-bg: #ffffff;
+  --color-panel: #f4f5f7;
   --color-surface: #ffffff;
-  --color-line: var(--color-stone-200);
-  --color-line-strong: var(--color-stone-300);
-  --color-ink: var(--color-stone-950);
-  --color-text: var(--color-stone-900);
-  --color-meta: #6b6560;
+  --color-line: #e4e6e9;
+  --color-line-strong: #d3d7dc;
+  --color-ink: #15171a;
+  --color-text: #23262b;
+  --color-meta: #5d636b;
 
-  --color-accent: #b4532a;
-  --color-accent-hover: #9a4522;
-  --color-accent-ink: #9a4522;
-  --color-accent-soft: #fbefe8;
+  /* Acento verde y sus derivados (80 % + negro, 12 % y 15 % sobre blanco). */
+  --color-accent: #16756b;
+  --color-accent-hover: #125e56;
+  --color-accent-ink: #125e56;
+  --color-accent-soft: #e3eeed;
+  /* Hoja tintada detrás de las grillas del comensal. */
+  --color-hoja: #dceae9;
 
-  --color-ok: #15803d;
-  --color-ok-soft: #f0fdf4;
+  /* OK en azul para no confundirse con el acento verde (En preparación vs. Listo). */
+  --color-ok: #1d5fb4;
+  --color-ok-soft: #eaf1fb;
   --color-warn: #a16207;
   --color-warn-soft: #fefce8;
   --color-bad: #b91c1c;
   --color-bad-soft: #fef2f2;
 
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-display: 'Instrument Sans', 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Urbanist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display:
+    'Urbanist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --text-xs: 12px;
   --text-xs--line-height: 16px;
@@ -40,11 +45,12 @@
   --text-2xl: 26px;
   --text-2xl--line-height: 30px;
 
-  --radius-control: 6px;
-  --radius-panel: 8px;
+  --radius-control: 10px;
+  --radius-cuadrado: 12px;
+  --radius-panel: 16px;
 
   /* Única sombra: solo para lo que flota (modales, desplegables, avisos). */
-  --shadow-flotante: 0 8px 24px rgb(28 25 23 / 0.14);
+  --shadow-flotante: 0 10px 28px rgb(21 23 26 / 0.16);
 }
 
 @layer base {
