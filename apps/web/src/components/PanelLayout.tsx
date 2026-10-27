@@ -200,7 +200,7 @@ export function PanelLayout() {
   return (
     <div className="min-h-screen md:flex">
       {/* Escritorio: barra lateral agrupada. Tablet: riel con ícono y etiqueta corta. */}
-      <aside className="sticky top-0 hidden h-screen shrink-0 flex-col gap-4 overflow-y-auto border-r border-line bg-surface px-2 py-3 md:flex md:w-[72px] lg:w-56 lg:px-2.5">
+      <aside className="sticky top-0 hidden h-screen shrink-0 flex-col gap-4 overflow-y-auto border-r border-line bg-surface px-2 py-3 md:flex md:w-20 lg:w-56 lg:px-2.5">
         <NavLink to="/panel" end className="px-1 lg:px-1.5" aria-label="Inicio del panel">
           <span className="lg:hidden">
             <Marca />
