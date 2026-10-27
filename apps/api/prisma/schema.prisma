@@ -434,6 +434,7 @@ model Pedido {
   sucursalId        String       @map("sucursal_id") @db.Uuid
   numero            Int
   creadoEn          DateTime     @default(now()) @map("creado_en") @db.Timestamptz(6)
+  listoEn           DateTime?    @map("listo_en") @db.Timestamptz(6)
   estado            EstadoPedido @default(CONFIRMADO)
   motivoCancelacion String?      @map("motivo_cancelacion")
 

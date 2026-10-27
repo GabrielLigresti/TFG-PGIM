@@ -57,8 +57,8 @@ const NOMBRE_ACCION: Record<string, string> = {
   planificar: 'Planificar',
   consultar: 'Consultar',
   registrar: 'Registrar',
-  gestionar_cola: 'Gestionar la cola',
-  avanzar: 'Avanzar estado',
+  gestionar_cola: 'Preparar pedidos',
+  avanzar: 'Entregar pedidos',
   cerrar: 'Cerrar',
 };
 
