@@ -50,7 +50,7 @@ export function RecetasPage() {
                   titulo: 'Receta',
                   valor: (p) =>
                     p.tieneReceta ? (
-                      <Etiqueta color="verde">Cargada</Etiqueta>
+                      <Etiqueta tono="ok">Cargada</Etiqueta>
                     ) : (
                       <Etiqueta>Sin receta</Etiqueta>
                     ),

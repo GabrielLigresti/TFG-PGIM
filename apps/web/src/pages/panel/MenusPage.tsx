@@ -19,10 +19,10 @@ import { useRecurso } from '../../lib/useRecurso';
 
 function EstadoVigencia({ menu, hoy }: { menu: Menu; hoy: string }) {
   if (menu.vigenciaDesde > hoy) {
-    return <Etiqueta color="ambar">Desde el {formatoFecha(menu.vigenciaDesde)}</Etiqueta>;
+    return <Etiqueta tono="warn">Desde el {formatoFecha(menu.vigenciaDesde)}</Etiqueta>;
   }
-  if (!estaVigente(menu, hoy)) return <Etiqueta color="rojo">Vencido</Etiqueta>;
-  return <Etiqueta color="verde">Vigente</Etiqueta>;
+  if (!estaVigente(menu, hoy)) return <Etiqueta tono="bad">Vencido</Etiqueta>;
+  return <Etiqueta tono="ok">Vigente</Etiqueta>;
 }
 
 function vigencia(menu: Menu) {
@@ -228,7 +228,7 @@ function FormularioMenu({
                       checked={elegidos.has(p.id)}
                       onChange={(elegido) => alternar(p.id, elegido)}
                     />
-                    {p.sinReceta && <Etiqueta color="ambar">Sin receta: no se muestra</Etiqueta>}
+                    {p.sinReceta && <Etiqueta tono="warn">Sin receta: no se muestra</Etiqueta>}
                   </div>
                 ))}
               </div>

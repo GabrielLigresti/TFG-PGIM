@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { EVENTOS_SOCKET, hoyArgentina, type EstadoReserva, type ReservaPanel } from '@pgim/shared';
+import { EVENTOS_SOCKET, hoyArgentina, type ReservaPanel } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { Lista } from '../../components/Lista';
 import {
@@ -8,7 +8,7 @@ import {
   Campo,
   EncabezadoPagina,
   EstadoCarga,
-  Etiqueta,
+  Estado,
   claseInput,
 } from '../../components/ui';
 import { formatoHora } from '../../lib/formato';
@@ -18,19 +18,11 @@ import { useAhora } from '../../lib/useAhora';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
-const ESTADOS: Record<EstadoReserva, { texto: string; color: 'ambar' | 'verde' | 'gris' }> = {
-  PENDIENTE: { texto: 'Pendiente', color: 'ambar' },
-  ACTIVA: { texto: 'Activa', color: 'verde' },
-  FINALIZADA: { texto: 'Finalizada', color: 'gris' },
-  CANCELADA: { texto: 'Cancelada', color: 'gris' },
-  VENCIDA: { texto: 'Vencida', color: 'gris' },
-};
-
 const FILTROS = [
   { valor: 'TODAS', texto: 'Todas' },
-  { valor: 'PENDIENTE', texto: 'Pendientes' },
-  { valor: 'ACTIVA', texto: 'Activas' },
-  { valor: 'VENCIDA', texto: 'Vencidas' },
+  { valor: 'PENDIENTE', texto: 'Reservadas' },
+  { valor: 'ACTIVA', texto: 'En curso' },
+  { valor: 'VENCIDA', texto: 'Inasistencias' },
 ] as const;
 
 type Filtro = (typeof FILTROS)[number]['valor'];
@@ -106,7 +98,7 @@ export function ReservasPage() {
               titulo: 'Estado',
               valor: (r) => (
                 <span className="inline-flex flex-wrap items-center gap-2">
-                  <Etiqueta color={ESTADOS[r.estado].color}>{ESTADOS[r.estado].texto}</Etiqueta>
+                  <Estado entidad="reserva" valor={r.estado} />
                   {r.estado === 'PENDIENTE' && (
                     <span className="text-xs text-slate-500">
                       Tolerancia hasta {formatoHora(r.limiteLlegada)}

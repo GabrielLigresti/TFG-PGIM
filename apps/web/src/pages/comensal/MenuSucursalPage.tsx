@@ -71,7 +71,7 @@ export function MenuSucursalPage() {
                               )}
                               {p.modeloRa && (
                                 <span className="mt-1 block">
-                                  <Etiqueta color="verde">Ver en RA</Etiqueta>
+                                  <Etiqueta tono="ok">Ver en RA</Etiqueta>
                                 </span>
                               )}
                             </span>

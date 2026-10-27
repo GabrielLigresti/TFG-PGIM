@@ -1,21 +1,12 @@
-import { EVENTOS_SOCKET, type EstadoReserva, type ReservaComensal } from '@pgim/shared';
+import { EVENTOS_SOCKET, type ReservaComensal } from '@pgim/shared';
 import { LayoutComensal } from '../../components/LayoutComensal';
-import { Aviso, Boton, EstadoCarga, Etiqueta } from '../../components/ui';
+import { Aviso, Boton, Estado, EstadoCarga } from '../../components/ui';
 import { formatoDiaYHora, formatoHora } from '../../lib/formato';
 import { esCancelable } from '../../lib/reservas';
 import { useEventoSocket } from '../../lib/socket';
 import { useAhora } from '../../lib/useAhora';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
-
-const ETIQUETA_ESTADO: Record<EstadoReserva, { texto: string; color: 'ambar' | 'verde' | 'gris' }> =
-  {
-    PENDIENTE: { texto: 'Pendiente', color: 'ambar' },
-    ACTIVA: { texto: 'Activa', color: 'verde' },
-    FINALIZADA: { texto: 'Finalizada', color: 'gris' },
-    CANCELADA: { texto: 'Cancelada', color: 'gris' },
-    VENCIDA: { texto: 'Vencida', color: 'gris' },
-  };
 
 export function MisReservasPage() {
   const { datos, cargando, error, recargar } = useRecurso<ReservaComensal[]>('/comensal/reservas');
@@ -42,7 +33,6 @@ export function MisReservasPage() {
       )}
       <ul className="space-y-3">
         {datos?.map((r) => {
-          const estado = ETIQUETA_ESTADO[r.estado];
           return (
             <li
               key={r.id}
@@ -58,7 +48,7 @@ export function MisReservasPage() {
                     {r.cantidadPersonas === 1 ? 'persona' : 'personas'}
                   </p>
                 </div>
-                <Etiqueta color={estado.color}>{estado.texto}</Etiqueta>
+                <Estado entidad="reserva" valor={r.estado} publico="comensal" />
               </div>
               {r.estado === 'PENDIENTE' && (
                 <p className="text-xs text-slate-500">

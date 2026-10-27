@@ -79,7 +79,7 @@ export function PlatosPage() {
                 valor: (p) => (
                   <span className="inline-flex flex-wrap items-center gap-1">
                     {p.nombre}
-                    {p.sinReceta && <Etiqueta color="ambar">Sin receta</Etiqueta>}
+                    {p.sinReceta && <Etiqueta tono="warn">Sin receta</Etiqueta>}
                     {!p.activo && <Etiqueta>Dado de baja</Etiqueta>}
                   </span>
                 ),
@@ -88,11 +88,11 @@ export function PlatosPage() {
               { titulo: 'Precio', valor: (p) => formatoPesos(p.precio) },
               {
                 titulo: 'Disponible',
-                valor: (p) => (p.disponible ? 'Sí' : <Etiqueta color="rojo">Agotado</Etiqueta>),
+                valor: (p) => (p.disponible ? 'Sí' : <Etiqueta tono="bad">Agotado</Etiqueta>),
               },
               {
                 titulo: 'RA',
-                valor: (p) => (p.modeloRa ? <Etiqueta color="verde">Con modelo</Etiqueta> : '—'),
+                valor: (p) => (p.modeloRa ? <Etiqueta tono="ok">Con modelo</Etiqueta> : '—'),
               },
               {
                 titulo: 'Receta',

@@ -8,6 +8,7 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { infoEstado, type EntidadConEstado, type Publico, type Tono } from '../lib/estados';
 
 // Piezas visuales comunes de las pantallas de gestión.
 
@@ -114,25 +115,37 @@ export function Aviso({ children }: { children: ReactNode }) {
   );
 }
 
-const COLORES_ETIQUETA = {
-  gris: 'bg-slate-100 text-slate-600',
-  verde: 'bg-emerald-50 text-emerald-700',
-  ambar: 'bg-amber-50 text-amber-800',
-  rojo: 'bg-red-50 text-red-700',
+const CLASES_TONO: Record<Tono, string> = {
+  neutro: 'border border-line-strong bg-surface text-meta',
+  acento: 'bg-accent-soft text-accent-ink',
+  ok: 'bg-ok-soft text-ok',
+  warn: 'bg-warn-soft text-warn',
+  bad: 'bg-bad-soft text-bad',
 };
 
-export function Etiqueta({
-  color = 'gris',
-  children,
+const claseEtiqueta =
+  'inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-semibold';
+
+// Marca corta (Dado de baja, Sin receta…). Para estados del dominio, usar Estado.
+export function Etiqueta({ tono = 'neutro', children }: { tono?: Tono; children: ReactNode }) {
+  return <span className={`${claseEtiqueta} ${CLASES_TONO[tono]}`}>{children}</span>;
+}
+
+// Estado de una entidad, siempre con ícono y texto, según lib/estados.ts.
+export function Estado({
+  entidad,
+  valor,
+  publico,
 }: {
-  color?: keyof typeof COLORES_ETIQUETA;
-  children: ReactNode;
+  entidad: EntidadConEstado;
+  valor: string;
+  publico?: Publico;
 }) {
+  const { etiqueta, tono, icono: Icono } = infoEstado(entidad, valor, publico);
   return (
-    <span
-      className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${COLORES_ETIQUETA[color]}`}
-    >
-      {children}
+    <span className={`${claseEtiqueta} ${CLASES_TONO[tono]}`}>
+      <Icono aria-hidden className="size-3.5" strokeWidth={2.4} />
+      {etiqueta}
     </span>
   );
 }
