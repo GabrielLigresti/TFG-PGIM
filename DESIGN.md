@@ -171,13 +171,13 @@ components:
 
 Todo a mano y en su lugar. Las superficies son blancas y limpias, los grupos se arman con hojas de un verde muy claro, y el Verde Albahaca aparece solo donde se puede tocar o donde algo está pasando. Nada decora: la foto del plato, el precio y la acción siguiente son el contenido.
 
-El sistema tiene dos registros sobre los mismos tokens. **El comensal** es "La mesa puesta" en estado puro: carta sobre hoja tintada, tarjetas blancas con la foto arriba, densidad cómoda de 44 px. **El restaurante** (panel, cocina y salón) sigue la filosofía de **"El buen mozo"**: claro, rápido y amable, con jerarquía tipográfica fuerte y la acción siguiente siempre escrita, porque se lee de pie, a distancia y con apuro.
+El sistema tiene dos registros sobre los mismos tokens. **El comensal** es "La mesa puesta" en estado puro: carta sobre hoja tintada, tarjetas blancas con la foto arriba, densidad cómoda de 44 px (la carta nueva está pendiente; hoy el comensal usa la lista anterior). **El restaurante** (panel, cocina y salón) sigue la filosofía de **"El buen mozo"**: claro, rápido y amable, con jerarquía tipográfica fuerte y la acción siguiente siempre escrita, porque se lee de pie, a distancia y con apuro.
 
 Tema claro único. Nada de beige, piedra ni crema: el blanco es blanco y los grises son fríos.
 
 **Key Characteristics:**
 - Un solo acento, Verde Albahaca, reservado para acción y estado en curso.
-- Urbanist en toda la app, de 400 a 800.
+- Urbanist en toda la app; hoy de 400 a 600 (700–800 pendiente, para los títulos del comensal).
 - Tres densidades: compacta (36 px) en escritorio, comensal (44 px) en el celular, táctil (48 px) en cocina y salón.
 - Estados siempre con tono, ícono y texto; el OK es azul.
 - Una sola sombra, solo para lo que flota.
@@ -190,7 +190,7 @@ Un verde comestible sobre blanco y grises fríos, con tres tonos de estado que n
 - **Verde Albahaca** (#16756b): acción principal, navegación activa, foco, chip seleccionado y todo lo que está "en curso" (En preparación, Mesa en curso, Cuenta abierta). Blanco encima pasa AA.
 - **Verde Albahaca Hondo** (#125e56): hover de la acción y texto sobre fondos verdes suaves.
 - **Verde Albahaca Suave** (#e3eeed): fondo de la opción activa, del botón tonal y de la etiqueta "en curso".
-- **Hoja de Albahaca** (#dceae9): hoja tintada que agrupa contenido detrás de tarjetas blancas en el comensal.
+- **Hoja de Albahaca** (#dceae9): hoja tintada que agrupa contenido detrás de tarjetas blancas en el comensal. Pendiente: el token existe, ninguna pantalla lo usa todavía.
 
 ### Neutral
 - **Blanco Mantel** (#ffffff): fondo de página y de tarjetas.
@@ -218,7 +218,7 @@ Un verde comestible sobre blanco y grises fríos, con tres tonos de estado que n
 **Display Font:** Urbanist Variable (con ui-sans-serif, system-ui)
 **Body Font:** Urbanist Variable (con ui-sans-serif, system-ui)
 
-**Character:** una geométrica amable de una sola familia: redonda y abierta en el texto, compacta y firme en los títulos de 700–800. Las cifras van tabulares en toda la app.
+**Character:** una geométrica amable de una sola familia: redonda y abierta en el texto, compacta y firme en los títulos (hoy 600; 700–800 pendiente). Las cifras van tabulares en toda la app.
 
 ### Hierarchy
 - **Display** (600, 26px, 30px): títulos de las pantallas del comensal.
@@ -246,14 +246,14 @@ Las tres densidades fijan la altura de los controles: compacta 36 px (44 px en c
 Plano por defecto. La profundidad sale de bordes de 1 px, del Gris Bandeja y de las hojas tintadas; las tarjetas apoyadas no llevan sombra.
 
 ### Shadow Vocabulary
-- **Flotante** (`box-shadow: 0 10px 28px rgb(21 23 26 / 0.16)`): solo para lo que flota sobre la pantalla: modales, desplegables, avisos y barras fijas.
+- **Flotante** (`box-shadow: 0 10px 28px rgb(21 23 26 / 0.16)`): solo para lo que flota sobre la pantalla: modales, desplegables y avisos. Pendiente: las barras fijas del comensal hoy llevan solo borde.
 
 ### Named Rules
 **The One Shadow Rule.** Hay una sola sombra y es para lo que flota. Si está apoyado, lleva borde, no sombra.
 
 ## Shapes
 
-Esquinas suaves y consistentes: 10 px en controles, 12 px en botones cuadrados de ícono, 16 px en tarjetas, paneles y modales, y píldora para chips y etiquetas. Los bordes son de 1 px; el borde punteado se reserva para estados vacíos.
+Esquinas suaves y consistentes: 10 px en controles, 12 px en botones cuadrados de ícono (pendiente: el token existe, ningún componente lo usa todavía), 16 px en tarjetas, paneles y modales, y píldora para chips y etiquetas. Los bordes son de 1 px; el borde punteado se reserva para estados vacíos.
 
 ## Components
 
@@ -277,7 +277,7 @@ Esquinas suaves y consistentes: 10 px en controles, 12 px en botones cuadrados d
 ### Inputs / Fields
 - **Style:** borde Línea Firme, fondo blanco, esquinas de 10px; 44 px de alto en el celular y 36 px en escritorio.
 - **Focus:** borde Verde Albahaca con un halo del 20 % del mismo verde.
-- **Error / Disabled:** error con borde y mensaje en Rojo Falta y su ícono; deshabilitado sobre Gris Bandeja con texto Gris Nota.
+- **Error / Disabled:** error con mensaje en Rojo Falta y su ícono (el borde rojo del campo está pendiente); deshabilitado sobre Gris Bandeja con texto Gris Nota.
 
 ### Navigation
 - **Panel:** barra lateral blanca; el ítem activo va en Verde Albahaca Suave con texto Hondo y el ícono en Verde Albahaca. En tablet, ícono arriba y texto chico debajo.
@@ -292,7 +292,7 @@ Etiqueta en píldora con ícono, texto y tono; la única fuente es `lib/estados.
 - **Do** usar Verde Albahaca (#16756b) solo en acciones, navegación activa, foco y estados en curso.
 - **Do** acompañar cada estado con ícono y texto, y usar Azul Listo (#1d5fb4) para OK.
 - **Do** escribir la acción siguiente en el restaurante ("Marcar listo", "Activar mesa") en lugar de dejar un ícono solo.
-- **Do** agrupar el contenido del comensal sobre Hoja de Albahaca (#dceae9) con tarjetas blancas encima.
+- **Do** agrupar el contenido del comensal sobre Hoja de Albahaca (#dceae9) con tarjetas blancas encima (pendiente, llega con la carta nueva).
 - **Do** respetar las alturas por densidad: 36, 44 y 48 px.
 
 ### Don't:

@@ -44,8 +44,16 @@
           "#f4f5f7"
         ]
       },
-      "tinta": { "role": "neutral", "displayName": "Tinta", "canonical": "#15171a" },
-      "gris-nota": { "role": "neutral", "displayName": "Gris Nota", "canonical": "#5d636b" },
+      "tinta": {
+        "role": "neutral",
+        "displayName": "Tinta",
+        "canonical": "#15171a"
+      },
+      "gris-nota": {
+        "role": "neutral",
+        "displayName": "Gris Nota",
+        "canonical": "#5d636b"
+      },
       "azul-listo": {
         "role": "tertiary",
         "displayName": "Azul Listo",
@@ -66,27 +74,43 @@
         "displayName": "Amarillo Riesgo",
         "canonical": "#a16207"
       },
-      "rojo-falta": { "role": "tertiary", "displayName": "Rojo Falta", "canonical": "#b91c1c" }
+      "rojo-falta": {
+        "role": "tertiary",
+        "displayName": "Rojo Falta",
+        "canonical": "#b91c1c"
+      }
     },
     "typographyMeta": {
-      "display": { "displayName": "Display", "purpose": "Títulos de las pantallas del comensal." },
+      "display": {
+        "displayName": "Display",
+        "purpose": "Títulos de las pantallas del comensal."
+      },
       "headline": {
         "displayName": "Headline",
         "purpose": "Título de página del panel y cifras de KPI."
       },
-      "title": { "displayName": "Title", "purpose": "Títulos de panel, modal y sección." },
-      "body": { "displayName": "Body", "purpose": "Texto corrido y celdas, con cifras tabulares." },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Títulos de panel, modal y sección."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Texto corrido y celdas, con cifras tabulares."
+      },
       "label": {
         "displayName": "Label",
         "purpose": "Botones compactos, campos y navegación de escritorio."
       },
-      "caption": { "displayName": "Caption", "purpose": "Etiquetas de estado y metadatos." }
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Etiquetas de estado y metadatos."
+      }
     },
     "shadows": [
       {
         "name": "flotante",
         "value": "0 10px 28px rgb(21 23 26 / 0.16)",
-        "purpose": "Solo para lo que flota: modales, desplegables, avisos y barras fijas."
+        "purpose": "Solo para lo que flota: modales, desplegables y avisos. Pendiente: las barras fijas del comensal hoy llevan solo borde."
       }
     ],
     "motion": [
@@ -97,9 +121,18 @@
       }
     ],
     "breakpoints": [
-      { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px" },
-      { "name": "lg", "value": "1024px" }
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
     ]
   },
   "components": [
@@ -170,10 +203,10 @@
   ],
   "narrative": {
     "northStar": "La mesa puesta",
-    "overview": "Todo a mano y en su lugar. Las superficies son blancas y limpias, los grupos se arman con hojas de un verde muy claro, y el Verde Albahaca aparece solo donde se puede tocar o donde algo está pasando. Nada decora: la foto del plato, el precio y la acción siguiente son el contenido. El sistema tiene dos registros sobre los mismos tokens. El comensal es \"La mesa puesta\" en estado puro: carta sobre hoja tintada, tarjetas blancas con la foto arriba, densidad cómoda de 44 px. El restaurante (panel, cocina y salón) sigue la filosofía de \"El buen mozo\": claro, rápido y amable, con jerarquía tipográfica fuerte y la acción siguiente siempre escrita, porque se lee de pie, a distancia y con apuro. Tema claro único. Nada de beige, piedra ni crema: el blanco es blanco y los grises son fríos.",
+    "overview": "Todo a mano y en su lugar. Las superficies son blancas y limpias, los grupos se arman con hojas de un verde muy claro, y el Verde Albahaca aparece solo donde se puede tocar o donde algo está pasando. Nada decora: la foto del plato, el precio y la acción siguiente son el contenido. El sistema tiene dos registros sobre los mismos tokens. El comensal es \"La mesa puesta\" en estado puro: carta sobre hoja tintada, tarjetas blancas con la foto arriba, densidad cómoda de 44 px (la carta nueva está pendiente; hoy el comensal usa la lista anterior). El restaurante (panel, cocina y salón) sigue la filosofía de \"El buen mozo\": claro, rápido y amable, con jerarquía tipográfica fuerte y la acción siguiente siempre escrita, porque se lee de pie, a distancia y con apuro. Tema claro único. Nada de beige, piedra ni crema: el blanco es blanco y los grises son fríos.",
     "keyCharacteristics": [
       "Un solo acento, Verde Albahaca, reservado para acción y estado en curso.",
-      "Urbanist en toda la app, de 400 a 800.",
+      "Urbanist en toda la app; hoy de 400 a 600 (700–800 pendiente, para los títulos del comensal).",
       "Tres densidades: compacta (36 px) en escritorio, comensal (44 px) en el celular, táctil (48 px) en cocina y salón.",
       "Estados siempre con tono, ícono y texto; el OK es azul.",
       "Una sola sombra, solo para lo que flota."
@@ -219,7 +252,7 @@
       "Do usar Verde Albahaca (#16756b) solo en acciones, navegación activa, foco y estados en curso.",
       "Do acompañar cada estado con ícono y texto, y usar Azul Listo (#1d5fb4) para OK.",
       "Do escribir la acción siguiente en el restaurante (\"Marcar listo\", \"Activar mesa\") en lugar de dejar un ícono solo.",
-      "Do agrupar el contenido del comensal sobre Hoja de Albahaca (#dceae9) con tarjetas blancas encima.",
+      "Do agrupar el contenido del comensal sobre Hoja de Albahaca (#dceae9) con tarjetas blancas encima (pendiente, llega con la carta nueva).",
       "Do respetar las alturas por densidad: 36, 44 y 48 px."
     ],
     "donts": [
