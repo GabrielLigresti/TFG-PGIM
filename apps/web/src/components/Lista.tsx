@@ -16,7 +16,10 @@ interface Props<T> {
   // Hace clickeable la fila (o la tarjeta), también con el teclado.
   onSeleccionar?(fila: T): void;
   etiquetaSeleccion?(fila: T): string;
-  vacio?: string;
+  vacio?: ReactNode;
+  // Compacta en escritorio; táctil para tablets de cocina y salón.
+  densidad?: 'compacta' | 'tactil';
+  seleccionada?(fila: T): boolean;
 }
 
 function propsSeleccion<T>(fila: T, onSeleccionar?: (fila: T) => void, etiqueta?: string) {
@@ -47,44 +50,48 @@ export function Lista<T>({
   onSeleccionar,
   etiquetaSeleccion,
   vacio,
+  densidad = 'compacta',
+  seleccionada,
 }: Props<T>) {
-  const clickeable = onSeleccionar
-    ? 'cursor-pointer hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-slate-500'
-    : '';
+  const clickeable = onSeleccionar ? 'cursor-pointer hover:bg-panel' : '';
   if (filas.length === 0) {
-    return <p className="text-sm text-slate-500">{vacio ?? 'Todavía no hay registros.'}</p>;
+    if (vacio && typeof vacio !== 'string') return vacio;
+    return <p className="text-sm text-meta">{vacio ?? 'Todavía no hay registros.'}</p>;
   }
   const [principal, ...resto] = columnas;
+  const celda = densidad === 'tactil' ? 'px-4 py-3 text-base' : 'px-4 py-2 text-sm';
+  const marcada = (fila: T) =>
+    seleccionada?.(fila) ? 'bg-accent-soft shadow-[inset_2px_0_0_var(--color-accent)]' : '';
 
   return (
     <>
-      <div className="hidden overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200 md:block">
-        <table className="w-full text-left text-sm">
-          <thead className="border-b border-slate-200 text-xs uppercase text-slate-500">
+      <div className="hidden overflow-x-auto rounded-panel border border-line bg-surface md:block">
+        <table className="w-full text-left">
+          <thead className="border-b border-line bg-bg text-xs text-meta">
             <tr>
               {columnas.map((c) => (
-                <th key={c.titulo} className="px-4 py-2 font-medium">
+                <th key={c.titulo} className="px-4 py-2 font-semibold">
                   {c.titulo}
                 </th>
               ))}
               {acciones && <th className="px-4 py-2" />}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-line">
             {filas.map((fila) => (
               <tr
                 key={clave(fila)}
                 {...propsSeleccion(fila, onSeleccionar, etiquetaSeleccion?.(fila))}
-                className={`${inactiva?.(fila) ? 'text-slate-400' : 'text-slate-700'} ${clickeable}`}
+                className={`${inactiva?.(fila) ? 'text-meta' : 'text-text'} ${marcada(fila)} ${clickeable}`}
               >
                 {columnas.map((c) => (
-                  <td key={c.titulo} className={`px-4 py-2 align-top ${c.className ?? ''}`}>
+                  <td key={c.titulo} className={`${celda} align-middle ${c.className ?? ''}`}>
                     {c.valor(fila)}
                   </td>
                 ))}
                 {acciones && (
                   <td
-                    className="px-4 py-2 text-right whitespace-nowrap"
+                    className={`${celda} text-right whitespace-nowrap`}
                     onClick={frenar}
                     onKeyDown={frenar}
                   >
@@ -102,14 +109,18 @@ export function Lista<T>({
           <li
             key={clave(fila)}
             {...propsSeleccion(fila, onSeleccionar, etiquetaSeleccion?.(fila))}
-            className={`rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200 ${inactiva?.(fila) ? 'opacity-60' : ''} ${clickeable}`}
+            className={`rounded-panel border border-line bg-surface p-4 ${inactiva?.(fila) ? 'opacity-60' : ''} ${marcada(fila)} ${clickeable}`}
           >
-            <div className="font-medium text-slate-800">{principal?.valor(fila)}</div>
+            <div className="min-w-0 font-semibold text-ink [overflow-wrap:anywhere]">
+              {principal?.valor(fila)}
+            </div>
             <dl className="mt-2 space-y-1 text-sm">
               {resto.map((c) => (
                 <div key={c.titulo} className="flex justify-between gap-3">
-                  <dt className="text-slate-500">{c.titulo}</dt>
-                  <dd className="text-right text-slate-700">{c.valor(fila)}</dd>
+                  <dt className="shrink-0 text-meta">{c.titulo}</dt>
+                  <dd className="min-w-0 text-right text-text [overflow-wrap:anywhere]">
+                    {c.valor(fila)}
+                  </dd>
                 </div>
               ))}
             </dl>
