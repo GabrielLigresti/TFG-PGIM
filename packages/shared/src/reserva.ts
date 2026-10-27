@@ -77,6 +77,10 @@ export const EVENTOS_SOCKET = {
   dejarSalon: 'salon:dejar',
   cambioSalon: 'salon:cambio',
   cambioReserva: 'reserva:cambio',
+  pedidoNuevo: 'pedido:nuevo',
+  pedidoCambio: 'pedido:cambio',
+  mesaCambio: 'mesa:cambio',
+  alertaNueva: 'alerta:nueva',
 } as const;
 
 export interface CambioSalon {
@@ -92,6 +96,8 @@ export interface CambioReserva {
 
 export const salaSucursal = (id: string) => `sucursal:${id}`;
 export const salaComensal = (id: string) => `comensal:${id}`;
+// Solo personal con pedido.ver o stock.registrar: cola de cocina y alertas.
+export const salaPersonal = (id: string) => `personal:${id}`;
 
 // CU-12: reservas del día de la sucursal de trabajo, en el panel.
 export const consultaReservasPanelSchema = z.object({ fecha: fechaSchema });
@@ -105,4 +111,8 @@ export interface ReservaPanel {
   estado: EstadoReserva;
   limiteLlegada: string;
   activable: boolean;
+  // ACTIVA: se puede cerrar la mesa (CU-18).
+  cerrable: boolean;
+  // PENDIENTE y todavía dentro de la tolerancia: el staff la puede cancelar.
+  cancelable: boolean;
 }

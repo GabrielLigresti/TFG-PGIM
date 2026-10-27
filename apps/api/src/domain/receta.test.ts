@@ -5,6 +5,7 @@ import {
   contiene,
   costoTotal,
   costoUnitario,
+  insumosNecesarios,
   type Componente,
 } from './receta';
 
@@ -147,5 +148,80 @@ describe('costos', () => {
       .conRendimiento(1)
       .build();
     expect(costoTotal(plato)).toBeCloseTo(3.05);
+  });
+});
+
+describe('insumosNecesarios', () => {
+  const harina = insumo('harina', 'GRAMO', 2);
+  const queso = insumo('queso', 'GRAMO', 5);
+  const linea = (
+    componente: Componente,
+    cantidad: number,
+    unidad: 'GRAMO' | 'KILOGRAMO' = 'GRAMO',
+    porcentajeMerma = 0,
+  ) => ({
+    componente,
+    cantidad,
+    unidad,
+    porcentajeMerma,
+  });
+
+  it('escala la cantidad por porciones sobre el rendimiento', () => {
+    const receta = { lineas: [linea(harina, 100)], rendimiento: 2, instrucciones: null };
+    expect(insumosNecesarios(receta, 3)).toEqual(new Map([['harina', 150]]));
+  });
+
+  it('descuenta la cantidad bruta, con la merma', () => {
+    const receta = {
+      lineas: [linea(harina, 80, 'GRAMO', 20)],
+      rendimiento: 1,
+      instrucciones: null,
+    };
+    expect(insumosNecesarios(receta, 1).get('harina')).toBeCloseTo(100);
+  });
+
+  it('convierte a la unidad base', () => {
+    const receta = {
+      lineas: [linea(harina, 0.1, 'KILOGRAMO')],
+      rendimiento: 1,
+      instrucciones: null,
+    };
+    expect(insumosNecesarios(receta, 1).get('harina')).toBeCloseTo(100);
+  });
+
+  it('explota los intermedios hasta los insumos', () => {
+    const masa = intermedio('masa');
+    masa.receta = { lineas: [linea(harina, 200)], rendimiento: 400, instrucciones: null };
+    const pizza = {
+      lineas: [linea(masa, 100), linea(queso, 50)],
+      rendimiento: 1,
+      instrucciones: null,
+    };
+    expect(insumosNecesarios(pizza, 2)).toEqual(
+      new Map([
+        ['harina', 100],
+        ['queso', 100],
+      ]),
+    );
+  });
+
+  it('suma en una sola clave el insumo que llega por dos caminos', () => {
+    const masa = intermedio('masa');
+    masa.receta = { lineas: [linea(harina, 200)], rendimiento: 400, instrucciones: null };
+    const receta = {
+      lineas: [linea(masa, 100), linea(harina, 10)],
+      rendimiento: 1,
+      instrucciones: null,
+    };
+    expect(insumosNecesarios(receta, 1)).toEqual(new Map([['harina', 60]]));
+  });
+
+  it('un intermedio sin receta no aporta nada', () => {
+    const receta = {
+      lineas: [linea(intermedio('salsa'), 50)],
+      rendimiento: 1,
+      instrucciones: null,
+    };
+    expect(insumosNecesarios(receta, 1).size).toBe(0);
   });
 });

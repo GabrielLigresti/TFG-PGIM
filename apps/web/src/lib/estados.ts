@@ -11,7 +11,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import type { EstadoReserva } from '@pgim/shared';
+import type { EstadoPedido, EstadoReserva } from '@pgim/shared';
 
 // Única fuente de etiqueta, tono e ícono de cada estado. Ninguna pantalla
 // elige colores de estado por su cuenta.
@@ -27,7 +27,6 @@ export interface InfoEstado {
 }
 
 // Hasta que estos enums lleguen a @pgim/shared con sus hitos.
-type EstadoPedidoUI = 'CONFIRMADO' | 'EN_PREPARACION' | 'LISTO' | 'ENTREGADO' | 'CANCELADO';
 type EstadoPagoUI = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
 
 export const ESTADOS = {
@@ -44,7 +43,7 @@ export const ESTADOS = {
     LISTO: { etiqueta: 'Listo', tono: 'ok', icono: Check },
     ENTREGADO: { etiqueta: 'Entregado', tono: 'neutro', icono: CheckCheck },
     CANCELADO: { etiqueta: 'Cancelado', tono: 'bad', icono: X },
-  } satisfies Record<EstadoPedidoUI, InfoEstado>,
+  } satisfies Record<EstadoPedido, InfoEstado>,
   pago: {
     PENDIENTE: { etiqueta: 'Pendiente', tono: 'neutro', icono: Clock },
     APROBADO: { etiqueta: 'Aprobado', tono: 'ok', icono: Check },
@@ -69,6 +68,8 @@ export type EntidadConEstado = keyof typeof ESTADOS;
 
 // Al comensal, la inasistencia se le muestra sin tono de reproche.
 const NO_ASISTIO: InfoEstado = { etiqueta: 'No asististe', tono: 'neutro', icono: X };
+// Para el comensal, su pedido confirmado ya lo recibió la cocina.
+const RECIBIDO: InfoEstado = { etiqueta: 'Recibido', tono: 'neutro', icono: Circle };
 
 export function infoEstado(
   entidad: EntidadConEstado,
@@ -76,6 +77,7 @@ export function infoEstado(
   publico: Publico = 'personal',
 ): InfoEstado {
   if (entidad === 'reserva' && valor === 'VENCIDA' && publico === 'comensal') return NO_ASISTIO;
+  if (entidad === 'pedido' && valor === 'CONFIRMADO' && publico === 'comensal') return RECIBIDO;
   const tabla: Record<string, InfoEstado> = ESTADOS[entidad];
   // Un valor nuevo de la API que todavía no está mapeado no rompe la pantalla.
   return tabla[valor] ?? { etiqueta: valor, tono: 'neutro', icono: Circle };

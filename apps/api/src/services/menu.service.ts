@@ -37,6 +37,23 @@ export function createMenuService(repo: MenuRepository, archivos: ArchivosModelo
     if (await repo.existePlato(restauranteId, datos.nombre, excluirId)) {
       throw new AppError(409, `Ya existe un plato llamado "${datos.nombre}"`);
     }
+    if (datos.insumoReventaId) await verificarReventa(restauranteId, datos.insumoReventaId);
+  }
+
+  // Se revende tal cual: un insumo activo del restaurante que se cuenta por
+  // unidades (cada porción descuenta 1).
+  async function verificarReventa(restauranteId: string, insumoId: string) {
+    const insumo = await repo.buscarInsumoReventa(restauranteId, insumoId);
+    if (!insumo || insumo.tipo !== 'INSUMO') {
+      throw new AppError(400, 'Elegí un insumo del restaurante para vender como viene');
+    }
+    if (!insumo.activo) throw new AppError(400, `${insumo.nombre} está dado de baja`);
+    if (insumo.unidadBase !== 'UNIDAD') {
+      throw new AppError(
+        400,
+        `${insumo.nombre} no se cuenta por unidades: no se puede vender como viene`,
+      );
+    }
   }
 
   async function obtenerMenu(restauranteId: string, id: string) {
@@ -91,7 +108,14 @@ export function createMenuService(repo: MenuRepository, archivos: ArchivosModelo
     },
 
     async actualizarPlato(restauranteId: string, id: string, datos: PlatoInput) {
-      await obtenerPlato(restauranteId, id);
+      const plato = await obtenerPlato(restauranteId, id);
+      // Un plato tiene receta o se vende como viene, nunca las dos cosas.
+      if (datos.insumoReventaId && plato.tieneReceta) {
+        throw new AppError(
+          409,
+          `${plato.nombre} tiene receta: borrala antes de venderlo como viene`,
+        );
+      }
       await verificarPlato(restauranteId, datos, id);
       return repo.actualizarPlato(restauranteId, id, datos);
     },

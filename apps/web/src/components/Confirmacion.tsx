@@ -20,6 +20,8 @@ interface Pedido {
   mensaje: string;
   detalle?: string;
   accion: string;
+  // Una acción que no destruye nada (por ejemplo, pagar) va como botón principal.
+  principal?: boolean;
 }
 
 type Confirmar = (pedido: Pedido) => Promise<boolean>;
@@ -126,7 +128,10 @@ function DialogoConfirmacion({
           <Boton ref={volver} variante="fantasma" onClick={() => onResponder(false)}>
             Volver
           </Boton>
-          <Boton variante="peligro" onClick={() => onResponder(true)}>
+          <Boton
+            variante={pedido.principal ? 'principal' : 'peligro'}
+            onClick={() => onResponder(true)}
+          >
             {pedido.accion}
           </Boton>
         </div>

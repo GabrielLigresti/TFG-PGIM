@@ -3,6 +3,8 @@ import { NavLink, Outlet, useLocation } from 'react-router';
 import {
   BookOpen,
   CalendarDays,
+  ChefHat,
+  TriangleAlert,
   LogOut,
   MapPin,
   Menu,
@@ -41,6 +43,14 @@ export const SECCIONES: SeccionPanel[] = [
     icono: CalendarDays,
   },
   {
+    ruta: 'cocina',
+    titulo: 'Cocina',
+    descripcion: 'Cola de pedidos de la cocina',
+    permiso: 'pedido.ver',
+    grupo: 'Operación',
+    icono: ChefHat,
+  },
+  {
     ruta: 'platos',
     titulo: 'Platos',
     descripcion: 'Platos y categorías del menú',
@@ -71,6 +81,14 @@ export const SECCIONES: SeccionPanel[] = [
     permiso: 'insumo.ver',
     grupo: 'Stock',
     icono: Package,
+  },
+  {
+    ruta: 'alertas',
+    titulo: 'Alertas',
+    descripcion: 'Faltantes de stock y platos sin receta',
+    permiso: 'stock.registrar',
+    grupo: 'Stock',
+    icono: TriangleAlert,
   },
   {
     ruta: 'personal',

@@ -1,7 +1,13 @@
 import type { Server as HttpServer } from 'node:http';
 import { Server } from 'socket.io';
 import { z } from 'zod';
-import { EVENTOS_SOCKET, salaComensal, salaSucursal, type Sesion } from '@pgim/shared';
+import {
+  EVENTOS_SOCKET,
+  salaComensal,
+  salaPersonal,
+  salaSucursal,
+  type Sesion,
+} from '@pgim/shared';
 import type { BusEventos } from '../domain/eventos';
 import { COOKIE_SESION, verificarToken } from '../lib/jwt';
 import { authService } from '../services/auth.service';
@@ -26,6 +32,20 @@ export async function sesionDeCookie(cookieHeader: string | undefined): Promise<
 
 const idSalaSchema = z.uuid();
 
+// Salas a las que entra una sesión al conectarse: el comensal, a la suya; el
+// personal, a la de su sucursal de trabajo y, si opera la cocina o el stock, a
+// la del personal (cola y alertas, con datos que no ve el comensal).
+export function salasDeSesion(sesion: Sesion): string[] {
+  if (sesion.usuario.tipo === 'COMENSAL') return [salaComensal(sesion.usuario.id)];
+  const sucursal = sesion.sucursalActiva;
+  if (!sucursal) return [];
+  const salas = [salaSucursal(sucursal.id)];
+  if (sesion.permisos.includes('pedido.ver') || sesion.permisos.includes('stock.registrar')) {
+    salas.push(salaPersonal(sucursal.id));
+  }
+  return salas;
+}
+
 export function createSocketServer(httpServer: HttpServer, bus: BusEventos): Server {
   const io = new Server(httpServer);
 
@@ -42,13 +62,7 @@ export function createSocketServer(httpServer: HttpServer, bus: BusEventos): Ser
 
   io.on('connection', (socket) => {
     const sesion = socket.data.sesion as Sesion;
-    // El comensal recibe los cambios de sus reservas; el personal, los de su
-    // sucursal de trabajo.
-    if (sesion.usuario.tipo === 'COMENSAL') {
-      void socket.join(salaComensal(sesion.usuario.id));
-    } else if (sesion.sucursalActiva) {
-      void socket.join(salaSucursal(sesion.sucursalActiva.id));
-    }
+    void socket.join(salasDeSesion(sesion));
 
     // Mapa abierto de una sucursal. La sala solo emite qué mesa cambió en qué
     // franja, sin datos personales, así que cualquier sesión puede seguirla.

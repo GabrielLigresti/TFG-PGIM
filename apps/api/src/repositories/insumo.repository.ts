@@ -8,6 +8,8 @@ export interface InsumoRepository {
   buscar(restauranteId: string, id: string): Promise<Insumo | null>;
   existeNombre(restauranteId: string, nombre: string, excluirId?: string): Promise<boolean>;
   usosEnRecetas(restauranteId: string, id: string): Promise<string[]>;
+  // Nombres de los platos que lo revenden como viene.
+  platosDeReventa(restauranteId: string, id: string): Promise<string[]>;
   crear(restauranteId: string, datos: InsumoInput): Promise<Insumo>;
   actualizar(restauranteId: string, id: string, datos: InsumoInput): Promise<Insumo>;
   desactivar(restauranteId: string, id: string): Promise<void>;
@@ -61,6 +63,15 @@ export const insumoRepository: InsumoRepository = {
   existeNombre: existeNombreComponente,
 
   usosEnRecetas: usosDeComponente,
+
+  async platosDeReventa(restauranteId, id) {
+    const platos = await prisma.itemMenu.findMany({
+      where: { restauranteId, insumoId: id },
+      select: { nombre: true },
+      orderBy: { nombre: 'asc' },
+    });
+    return platos.map((p) => p.nombre);
+  },
 
   async crear(restauranteId, datos) {
     const fila = await prisma.componenteInventario.create({

@@ -15,14 +15,34 @@ export function createInsumoService(repo: InsumoRepository) {
     }
   }
 
-  // Un insumo que se usa en recetas no se da de baja ni cambia de unidad base,
-  // porque dejaría líneas inválidas.
-  async function verificarSinUsos(restauranteId: string, insumo: Insumo, motivo: string) {
+  // Un insumo que se usa en recetas o que un plato revende como viene no se
+  // da de baja ni cambia de unidad base: dejaría líneas inválidas o haría que
+  // cada venta descuente otra cosa.
+  async function verificarSinUsos(
+    restauranteId: string,
+    insumo: Insumo,
+    cambio: 'baja' | 'unidad',
+  ) {
     const usos = await repo.usosEnRecetas(restauranteId, insumo.id);
     if (usos.length > 0) {
+      const motivo =
+        cambio === 'baja'
+          ? 'sacalo de esas recetas antes de darlo de baja'
+          : 'no se puede cambiar su unidad base';
       throw new AppError(
         409,
         `${insumo.nombre} se usa en las recetas de ${usos.join(', ')}: ${motivo}`,
+      );
+    }
+    const platos = await repo.platosDeReventa(restauranteId, insumo.id);
+    if (platos.length > 0) {
+      const motivo =
+        cambio === 'baja'
+          ? `sacalo de ${platos.length === 1 ? 'ese plato' : 'esos platos'} antes de darlo de baja`
+          : 'no se puede cambiar su unidad base';
+      throw new AppError(
+        409,
+        `${insumo.nombre} se vende como viene en ${platos.join(', ')}: ${motivo}`,
       );
     }
   }
@@ -40,25 +60,17 @@ export function createInsumoService(repo: InsumoRepository) {
       const actual = await obtener(restauranteId, id);
       await verificarNombre(restauranteId, datos.nombre, id);
       if (datos.unidadBase !== actual.unidadBase) {
-        await verificarSinUsos(restauranteId, actual, 'no se puede cambiar su unidad base');
+        await verificarSinUsos(restauranteId, actual, 'unidad');
       }
       if (actual.activo && datos.activo === false) {
-        await verificarSinUsos(
-          restauranteId,
-          actual,
-          'sacalo de esas recetas antes de darlo de baja',
-        );
+        await verificarSinUsos(restauranteId, actual, 'baja');
       }
       return repo.actualizar(restauranteId, id, datos);
     },
 
     async desactivar(restauranteId: string, id: string) {
       const actual = await obtener(restauranteId, id);
-      await verificarSinUsos(
-        restauranteId,
-        actual,
-        'sacalo de esas recetas antes de darlo de baja',
-      );
+      await verificarSinUsos(restauranteId, actual, 'baja');
       await repo.desactivar(restauranteId, id);
     },
   };

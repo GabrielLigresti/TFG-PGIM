@@ -45,7 +45,7 @@ export interface RecetaRepository {
   usosDeComponente(restauranteId: string, id: string): Promise<string[]>;
 }
 
-const seleccionReceta = {
+export const seleccionReceta = {
   rendimiento: true,
   instrucciones: true,
   lineas: {
@@ -56,7 +56,7 @@ const seleccionReceta = {
 
 type RecetaPrisma = Prisma.RecetaGetPayload<{ select: typeof seleccionReceta }>;
 
-function aRecetaFila(receta: RecetaPrisma): RecetaFila {
+export function aRecetaFila(receta: RecetaPrisma): RecetaFila {
   return {
     rendimiento: Number(receta.rendimiento),
     instrucciones: receta.instrucciones,
@@ -161,8 +161,9 @@ export const recetaRepository: RecetaRepository = {
   },
 
   async listarPlatos(restauranteId) {
+    // Los platos de reventa no tienen receta: no se listan para la cocina.
     const filas = await prisma.itemMenu.findMany({
-      where: { restauranteId },
+      where: { restauranteId, insumoId: null },
       select: seleccionPlato,
       orderBy: [{ activo: 'desc' }, { categoria: { nombre: 'asc' } }, { nombre: 'asc' }],
     });
@@ -171,7 +172,7 @@ export const recetaRepository: RecetaRepository = {
 
   async buscarPlato(restauranteId, itemId) {
     const fila = await prisma.itemMenu.findFirst({
-      where: { id: itemId, restauranteId },
+      where: { id: itemId, restauranteId, insumoId: null },
       select: seleccionPlato,
     });
     return fila && aPlato(fila);

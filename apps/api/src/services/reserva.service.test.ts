@@ -73,6 +73,9 @@ function repoFalso(cambios: Partial<ReservaRepository> = {}): jest.Mocked<Reserv
     listarDelDia: jest.fn().mockResolvedValue([filaPanel()]),
     buscarEnSucursal: jest.fn().mockResolvedValue(filaPanel()),
     activar: jest.fn().mockResolvedValue(true),
+    cerrar: jest
+      .fn()
+      .mockResolvedValue({ resultado: 'CERRADA', cuentaMesaId: 'CM', comensalId: C }),
     pendientesIniciadas: jest.fn().mockResolvedValue([fila({ inicio: new Date(A_LAS_20) })]),
     ...cambios,
   } as jest.Mocked<ReservaRepository>;
@@ -446,5 +449,109 @@ describe('vencimiento por no-show (CU-21)', () => {
 
     expect(await service.vencerPendientes()).toBe(0);
     expect(bus.publicar).not.toHaveBeenCalled();
+  });
+});
+
+describe('cierre de mesa (CU-18)', () => {
+  const R = 'restaurante';
+  const activa = () =>
+    repoFalso({ buscarEnSucursal: jest.fn().mockResolvedValue(filaPanel({ estado: 'ACTIVA' })) });
+
+  it('cierra, finaliza la reserva y avisa al mapa y a la visita', async () => {
+    const { service, repo, bus } = servicio(activa());
+
+    const cerrada = await service.cerrar(R, S, 'R', false);
+
+    expect(repo.cerrar).toHaveBeenCalledWith(R, S, 'R', false);
+    expect(cerrada).toMatchObject({ estado: 'FINALIZADA', cerrable: false });
+    expect(bus.publicar).toHaveBeenCalledWith({
+      tipo: 'RESERVA_FINALIZADA',
+      reserva: expect.objectContaining({ id: 'R', estado: 'FINALIZADA' }),
+    });
+    expect(bus.publicar).toHaveBeenCalledWith({
+      tipo: 'CUENTA_MESA_CERRADA',
+      cuentaMesaId: 'CM',
+      restauranteId: R,
+      comensalId: C,
+    });
+  });
+
+  it('con pedidos sin entregar responde 409 con el detalle', async () => {
+    const repo = activa();
+    repo.cerrar.mockResolvedValue({ resultado: 'BLOQUEADA', bloqueo: { pedidosSinEntregar: 2 } });
+
+    await expect(servicio(repo).service.cerrar(R, S, 'R', true)).rejects.toMatchObject({
+      status: 409,
+      message: 'Hay 2 pedidos sin entregar. Esperá a que se entreguen antes de cerrar la mesa.',
+      detalles: { pedidosSinEntregar: 2 },
+    });
+  });
+
+  it('con saldo sin confirmar responde 409 con el saldo', async () => {
+    const repo = activa();
+    repo.cerrar.mockResolvedValue({ resultado: 'BLOQUEADA', bloqueo: { saldoPendiente: 600 } });
+
+    await expect(servicio(repo).service.cerrar(R, S, 'R', false)).rejects.toMatchObject({
+      status: 409,
+      detalles: { saldoPendiente: 600 },
+    });
+  });
+
+  it('una reserva pendiente no se cierra', async () => {
+    const { service, repo } = servicio();
+    await expect(service.cerrar(R, S, 'R', true)).rejects.toMatchObject({ status: 409 });
+    expect(repo.cerrar).not.toHaveBeenCalled();
+  });
+
+  it('si cambió mientras tanto responde 409', async () => {
+    const repo = activa();
+    repo.cerrar.mockResolvedValue({ resultado: 'CAMBIO' });
+    await expect(servicio(repo).service.cerrar(R, S, 'R', true)).rejects.toMatchObject({
+      status: 409,
+    });
+  });
+});
+
+describe('cancelación desde el panel', () => {
+  const R = 'restaurante';
+  // 20:15: justo el fin de la tolerancia de la reserva de las 20:00.
+  const LIMITE = new Date('2026-10-30T23:15:00.000Z');
+
+  it('cancela una pendiente ya empezada, dentro de la tolerancia', async () => {
+    const { service, repo, bus } = servicio(undefined, undefined, LIMITE);
+
+    const cancelada = await service.cancelarDesdePanel(R, S, 'R');
+
+    expect(repo.cambiarEstado).toHaveBeenCalledWith(
+      { restauranteId: R, sucursalId: S },
+      'R',
+      'PENDIENTE',
+      'CANCELADA',
+    );
+    expect(cancelada).toMatchObject({ estado: 'CANCELADA', cancelable: false });
+    expect(bus.publicar).toHaveBeenCalledWith({
+      tipo: 'RESERVA_CANCELADA',
+      reserva: expect.objectContaining({ estado: 'CANCELADA' }),
+    });
+  });
+
+  it('pasada la tolerancia responde 409', async () => {
+    const { service } = servicio(undefined, undefined, new Date(LIMITE.getTime() + 1));
+    await expect(service.cancelarDesdePanel(R, S, 'R')).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('el panel la muestra cancelable hasta el fin de la tolerancia', async () => {
+    const [enLimite] = await servicio(undefined, undefined, LIMITE).service.delDia(
+      R,
+      S,
+      '2026-10-30',
+    );
+    expect(enLimite).toMatchObject({ cancelable: true, cerrable: false });
+    const [pasada] = await servicio(
+      undefined,
+      undefined,
+      new Date(LIMITE.getTime() + 1),
+    ).service.delDia(R, S, '2026-10-30');
+    expect(pasada!.cancelable).toBe(false);
   });
 });

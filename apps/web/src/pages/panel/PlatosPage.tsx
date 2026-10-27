@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import type { Categoria, CategoriaInput, Plato, PlatoInput } from '@pgim/shared';
+import type { Categoria, CategoriaInput, Insumo, Plato, PlatoInput } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { Lista } from '../../components/Lista';
 import {
@@ -95,6 +95,7 @@ export function PlatosPage() {
                   <span className="inline-flex flex-wrap items-center gap-1">
                     {p.nombre}
                     {p.sinReceta && <Etiqueta tono="warn">Sin receta</Etiqueta>}
+                    {p.reventa && <Etiqueta>Se vende como viene</Etiqueta>}
                     {!p.activo && <Etiqueta>Dado de baja</Etiqueta>}
                   </span>
                 ),
@@ -111,8 +112,12 @@ export function PlatosPage() {
               },
               {
                 titulo: 'Receta',
+                // Un plato de reventa no lleva receta.
                 valor: (p) =>
-                  tienePermiso('receta.ver') && (p.tieneReceta || tienePermiso('receta.crear')) ? (
+                  p.reventa ? (
+                    '—'
+                  ) : tienePermiso('receta.ver') &&
+                    (p.tieneReceta || tienePermiso('receta.crear')) ? (
                     <Link
                       to={`/panel/recetas/plato/${p.id}`}
                       className="inline-block py-2 text-text underline md:py-0"
@@ -254,7 +259,14 @@ function FormularioPlato({
   const [fotoUrl, setFotoUrl] = useState(plato?.fotoUrl ?? '');
   const [disponible, setDisponible] = useState(plato?.disponible ?? true);
   const [activo, setActivo] = useState(plato?.activo ?? true);
+  const [insumoReventaId, setInsumoReventaId] = useState(plato?.reventa?.id ?? '');
   const { enviar, enviando, error } = useGuardar();
+  const { tienePermiso } = useSesion();
+  // Solo se revenden insumos que se cuentan por unidades (botellas, latas…).
+  const insumos = useRecurso<Insumo[]>(tienePermiso('insumo.ver') ? '/insumos' : null);
+  const porUnidad = insumos.datos?.filter(
+    (i) => i.unidadBase === 'UNIDAD' && (i.activo || i.id === insumoReventaId),
+  );
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -265,6 +277,8 @@ function FormularioPlato({
       precio: aNumero(precio),
       fotoUrl: fotoUrl.trim() || null,
       disponible,
+      // Sin permiso para ver insumos el campo no se muestra: no se toca.
+      ...(porUnidad && { insumoReventaId: insumoReventaId || null }),
       ...(plato && { activo }),
     };
     const respuesta = plato
@@ -320,14 +334,38 @@ function FormularioPlato({
             className={claseInput}
           />
         </Campo>
-        <Campo etiqueta="Foto (URL)" ayuda="Opcional">
+        <Campo etiqueta="Foto" ayuda="Opcional. Pegá el enlace de una imagen (https://…).">
           <input
-            type="url"
+            type="text"
             value={fotoUrl}
             onChange={(e) => setFotoUrl(e.target.value)}
             className={claseInput}
           />
         </Campo>
+        {porUnidad && (
+          <Campo
+            etiqueta="Se vende como viene"
+            ayuda={
+              plato?.tieneReceta
+                ? 'Tiene receta: para venderlo como viene, primero borrá la receta.'
+                : 'Para bebidas y otros productos que se venden sin preparar: cada venta descuenta 1 unidad del insumo.'
+            }
+          >
+            <select
+              value={insumoReventaId}
+              disabled={plato?.tieneReceta}
+              onChange={(e) => setInsumoReventaId(e.target.value)}
+              className={claseInput}
+            >
+              <option value="">No, se prepara con receta</option>
+              {porUnidad.map((i) => (
+                <option key={i.id} value={i.id}>
+                  {i.nombre}
+                </option>
+              ))}
+            </select>
+          </Campo>
+        )}
         <Casilla
           etiqueta="Disponible (desmarcar si está agotado)"
           checked={disponible}

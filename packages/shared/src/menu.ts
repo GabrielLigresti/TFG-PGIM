@@ -18,14 +18,28 @@ export interface Categoria {
   cantidadPlatos: number;
 }
 
+// Un enlace completo (http o https) o una ruta del propio sitio, como las fotos
+// de demo que sirve la web (/fotos-demo/…).
+const fotoUrlSchema = z
+  .string()
+  .trim()
+  .refine(
+    (v) =>
+      (v.startsWith('/') && !v.startsWith('//')) ||
+      /^https?:\/\/[^\s/?#]+\.[^\s/?#]+(\/\S*)?$|^https?:\/\/localhost(:\d+)?(\/\S*)?$/.test(v),
+    'Pegá un enlace que empiece con https://',
+  );
+
 export const platoInputSchema = z.object({
   categoriaId: z.uuid('Elegí una categoría'),
   nombre: nombreSchema,
   descripcion: z.string().trim().max(500).nullish(),
   precio: z.number().positive('El precio tiene que ser mayor a 0').max(1e10),
-  fotoUrl: z.url('La foto tiene que ser una URL').nullish(),
+  fotoUrl: fotoUrlSchema.nullish(),
   disponible: z.boolean(),
   activo: z.boolean().optional(),
+  // Reventa: el plato se vende como viene y descuenta 1 unidad de este insumo.
+  insumoReventaId: z.uuid('Elegí un insumo').nullish(),
 });
 
 export type PlatoInput = z.infer<typeof platoInputSchema>;
@@ -56,8 +70,11 @@ export interface Plato {
   activo: boolean;
   categoria: { id: string; nombre: string; requiereReceta: boolean };
   tieneReceta: boolean;
-  // La categoría pide receta y el plato no la tiene (anticipa PLATO_SIN_RECETA).
+  // La categoría pide receta y el plato no la tiene ni es de reventa
+  // (anticipa PLATO_SIN_RECETA).
   sinReceta: boolean;
+  // Insumo que se revende como viene (por ejemplo, una bebida), o null.
+  reventa: { id: string; nombre: string } | null;
   modeloRa: ModeloRa | null;
 }
 

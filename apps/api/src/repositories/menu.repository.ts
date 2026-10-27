@@ -6,9 +6,18 @@ import type {
   ModeloRa,
   Plato,
   PlatoInput,
+  TipoComponente,
 } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
+
+export interface InsumoReventa {
+  id: string;
+  nombre: string;
+  tipo: TipoComponente;
+  unidadBase: string;
+  activo: boolean;
+}
 
 export interface MenuRepository {
   listarCategorias(restauranteId: string): Promise<Categoria[]>;
@@ -22,6 +31,8 @@ export interface MenuRepository {
   buscarPlato(restauranteId: string, id: string): Promise<Plato | null>;
   existePlato(restauranteId: string, nombre: string, excluirId?: string): Promise<boolean>;
   crearPlato(restauranteId: string, datos: PlatoInput): Promise<Plato>;
+  // Componente del restaurante que se quiere revender, para validarlo.
+  buscarInsumoReventa(restauranteId: string, id: string): Promise<InsumoReventa | null>;
   actualizarPlato(restauranteId: string, id: string, datos: PlatoInput): Promise<Plato>;
   desactivarPlato(restauranteId: string, id: string): Promise<void>;
   guardarModeloRa(restauranteId: string, platoId: string, datos: ModeloRa): Promise<void>;
@@ -61,6 +72,7 @@ const seleccionPlato = {
   activo: true,
   categoria: { select: { id: true, nombre: true, requiereReceta: true } },
   receta: { select: { id: true } },
+  insumo: { select: { id: true, nombre: true } },
   modeloRa: {
     select: { urlModelo: true, urlModeloIos: true, escalaReal: true, porcionGramos: true },
   },
@@ -68,13 +80,14 @@ const seleccionPlato = {
 
 type FilaPlato = Prisma.ItemMenuGetPayload<{ select: typeof seleccionPlato }>;
 
-function aPlato({ receta, modeloRa, ...fila }: FilaPlato): Plato {
+function aPlato({ receta, insumo, modeloRa, ...fila }: FilaPlato): Plato {
   return {
     ...fila,
     modeloRa: modeloRa && { ...modeloRa, escalaReal: Number(modeloRa.escalaReal) },
     precio: Number(fila.precio),
     tieneReceta: receta !== null,
-    sinReceta: fila.categoria.requiereReceta && receta === null,
+    sinReceta: fila.categoria.requiereReceta && receta === null && insumo === null,
+    reventa: insumo,
   };
 }
 
@@ -86,6 +99,8 @@ function columnasPlato(datos: PlatoInput) {
     precio: datos.precio,
     fotoUrl: datos.fotoUrl || null,
     disponible: datos.disponible,
+    // Sin el dato, la reventa queda como estaba.
+    ...(datos.insumoReventaId !== undefined && { insumoId: datos.insumoReventaId }),
   };
 }
 
@@ -203,6 +218,13 @@ export const menuRepository: MenuRepository = {
       },
     });
     return cantidad > 0;
+  },
+
+  async buscarInsumoReventa(restauranteId, id) {
+    return prisma.componenteInventario.findFirst({
+      where: { id, restauranteId },
+      select: { id: true, nombre: true, tipo: true, unidadBase: true, activo: true },
+    });
   },
 
   async crearPlato(restauranteId, datos) {

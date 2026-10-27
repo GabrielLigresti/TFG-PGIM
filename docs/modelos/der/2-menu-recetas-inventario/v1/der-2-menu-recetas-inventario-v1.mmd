@@ -9,6 +9,7 @@ erDiagram
     CATEGORIA ||--o{ ITEM_MENU : agrupa
     ITEM_MENU ||--o| MODELO_RA : se_visualiza_con
     ITEM_MENU |o--o| RECETA : se_prepara_con
+    COMPONENTE_INVENTARIO |o--o{ ITEM_MENU : se_revende_como
     COMPONENTE_INVENTARIO |o--o| RECETA : intermedio_se_elabora_con
     RECETA ||--|{ LINEA_RECETA : compone
     COMPONENTE_INVENTARIO ||--o{ LINEA_RECETA : usado_en
@@ -45,6 +46,7 @@ erDiagram
         text descripcion "null si no tiene"
         numeric precio
         varchar foto_url "null si no tiene foto"
+        uuid insumo_id FK "reventa: se vende como viene, 1 unidad por porcion; null si no"
         bool disponible
         bool activo
     }

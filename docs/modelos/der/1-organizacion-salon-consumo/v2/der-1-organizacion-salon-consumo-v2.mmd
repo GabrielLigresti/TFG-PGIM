@@ -139,6 +139,7 @@ erDiagram
         uuid sucursal_id FK "redundante; cola de cocina por sucursal"
         int numero "correlativo por sucursal; UK con sucursal_id"
         timestamptz creado_en
+        timestamptz listo_en "null hasta LISTO"
         EstadoPedido estado "CONFIRMADO | EN_PREPARACION | LISTO | ENTREGADO | CANCELADO (State)"
         varchar motivo_cancelacion "solo CANCELADO"
     }

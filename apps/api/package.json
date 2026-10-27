@@ -11,6 +11,7 @@
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "jest",
+    "test:db": "NODE_OPTIONS=--experimental-vm-modules DATABASE_URL=${DATABASE_URL_TEST:-postgresql://pgim:pgim@localhost:5432/pgim_test?schema=public} jest -c jest.db.config.js --runInBand",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",

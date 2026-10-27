@@ -32,10 +32,15 @@ export function VisorRA({
   modelo,
   nombre,
   fotoUrl,
+  alAgregar,
+  cantidadEnPedido = 0,
 }: {
   modelo: ModeloRa;
   nombre: string;
   fotoUrl: string | null;
+  // Con la mesa activa: "Agregar al pedido" dentro de la RA (flujo A de CU-10).
+  alAgregar?: () => void;
+  cantidadEnPedido?: number;
 }) {
   const listo = useModelViewer();
   const visor = useRef<ModelViewerElement>(null);
@@ -169,16 +174,32 @@ export function VisorRA({
           <p className="text-xs opacity-80">Porción: {porcion}</p>
           {diagnostico && <p className="mt-1 font-mono text-xs opacity-90">{diagnostico}</p>}
         </div>
-        <button
-          type="button"
-          ref={(b) => {
-            b?.addEventListener('beforexrselect', frenarSeleccion);
-          }}
-          onClick={() => salir.current?.()}
-          className="absolute bottom-8 left-1/2 -translate-x-1/2 rounded-full bg-surface px-6 py-3 font-semibold text-ink shadow-flotante"
-        >
-          Salir
-        </button>
+        <div className="absolute inset-x-4 bottom-8 flex justify-center gap-3">
+          <button
+            type="button"
+            ref={(b) => {
+              b?.addEventListener('beforexrselect', frenarSeleccion);
+            }}
+            onClick={() => salir.current?.()}
+            className="min-h-12 rounded-full bg-surface px-6 font-semibold text-ink shadow-flotante"
+          >
+            Salir
+          </button>
+          {alAgregar && (
+            <button
+              type="button"
+              ref={(b) => {
+                b?.addEventListener('beforexrselect', frenarSeleccion);
+              }}
+              onClick={alAgregar}
+              className="min-h-12 rounded-full bg-accent px-6 font-semibold text-white shadow-flotante"
+            >
+              {cantidadEnPedido > 0
+                ? `Agregar otro (${cantidadEnPedido} en el pedido)`
+                : 'Agregar al pedido'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

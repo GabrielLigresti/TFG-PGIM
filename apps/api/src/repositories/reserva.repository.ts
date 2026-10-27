@@ -1,7 +1,8 @@
-import type { EstadoReserva, Mesa, ModoAsignacion } from '@pgim/shared';
+import type { BloqueoCierre, EstadoReserva, Mesa, ModoAsignacion } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { aHora } from '../lib/hora';
 import { prisma } from '../lib/prisma';
+import { totalesDeCuenta } from './cuenta-mesa.repository';
 import { aMesa } from './mesa.repository';
 
 export interface SucursalReservable {
@@ -84,10 +85,24 @@ export interface ReservaRepository {
     desde: EstadoReserva,
     hacia: EstadoReserva,
   ): Promise<boolean>;
+  // CU-18: cierra la mesa de una reserva ACTIVA en una transacción. Se
+  // bloquea con pedidos sin entregar o, sin confirmarSaldo, con saldo
+  // pendiente. CAMBIO si la reserva ya no estaba ACTIVA en esa sucursal.
+  cerrar(
+    restauranteId: string,
+    sucursalId: string,
+    id: string,
+    confirmarSaldo: boolean,
+  ): Promise<ResultadoCierre>;
   // CU-21: PENDIENTE ya empezadas, con la tolerancia de su sucursal. Incluye
   // las de sucursales dadas de baja, para que no queden pendientes para siempre.
   pendientesIniciadas(ahora: Date): Promise<FilaReserva[]>;
 }
+
+export type ResultadoCierre =
+  | { resultado: 'CERRADA'; cuentaMesaId: string; comensalId: string }
+  | { resultado: 'BLOQUEADA'; bloqueo: BloqueoCierre }
+  | { resultado: 'CAMBIO' };
 
 // Toda escritura va acotada: por el comensal titular, por la sucursal de
 // trabajo del personal o, solo en las tareas programadas, por ninguno.
@@ -255,6 +270,40 @@ export const reservaRepository: ReservaRepository = {
       if (count !== 1) return false;
       await tx.cuentaMesa.create({ data: { reservaId: id } });
       return true;
+    });
+  },
+
+  cerrar(restauranteId, sucursalId, id, confirmarSaldo) {
+    return prisma.$transaction(async (tx): Promise<ResultadoCierre> => {
+      const reserva = await tx.reserva.findFirst({
+        where: { id, estado: 'ACTIVA', ...deLaSucursal(restauranteId, sucursalId) },
+        select: { comensalId: true, cuentaMesa: { select: { id: true } } },
+      });
+      if (!reserva?.cuentaMesa) return { resultado: 'CAMBIO' };
+      const cuentaMesaId = reserva.cuentaMesa.id;
+      // Bloquea la cuenta: un pedido o un pago no entran mientras se cierra (los
+      // dos la bloquean igual).
+      await tx.$queryRaw`SELECT id FROM cuenta_mesa WHERE id = ${cuentaMesaId}::uuid FOR UPDATE`;
+
+      const { total, pagado, pedidosActivos } = await totalesDeCuenta(tx, cuentaMesaId);
+      if (pedidosActivos > 0) {
+        return { resultado: 'BLOQUEADA', bloqueo: { pedidosSinEntregar: pedidosActivos } };
+      }
+      const saldo = Math.round((total - pagado) * 100) / 100;
+      if (saldo > 0 && !confirmarSaldo) {
+        return { resultado: 'BLOQUEADA', bloqueo: { saldoPendiente: saldo } };
+      }
+
+      const { count } = await tx.reserva.updateMany({
+        where: { id, estado: 'ACTIVA' },
+        data: { estado: 'FINALIZADA' },
+      });
+      if (count !== 1) return { resultado: 'CAMBIO' };
+      await tx.cuentaMesa.update({
+        where: { id: cuentaMesaId },
+        data: { estado: 'CERRADA', cerradaEn: new Date() },
+      });
+      return { resultado: 'CERRADA', cuentaMesaId, comensalId: reserva.comensalId };
     });
   },
 

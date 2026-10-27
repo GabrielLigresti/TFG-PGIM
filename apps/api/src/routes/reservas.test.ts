@@ -21,6 +21,7 @@ jest.mock('../repositories/reserva.repository', () => ({
     listarDelDia: jest.fn().mockResolvedValue([]),
     buscarEnSucursal: jest.fn(),
     activar: jest.fn().mockResolvedValue(true),
+    cerrar: jest.fn(),
   },
 }));
 
@@ -186,5 +187,58 @@ describe('/api/reservas (panel)', () => {
       IDS.centro,
       RESERVA,
     );
+  });
+
+  const activa = () => ({
+    id: RESERVA,
+    sucursalId: IDS.centro,
+    sucursalNombre: 'Centro',
+    comensalId: IDS.comensal,
+    mesaId: MESA,
+    mesaNumero: 1,
+    inicio: new Date(Date.now() - 10 * 60 * 1000),
+    cantidadPersonas: 2,
+    modoAsignacion: 'MANUAL',
+    estado: 'ACTIVA',
+    toleranciaNoShowMin: 15,
+    comensalNombre: 'Carlos',
+    comensalTelefono: null,
+  });
+
+  it('cerrar sin mesa.cerrar responde 403', async () => {
+    await request(app)
+      .post(`/api/reservas/${RESERVA}/cerrar`)
+      .set('Cookie', cookieConPermisos(['reserva.activar']))
+      .send({})
+      .expect(403);
+  });
+
+  it('un cierre bloqueado devuelve el detalle para la pantalla', async () => {
+    reservaRepository.buscarEnSucursal.mockResolvedValue(activa());
+    reservaRepository.cerrar.mockResolvedValue({
+      resultado: 'BLOQUEADA',
+      bloqueo: { saldoPendiente: 600 },
+    });
+
+    const res = await request(app)
+      .post(`/api/reservas/${RESERVA}/cerrar`)
+      .set('Cookie', cookieConPermisos(['mesa.cerrar']))
+      .send({});
+
+    expect(res.status).toBe(409);
+    expect(res.body.detalles).toEqual({ saldoPendiente: 600 });
+    expect(reservaRepository.cerrar).toHaveBeenCalledWith(
+      IDS.restaurante,
+      IDS.centro,
+      RESERVA,
+      false,
+    );
+  });
+
+  it('cancelar desde el panel sin reserva.activar responde 403', async () => {
+    await request(app)
+      .post(`/api/reservas/${RESERVA}/cancelar`)
+      .set('Cookie', cookieConPermisos(['reserva.ver', 'mesa.cerrar']))
+      .expect(403);
   });
 });

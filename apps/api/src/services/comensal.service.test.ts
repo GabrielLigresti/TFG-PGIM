@@ -1,9 +1,11 @@
+import type { Componente } from '../domain/receta';
 import type {
   ComensalRepository,
   PlatoDelMenu,
   SucursalConMenu,
 } from '../repositories/comensal.repository';
 import { createComensalService } from './comensal.service';
+import type { Inventario } from './menu-visible';
 
 const HOY = '2026-10-23';
 
@@ -18,6 +20,8 @@ function plato(id: string, cambios: Partial<PlatoDelMenu> = {}): PlatoDelMenu {
     activo: true,
     categoria: { id: 'principales', nombre: 'Principales', requiereReceta: true },
     tieneReceta: true,
+    receta: null,
+    insumoReventaId: null,
     modeloRa: null,
     ...cambios,
   };
@@ -50,13 +54,34 @@ function sucursal(
   };
 }
 
-function servicio(datos: SucursalConMenu | null) {
+const queso: Componente = {
+  id: 'queso',
+  nombre: 'Queso',
+  tipo: 'INSUMO',
+  unidadBase: 'GRAMO',
+  activo: true,
+  costoCompra: 5,
+  receta: null,
+};
+
+function servicio(datos: SucursalConMenu | null, stockQueso = 1000) {
   const repo: jest.Mocked<ComensalRepository> = {
     listarSucursales: jest.fn(),
     buscarSucursalConMenu: jest.fn().mockResolvedValue(datos),
   };
-  return createComensalService(repo, () => HOY);
+  const inventario: Inventario = {
+    cargarCatalogo: jest.fn().mockResolvedValue(new Map([['queso', queso]])),
+    existencias: jest.fn().mockResolvedValue(new Map([['queso', stockQueso]])),
+  };
+  return createComensalService(repo, () => HOY, inventario);
 }
+
+// 50 g de queso por porción.
+const recetaConQueso = {
+  rendimiento: 1,
+  instrucciones: null,
+  lineas: [{ componenteId: 'queso', cantidad: 50, unidad: 'GRAMO' as const, porcentajeMerma: 0 }],
+};
 
 describe('comensalService', () => {
   it('muestra solo los platos activos, disponibles y con receta si la categoría la exige', async () => {
@@ -94,5 +119,33 @@ describe('comensalService', () => {
     await expect(servicio(sucursal()).obtenerPlato('centro', 'milanesa')).rejects.toMatchObject({
       status: 404,
     });
+  });
+
+  it('un plato al que no le alcanza el stock para una porción figura sin stock', async () => {
+    const conReceta = sucursal({ platos: [plato('pizza', { receta: recetaConQueso })] });
+
+    const sinStock = await servicio(conReceta, 49).obtenerMenu('centro');
+    expect(sinStock.menu?.categorias[0]?.platos[0]?.hayStock).toBe(false);
+
+    const conStock = await servicio(conReceta, 50).obtenerMenu('centro');
+    expect(conStock.menu?.categorias[0]?.platos[0]?.hayStock).toBe(true);
+  });
+
+  it('un plato sin receta figura con stock', async () => {
+    const { menu } = await servicio(sucursal(), 0).obtenerMenu('centro');
+    expect(menu?.categorias.flatMap((c) => c.platos).every((p) => p.hayStock)).toBe(true);
+  });
+
+  it('un plato de reventa descuenta del insumo y sale sin stock si no queda', async () => {
+    // Categoría que pide receta: la reventa también la cumple.
+    const conReventa = sucursal({
+      platos: [plato('agua', { tieneReceta: false, insumoReventaId: 'queso' })],
+    });
+
+    const sinStock = await servicio(conReventa, 0).obtenerMenu('centro');
+    expect(sinStock.menu?.categorias[0]?.platos[0]).toMatchObject({ id: 'agua', hayStock: false });
+
+    const conStock = await servicio(conReventa, 1).obtenerMenu('centro');
+    expect(conStock.menu?.categorias[0]?.platos[0]?.hayStock).toBe(true);
   });
 });

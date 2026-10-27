@@ -1,0 +1,199 @@
+import { prisma } from '../lib/prisma';
+import { crearEscenario, limpiarBase, type Escenario } from '../test/db-setup';
+import { cuentaMesaRepository } from './cuenta-mesa.repository';
+import { pedidoRepository, type CuentaParaPedido } from './pedido.repository';
+import { reservaRepository } from './reserva.repository';
+
+afterAll(() => prisma.$disconnect());
+
+let e: Escenario;
+let cuenta: CuentaParaPedido;
+
+beforeEach(async () => {
+  await limpiarBase();
+  e = await crearEscenario();
+  cuenta = (await pedidoRepository.buscarCuentaDelComensal(e.comensalId, e.cuentaMesaId))!;
+});
+
+const agua = () => ({
+  itemMenuId: e.aguaId,
+  cantidad: 2,
+  precioUnitario: 300,
+  observaciones: null,
+  insumos: new Map<string, number>(),
+});
+
+async function entregar(id: string) {
+  await prisma.pedido.update({ where: { id }, data: { estado: 'ENTREGADO' } });
+}
+
+const aprobar = async (pago: { id: string; monto: number }) => ({
+  estado: 'APROBADO' as const,
+  referenciaExterna: `SIM-${pago.id}`,
+});
+
+describe('cuentaMesaRepository', () => {
+  it('encuentra la mesa abierta del comensal, en la sucursal o en cualquiera', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
+
+    const mesa = await cuentaMesaRepository.mesaAbiertaDelComensal(e.comensalId, e.sucursalId);
+    expect(mesa).toMatchObject({
+      cuentaMesaId: e.cuentaMesaId,
+      estado: 'ABIERTA',
+      mesaNumero: 4,
+      comensalId: e.comensalId,
+      pagado: 0,
+    });
+    expect(mesa!.pedidos).toEqual([
+      expect.objectContaining({ id: pedido.id, numero: 1, estado: 'CONFIRMADO', total: 600 }),
+    ]);
+    expect(await cuentaMesaRepository.mesaAbiertaDelComensal(e.comensalId)).not.toBeNull();
+    expect(await cuentaMesaRepository.mesaAbiertaDelComensal(e.comensalId, e.harinaId)).toBeNull();
+    expect(await cuentaMesaRepository.buscarDelComensal(e.harinaId, e.cuentaMesaId)).toBeNull();
+  });
+
+  it('registra un pago aprobado con la referencia de la pasarela', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
+      'APROBADO',
+    );
+    const pago = await prisma.pago.findFirstOrThrow();
+    expect(pago.estado).toBe('APROBADO');
+    expect(pago.referenciaExterna).toBe(`SIM-${pago.id}`);
+    expect(Number(pago.monto)).toBe(600);
+    const mesa = await cuentaMesaRepository.buscarDelComensal(e.comensalId, e.cuentaMesaId);
+    expect(mesa!.pagado).toBe(600);
+  });
+
+  it('cobra el saldo calculado al bloquear la cuenta', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    const cobrado: number[] = [];
+    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async (pago) => {
+      cobrado.push(pago.monto);
+      return aprobar(pago);
+    });
+    expect(cobrado).toEqual([600]);
+  });
+
+  it('sin saldo no crea el pago', async () => {
+    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
+      'SIN_SALDO',
+    );
+    expect(await prisma.pago.count()).toBe(0);
+  });
+
+  it('una mesa cerrada no recibe pagos', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    await prisma.cuentaMesa.update({ where: { id: e.cuentaMesaId }, data: { estado: 'CERRADA' } });
+    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
+      'CERRADA',
+    );
+    expect(await prisma.pago.count()).toBe(0);
+  });
+
+  it('si la pasarela falla no queda un pago pendiente', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    await expect(
+      cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async () => {
+        throw new Error('pasarela caída');
+      }),
+    ).rejects.toThrow('pasarela caída');
+    expect(await prisma.pago.count()).toBe(0);
+  });
+
+  it('un pago rechazado queda RECHAZADO y no suma a lo pagado', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    expect(
+      await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async () => ({
+        estado: 'RECHAZADO',
+      })),
+    ).toBe('RECHAZADO');
+    const mesa = await cuentaMesaRepository.buscarDelComensal(e.comensalId, e.cuentaMesaId);
+    expect(mesa!.pagado).toBe(0);
+  });
+});
+
+describe('reservaRepository.cerrar', () => {
+  const cerrar = (confirmarSaldo: boolean) =>
+    reservaRepository.cerrar(e.restauranteId, e.sucursalId, e.reservaId, confirmarSaldo);
+
+  it('con pedidos sin entregar se bloquea', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    expect(await cerrar(true)).toEqual({
+      resultado: 'BLOQUEADA',
+      bloqueo: { pedidosSinEntregar: 1 },
+    });
+  });
+
+  it('con saldo pendiente pide confirmación y después cierra', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
+    await entregar(pedido.id);
+
+    expect(await cerrar(false)).toEqual({
+      resultado: 'BLOQUEADA',
+      bloqueo: { saldoPendiente: 600 },
+    });
+    expect(await cerrar(true)).toEqual({
+      resultado: 'CERRADA',
+      cuentaMesaId: e.cuentaMesaId,
+      comensalId: e.comensalId,
+    });
+
+    const reserva = await prisma.reserva.findUniqueOrThrow({
+      where: { id: e.reservaId },
+      include: { cuentaMesa: true },
+    });
+    expect(reserva.estado).toBe('FINALIZADA');
+    expect(reserva.cuentaMesa!.estado).toBe('CERRADA');
+    expect(reserva.cuentaMesa!.cerradaEn).toBeInstanceOf(Date);
+  });
+
+  it('pagada, cierra sin pedir confirmación', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
+    await entregar(pedido.id);
+    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar);
+
+    expect((await cerrar(false)).resultado).toBe('CERRADA');
+  });
+
+  it('un pedido cancelado no bloquea ni suma al saldo', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
+    await pedidoRepository.cancelar(e.restauranteId, e.sucursalId, pedido.id, 'x');
+
+    expect((await cerrar(false)).resultado).toBe('CERRADA');
+  });
+
+  it('una reserva que ya no está activa no se cierra', async () => {
+    await prisma.reserva.update({ where: { id: e.reservaId }, data: { estado: 'FINALIZADA' } });
+    expect(await cerrar(true)).toEqual({ resultado: 'CAMBIO' });
+  });
+
+  it('una reserva de otra sucursal no se cierra', async () => {
+    expect(await reservaRepository.cerrar(e.restauranteId, e.harinaId, e.reservaId, true)).toEqual({
+      resultado: 'CAMBIO',
+    });
+  });
+});
+
+describe('cuentaMesaRepository.registrarVisita', () => {
+  const visitar = () =>
+    cuentaMesaRepository.registrarVisita(e.cuentaMesaId, e.restauranteId, e.comensalId);
+
+  it('con un pago aprobado registra una visita, una sola vez', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar);
+
+    expect(await visitar()).toBe(true);
+    expect(await visitar()).toBe(false);
+
+    expect(await prisma.visita.count()).toBe(1);
+    const fidelidad = await prisma.cuentaFidelidad.findFirstOrThrow();
+    expect(fidelidad.cantidadVisitas).toBe(1);
+  });
+
+  it('sin pago no registra visita ni crea la cuenta de fidelidad', async () => {
+    expect(await visitar()).toBe(false);
+    expect(await prisma.visita.count()).toBe(0);
+    expect(await prisma.cuentaFidelidad.count()).toBe(0);
+  });
+});

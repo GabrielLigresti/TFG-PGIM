@@ -434,6 +434,7 @@ model Pedido {
   sucursalId        String       @map("sucursal_id") @db.Uuid
   numero            Int
   creadoEn          DateTime     @default(now()) @map("creado_en") @db.Timestamptz(6)
+  listoEn           DateTime?    @map("listo_en") @db.Timestamptz(6)
   estado            EstadoPedido @default(CONFIRMADO)
   motivoCancelacion String?      @map("motivo_cancelacion")
 
@@ -562,11 +563,14 @@ model ItemMenu {
   descripcion   String? @db.Text
   precio        Decimal @db.Decimal(12, 2)
   fotoUrl       String? @map("foto_url")
+  // Reventa: se vende como viene y descuenta 1 unidad del insumo por porción.
+  insumoId      String? @map("insumo_id") @db.Uuid
   disponible    Boolean @default(true)
   activo        Boolean @default(true)
 
-  restaurante  Restaurante   @relation(fields: [restauranteId], references: [id])
-  categoria    Categoria     @relation(fields: [categoriaId], references: [id])
+  restaurante  Restaurante           @relation(fields: [restauranteId], references: [id])
+  categoria    Categoria             @relation(fields: [categoriaId], references: [id])
+  insumo       ComponenteInventario? @relation(fields: [insumoId], references: [id])
   menus        MenuItem[]
   modeloRa     ModeloRA?
   receta       Receta?
@@ -576,6 +580,7 @@ model ItemMenu {
 
   @@index([restauranteId])
   @@index([categoriaId])
+  @@index([insumoId])
   @@map("item_menu")
 }
 
@@ -605,6 +610,7 @@ model ComponenteInventario {
   restaurante  Restaurante   @relation(fields: [restauranteId], references: [id])
   receta       Receta?
   lineasReceta LineaReceta[]
+  itemsReventa ItemMenu[]
   existencias  Existencia[]
 
   @@index([restauranteId])
