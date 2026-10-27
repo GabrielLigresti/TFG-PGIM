@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
-import { CalendarDays, ChevronLeft, House, LogOut } from 'lucide-react';
+import { CalendarDays, ChevronLeft, House, LogOut, Receipt } from 'lucide-react';
 import { useSesion } from '../auth/SesionProvider';
+import { useMiMesa } from '../lib/miMesa';
 
 const PESTANIAS = [
   { a: '/inicio', texto: 'Inicio', icono: House },
@@ -29,6 +30,11 @@ export function LayoutComensal({
   children: ReactNode;
 }) {
   const { sesion, logout } = useSesion();
+  // "Mi mesa" aparece solo mientras el comensal tiene una mesa activa.
+  const mesa = useMiMesa(null).datos;
+  const pestanias = mesa
+    ? [...PESTANIAS, { a: '/mesa', texto: 'Mi mesa', icono: Receipt }]
+    : PESTANIAS;
 
   return (
     <div className="min-h-screen bg-bg">
@@ -72,8 +78,10 @@ export function LayoutComensal({
           aria-label="Secciones"
           className="border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
         >
-          <div className="mx-auto grid h-14 max-w-[480px] grid-cols-2">
-            {PESTANIAS.map(({ a, texto, icono: Icono }) => (
+          <div
+            className={`mx-auto grid h-14 max-w-[480px] ${mesa ? 'grid-cols-3' : 'grid-cols-2'}`}
+          >
+            {pestanias.map(({ a, texto, icono: Icono }) => (
               <NavLink
                 key={a}
                 to={a}
