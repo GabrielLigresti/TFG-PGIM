@@ -18,6 +18,7 @@ import { PedidoPage } from './pages/comensal/PedidoPage';
 import { PlatoPage } from './pages/comensal/PlatoPage';
 import { ReservarPage } from './pages/comensal/ReservarPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
+import { CocinaPage } from './pages/panel/CocinaPage';
 import { InsumosPage } from './pages/panel/InsumosPage';
 import { MenusPage } from './pages/panel/MenusPage';
 import { PersonalPage } from './pages/panel/PersonalPage';
@@ -70,6 +71,7 @@ export default function App() {
                 >
                   <Route index element={<PanelPage />} />
                   <Route path="reservas" element={conPermiso('reserva.ver', <ReservasPage />)} />
+                  <Route path="cocina" element={conPermiso('pedido.ver', <CocinaPage />)} />
                   <Route
                     path="sucursales"
                     element={conPermiso('sucursal.ver', <SucursalesPage />)}

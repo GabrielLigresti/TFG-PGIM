@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { EVENTOS_SOCKET } from '@pgim/shared';
 
@@ -50,4 +50,44 @@ export function useEventoSocket<T>(
       if (salaSucursalId) conexion.emit(EVENTOS_SOCKET.dejarSalon, salaSucursalId);
     };
   }, [evento, salaSucursalId]);
+}
+
+export type EstadoConexion = 'en-vivo' | 'sin-conexion' | 'reintentando';
+
+// Estado de la conexión en tiempo real, para el indicador "En vivo". Al volver
+// la conexión llama a alReconectar (por ejemplo, para recargar la cola entera:
+// lo que pasó mientras estaba cortada no llegó).
+export function useConexionSocket(alReconectar?: () => void): EstadoConexion {
+  const conexion = obtenerSocket();
+  const [estado, setEstado] = useState<EstadoConexion>(
+    conexion.connected ? 'en-vivo' : 'sin-conexion',
+  );
+  const reconectar = useRef(alReconectar);
+  useEffect(() => {
+    reconectar.current = alReconectar;
+  });
+
+  useEffect(() => {
+    let estuvoCortada = false;
+    const alConectar = () => {
+      setEstado('en-vivo');
+      if (estuvoCortada) reconectar.current?.();
+      estuvoCortada = false;
+    };
+    const alCortarse = () => {
+      estuvoCortada = true;
+      setEstado('sin-conexion');
+    };
+    const alReintentar = () => setEstado('reintentando');
+    conexion.on('connect', alConectar);
+    conexion.on('disconnect', alCortarse);
+    conexion.io.on('reconnect_attempt', alReintentar);
+    return () => {
+      conexion.off('connect', alConectar);
+      conexion.off('disconnect', alCortarse);
+      conexion.io.off('reconnect_attempt', alReintentar);
+    };
+  }, [conexion]);
+
+  return estado;
 }
