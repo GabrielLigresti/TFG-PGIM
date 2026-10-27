@@ -87,6 +87,7 @@ Si la sesión no tiene acceso al vault, trabajar con `docs/modelos/` y preguntar
 - Ante un hueco de contexto o una ambigüedad, preguntar antes de asumir.
 - **Idioma del código:** términos del dominio en español, como en los diagramas (`Reserva`, `Pedido`, `CuentaMesa`); términos técnicos en inglés (`ReservaService`, `findById`, `controller`).
 - **Commits:** pequeños y descriptivos, con el mensaje en español.
+- **Diseño de interfaz:** el trabajo visual pasa por `/impeccable`. `PRODUCT.md` describe el producto y `DESIGN.md` el sistema visual. `DESIGN.md` manda en lo visual como `docs/modelos/` en los datos, y se mantiene sincronizado con `apps/web/src/index.css`: un cambio de tokens actualiza los dos en el mismo PR. Antes de tocar una pantalla, correr `impeccable context --target <archivo>`.
 - **Revisión independiente, una por hito o PR:** al terminar, un agente aparte (en lo posible con Opus) revisa antes del push. Arranca con contexto limpio, trabaja en solo lectura y recibe un brief corto: rango de commits, plan, foco de revisión y decisiones que tomó el implementador. Compara contra el plan y `docs/modelos/`.
   - **Informe:** solo hallazgos, cada uno con severidad (crítico, importante o menor), archivo y línea; sin listar fortalezas. El revisor no sube la severidad porque el plan no diga nada; el implementador la recalifica antes de decidir.
   - **Re-revisión:** solo si hubo críticos o importantes, acotada al diff de esos arreglos y con un modelo más chico (Sonnet) o `/code-review` a esfuerzo bajo. Los menores no disparan otra ronda.
