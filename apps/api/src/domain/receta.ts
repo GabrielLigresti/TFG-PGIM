@@ -58,6 +58,26 @@ export function costoTotal(receta: Receta): number {
   return receta.lineas.reduce((total, linea) => total + costoLinea(linea), 0);
 }
 
+// Insumos que consume `cantidad` de la receta (porciones de un plato o
+// unidades base de un intermedio), en cantidad bruta y unidad base. Los
+// intermedios no tienen stock propio: se explotan hasta sus insumos.
+export function insumosNecesarios(receta: Receta, cantidad: number): Map<string, number> {
+  const total = new Map<string, number>();
+  const factor = cantidad / receta.rendimiento;
+  for (const linea of receta.lineas) {
+    const bruta = cantidadBruta(linea) * factor;
+    const { componente } = linea;
+    if (componente.tipo === 'INSUMO') {
+      total.set(componente.id, (total.get(componente.id) ?? 0) + bruta);
+    } else if (componente.receta) {
+      for (const [id, valor] of insumosNecesarios(componente.receta, bruta)) {
+        total.set(id, (total.get(id) ?? 0) + valor);
+      }
+    }
+  }
+  return total;
+}
+
 // Camino de dependencias desde `desde` hasta el componente `id`, o null si
 // `desde` no lo contiene (ni directa ni indirectamente).
 export function caminoHasta(desde: Componente, id: string): Componente[] | null {
