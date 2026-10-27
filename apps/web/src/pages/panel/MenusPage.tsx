@@ -47,7 +47,7 @@ export function MenusPage() {
     if (
       !(await confirmar({
         mensaje: `¿Borrar el menú ${m.nombre}?`,
-        detalle: 'Los clientes dejan de verlo. No se puede deshacer.',
+        detalle: 'Se elimina el menú. No se puede deshacer.',
         accion: 'Borrar menú',
       }))
     )

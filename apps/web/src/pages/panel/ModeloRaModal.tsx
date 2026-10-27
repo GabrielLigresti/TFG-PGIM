@@ -91,7 +91,8 @@ export function ModeloRaModal({
     if (
       !(await confirmar({
         mensaje: `¿Quitar el modelo RA de ${plato.nombre}?`,
-        detalle: 'El plato deja de mostrar "Ver en mi mesa" en el menú.',
+        detalle:
+          'Se borran los archivos del modelo y el plato deja de mostrar "Ver en mi mesa". No se puede deshacer.',
         accion: 'Quitar modelo',
       }))
     )
