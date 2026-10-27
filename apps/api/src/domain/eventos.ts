@@ -1,12 +1,16 @@
-import type { EstadoReserva } from '@pgim/shared';
+import type { AlertaPanel, CambioPedido, EstadoReserva, PedidoCola } from '@pgim/shared';
 
 // Bus de eventos de dominio (Observer). Se publica después de que la escritura
 // quedó confirmada en la base, y solo para efectos secundarios (avisos en
-// tiempo real): stock, puntos y pagos nunca dependen de un evento, se
+// tiempo real, alertas y visitas): stock, puntos y pagos nunca dependen de un evento, se
 // resuelven con llamadas directas dentro de la transacción.
 
 export type TipoEventoReserva =
-  'RESERVA_CREADA' | 'RESERVA_CANCELADA' | 'RESERVA_ACTIVADA' | 'RESERVA_VENCIDA';
+  | 'RESERVA_CREADA'
+  | 'RESERVA_CANCELADA'
+  | 'RESERVA_ACTIVADA'
+  | 'RESERVA_VENCIDA'
+  | 'RESERVA_FINALIZADA';
 
 export interface ReservaDelEvento {
   id: string;
@@ -22,10 +26,32 @@ export interface EventoReserva {
   reserva: ReservaDelEvento;
 }
 
-export type OyenteEventos = (evento: EventoReserva) => void;
+// Cada evento lleva la sucursal y el titular para que los notificadores
+// elijan la sala sin volver a la base.
+export type EventoDominio =
+  | EventoReserva
+  | { tipo: 'PEDIDO_CONFIRMADO'; pedido: PedidoCola; sucursalId: string; comensalId: string }
+  | {
+      tipo: 'PEDIDO_CAMBIO_ESTADO' | 'PEDIDO_CANCELADO';
+      cambio: CambioPedido;
+      sucursalId: string;
+      comensalId: string;
+    }
+  | { tipo: 'PAGO_APROBADO'; cuentaMesaId: string; comensalId: string }
+  | { tipo: 'CUENTA_MESA_CERRADA'; cuentaMesaId: string; restauranteId: string; comensalId: string }
+  // Secuencia de CU-04, 5a y 5b: las guarda GeneradorAlertas.
+  | { tipo: 'STOCK_INSUFICIENTE'; sucursalId: string; componenteId: string; itemMenuId: string }
+  | { tipo: 'PLATO_SIN_RECETA'; sucursalId: string; itemMenuId: string }
+  | { tipo: 'ALERTA_CREADA'; sucursalId: string; alerta: AlertaPanel };
+
+export type OyenteEventos = (evento: EventoDominio) => void;
+
+export function esEventoReserva(evento: EventoDominio): evento is EventoReserva {
+  return evento.tipo.startsWith('RESERVA_');
+}
 
 export interface BusEventos {
-  publicar(evento: EventoReserva): void;
+  publicar(evento: EventoDominio): void;
   suscribir(oyente: OyenteEventos): () => void;
 }
 
