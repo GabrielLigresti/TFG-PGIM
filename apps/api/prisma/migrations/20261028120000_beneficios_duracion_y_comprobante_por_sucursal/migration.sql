@@ -7,7 +7,9 @@ ALTER TABLE "grupo_beneficios" DROP COLUMN "habilitado";
 
 -- Stock inicial (se repone al relanzar) y vigencia obligatoria
 ALTER TABLE "beneficio" ADD COLUMN "stock_inicial" INTEGER;
-UPDATE "beneficio" SET "stock_inicial" = "stock_disponible";
+-- Un beneficio ya agotado (0) queda con stock inicial 1: el inicial tiene que
+-- ser mayor que 0 y relanzarlo lo repone.
+UPDATE "beneficio" SET "stock_inicial" = CASE WHEN "stock_disponible" IS NULL THEN NULL ELSE GREATEST("stock_disponible", 1) END;
 UPDATE "beneficio"
 SET "vigencia_desde" = COALESCE("vigencia_desde", now()),
     "vigencia_hasta" = COALESCE("vigencia_hasta", COALESCE("vigencia_desde", now()) + interval '30 days');
