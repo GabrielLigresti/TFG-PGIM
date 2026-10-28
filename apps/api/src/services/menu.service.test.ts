@@ -9,7 +9,7 @@ import {
   type PlatoInput,
 } from '@pgim/shared';
 import type { InsumoReventa, MenuRepository } from '../repositories/menu.repository';
-import { createMenuService, type ArchivosModelo } from './menu.service';
+import { createMenuService, type ArchivosFoto, type ArchivosModelo } from './menu.service';
 
 const R = 'restaurante';
 
@@ -19,6 +19,14 @@ function archivosFalsos(): jest.Mocked<ArchivosModelo> {
     validarUsdz: jest.fn(),
     guardarModelo: jest.fn().mockResolvedValue('/api/uploads/modelos/nuevo.glb'),
     borrarModelo: jest.fn(),
+  };
+}
+
+function fotosFalsas(): jest.Mocked<ArchivosFoto> {
+  return {
+    validarFoto: jest.fn().mockReturnValue('jpg'),
+    guardarFoto: jest.fn().mockResolvedValue('/api/uploads/fotos/nueva.jpg'),
+    borrarFoto: jest.fn(),
   };
 }
 
@@ -78,6 +86,7 @@ function repoFalso(categoria: Categoria | null = principales): jest.Mocked<MenuR
     existeCategoria: jest.fn().mockResolvedValue(false),
     crearCategoria: jest.fn(),
     actualizarCategoria: jest.fn(),
+    guardarFotoPlato: jest.fn(),
     borrarCategoria: jest.fn(),
     listarPlatos: jest.fn(),
     buscarPlato: jest.fn(),
@@ -356,4 +365,27 @@ describe('foto del plato', () => {
       expect(resultado.error?.issues[0]?.message).toBe('Pegá un enlace que empiece con https://');
     },
   );
+});
+
+describe('menuService.subirFoto', () => {
+  it('guarda la foto, actualiza el plato y borra la subida anterior', async () => {
+    const repo = repoFalso();
+    repo.buscarPlato.mockResolvedValue({ ...platoBase, fotoUrl: '/api/uploads/fotos/vieja.png' });
+    const fotos = fotosFalsas();
+    await createMenuService(repo, archivosFalsos(), fotos).subirFoto(R, 'bife', Buffer.from('x'));
+
+    expect(fotos.validarFoto).toHaveBeenCalled();
+    expect(repo.guardarFotoPlato).toHaveBeenCalledWith(R, 'bife', '/api/uploads/fotos/nueva.jpg');
+    expect(fotos.borrarFoto).toHaveBeenCalledWith('/api/uploads/fotos/vieja.png');
+  });
+
+  it('un plato de otro restaurante responde 404 y no guarda nada', async () => {
+    const repo = repoFalso();
+    repo.buscarPlato.mockResolvedValue(null);
+    const fotos = fotosFalsas();
+    await expect(
+      createMenuService(repo, archivosFalsos(), fotos).subirFoto(R, 'otro', Buffer.from('x')),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(fotos.guardarFoto).not.toHaveBeenCalled();
+  });
 });

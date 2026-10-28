@@ -1,4 +1,5 @@
 import type { CategoriaInput, MenuInput, ModeloRaInput, PlatoInput } from '@pgim/shared';
+import * as archivosFoto from '../lib/archivos-foto';
 import * as archivosModelo from '../lib/archivos-modelo';
 import type { FormatoModelo } from '../lib/archivos-modelo';
 import { AppError } from '../lib/errors';
@@ -9,7 +10,13 @@ export type ArchivosModelo = Pick<
   'validarGlb' | 'validarUsdz' | 'guardarModelo' | 'borrarModelo'
 >;
 
-export function createMenuService(repo: MenuRepository, archivos: ArchivosModelo = archivosModelo) {
+export type ArchivosFoto = Pick<typeof archivosFoto, 'validarFoto' | 'guardarFoto' | 'borrarFoto'>;
+
+export function createMenuService(
+  repo: MenuRepository,
+  archivos: ArchivosModelo = archivosModelo,
+  fotos: ArchivosFoto = archivosFoto,
+) {
   async function obtenerCategoria(restauranteId: string, id: string) {
     const categoria = await repo.buscarCategoria(restauranteId, id);
     if (!categoria) throw new AppError(404, 'La categoría no existe');
@@ -128,6 +135,20 @@ export function createMenuService(repo: MenuRepository, archivos: ArchivosModelo
     // CU-16: el .glb es obligatorio y trae la escala y la porción; el .usdz
     // (iOS) es opcional y solo se suma a un modelo existente. El archivo nuevo
     // se guarda antes que la fila y el viejo se borra al final.
+    // Foto desde la computadora: reemplaza la URL y borra la subida anterior.
+    async subirFoto(restauranteId: string, id: string, archivo: Buffer) {
+      const plato = await obtenerPlato(restauranteId, id);
+      const url = await fotos.guardarFoto(archivo, fotos.validarFoto(archivo));
+      try {
+        await repo.guardarFotoPlato(restauranteId, id, url);
+      } catch (e) {
+        await fotos.borrarFoto(url);
+        throw e;
+      }
+      await fotos.borrarFoto(plato.fotoUrl);
+      return obtenerPlato(restauranteId, id);
+    },
+
     async subirModelo(
       restauranteId: string,
       id: string,

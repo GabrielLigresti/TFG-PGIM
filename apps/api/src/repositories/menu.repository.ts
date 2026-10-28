@@ -35,6 +35,7 @@ export interface MenuRepository {
   buscarInsumoReventa(restauranteId: string, id: string): Promise<InsumoReventa | null>;
   actualizarPlato(restauranteId: string, id: string, datos: PlatoInput): Promise<Plato>;
   desactivarPlato(restauranteId: string, id: string): Promise<void>;
+  guardarFotoPlato(restauranteId: string, platoId: string, fotoUrl: string): Promise<void>;
   guardarModeloRa(restauranteId: string, platoId: string, datos: ModeloRa): Promise<void>;
   borrarModeloRa(restauranteId: string, platoId: string): Promise<void>;
 
@@ -252,6 +253,10 @@ export const menuRepository: MenuRepository = {
   },
 
   // ModeloRA no tiene restaurante_id: se escribe a través del plato, filtrado por tenant.
+  async guardarFotoPlato(restauranteId, platoId, fotoUrl) {
+    await prisma.itemMenu.update({ where: { id: platoId, restauranteId }, data: { fotoUrl } });
+  },
+
   async guardarModeloRa(restauranteId, platoId, datos) {
     await prisma.itemMenu.update({
       where: { id: platoId, restauranteId },

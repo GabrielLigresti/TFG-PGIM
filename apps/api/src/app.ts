@@ -18,6 +18,7 @@ import { recetasRouter } from './routes/recetas';
 import { reservasComensalRouter, reservasPanelRouter } from './routes/reservas';
 import { rolesRouter } from './routes/roles';
 import { sucursalesRouter } from './routes/sucursales';
+import { CARPETA_FOTOS, TIPO_FOTO } from './lib/archivos-foto';
 import { CARPETA_MODELOS } from './lib/archivos-modelo';
 import { autenticar, soloTipo } from './middleware/auth';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
@@ -55,6 +56,22 @@ export function createApp() {
           'Content-Type',
           TIPO_MODELO[path.extname(ruta)] ?? 'application/octet-stream',
         );
+      },
+    }),
+  );
+
+  // Fotos de platos subidas, con el mismo cuidado que los modelos.
+  app.use(
+    `${API_PREFIX}/uploads/fotos`,
+    express.static(CARPETA_FOTOS, {
+      index: false,
+      redirect: false,
+      dotfiles: 'deny',
+      immutable: true,
+      maxAge: '1y',
+      setHeaders(res, ruta) {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Type', TIPO_FOTO[path.extname(ruta)] ?? 'application/octet-stream');
       },
     }),
   );
