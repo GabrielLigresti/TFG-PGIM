@@ -26,7 +26,10 @@ state APROBADO
 state RECHAZADO
 [*] --> PENDIENTE : pagar (Comensal)\n/ recalcula saldo y beneficios; registra los\nbeneficios aplicados y reserva su stock;\nderiva el cobro a Mercado Pago
 PENDIENTE --> APROBADO : notificación de Mercado Pago\n[aprobado]\n/ acredita puntos y monto, aplica canje,\nemite comprobante
-PENDIENTE --> RECHAZADO : vencimiento (tarea programada)\n[15 min; Mercado Pago no informa ningún\ncobro aprobado ni en proceso]\n/ devuelve el stock reservado de los beneficios
+PENDIENTE --> APROBADO : sin cobro\n[el beneficio cubre todo el saldo ($0)\no pasarela de prueba]\n/ mismos efectos
+PENDIENTE --> APROBADO : vencimiento (tarea programada)\n[Mercado Pago informa un cobro aprobado]\n/ mismos efectos
+PENDIENTE --> RECHAZADO : vencimiento (tarea programada)\n[15 min + 3 de margen; Mercado Pago no informa\nningún cobro aprobado ni en proceso]\n/ devuelve el stock reservado de los beneficios
+PENDIENTE --> RECHAZADO : no se pudo iniciar el cobro\n(Mercado Pago no responde)\n/ devuelve el stock reservado de los beneficios
 APROBADO --> [*]
 RECHAZADO --> [*]
 note right of RECHAZADO
@@ -40,5 +43,8 @@ note right of PENDIENTE
   Un intento rechazado no cierra el pago:
   Checkout Pro permite reintentar con otro
   medio hasta que vence (15 min).
+  Un cobro aprobado que llega sobre un pago
+  ya resuelto queda registrado para
+  conciliar a mano.
 end note
 @enduml
