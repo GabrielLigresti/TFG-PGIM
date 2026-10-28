@@ -23,14 +23,21 @@ const agua = () => ({
   insumos: new Map<string, number>(),
 });
 
+// El saldo de la mesa (un agua de $600) pagado y aprobado.
+const pagoAprobado = () =>
+  prisma.pago.create({
+    data: {
+      cuentaMesaId: e.cuentaMesaId,
+      comensalId: e.comensalId,
+      monto: 600,
+      metodo: 'TARJETA',
+      estado: 'APROBADO',
+    },
+  });
+
 async function entregar(id: string) {
   await prisma.pedido.update({ where: { id }, data: { estado: 'ENTREGADO' } });
 }
-
-const aprobar = async (pago: { id: string; monto: number }) => ({
-  estado: 'APROBADO' as const,
-  referenciaExterna: `SIM-${pago.id}`,
-});
 
 describe('cuentaMesaRepository', () => {
   it('encuentra la mesa abierta del comensal, en la sucursal o en cualquiera', async () => {
@@ -50,66 +57,6 @@ describe('cuentaMesaRepository', () => {
     expect(await cuentaMesaRepository.mesaAbiertaDelComensal(e.comensalId)).not.toBeNull();
     expect(await cuentaMesaRepository.mesaAbiertaDelComensal(e.comensalId, e.harinaId)).toBeNull();
     expect(await cuentaMesaRepository.buscarDelComensal(e.harinaId, e.cuentaMesaId)).toBeNull();
-  });
-
-  it('registra un pago aprobado con la referencia de la pasarela', async () => {
-    await pedidoRepository.confirmar(cuenta, [agua()]);
-    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
-      'APROBADO',
-    );
-    const pago = await prisma.pago.findFirstOrThrow();
-    expect(pago.estado).toBe('APROBADO');
-    expect(pago.referenciaExterna).toBe(`SIM-${pago.id}`);
-    expect(Number(pago.monto)).toBe(600);
-    const mesa = await cuentaMesaRepository.buscarDelComensal(e.comensalId, e.cuentaMesaId);
-    expect(mesa!.pagado).toBe(600);
-  });
-
-  it('cobra el saldo calculado al bloquear la cuenta', async () => {
-    await pedidoRepository.confirmar(cuenta, [agua()]);
-    const cobrado: number[] = [];
-    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async (pago) => {
-      cobrado.push(pago.monto);
-      return aprobar(pago);
-    });
-    expect(cobrado).toEqual([600]);
-  });
-
-  it('sin saldo no crea el pago', async () => {
-    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
-      'SIN_SALDO',
-    );
-    expect(await prisma.pago.count()).toBe(0);
-  });
-
-  it('una mesa cerrada no recibe pagos', async () => {
-    await pedidoRepository.confirmar(cuenta, [agua()]);
-    await prisma.cuentaMesa.update({ where: { id: e.cuentaMesaId }, data: { estado: 'CERRADA' } });
-    expect(await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar)).toBe(
-      'CERRADA',
-    );
-    expect(await prisma.pago.count()).toBe(0);
-  });
-
-  it('si la pasarela falla no queda un pago pendiente', async () => {
-    await pedidoRepository.confirmar(cuenta, [agua()]);
-    await expect(
-      cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async () => {
-        throw new Error('pasarela caída');
-      }),
-    ).rejects.toThrow('pasarela caída');
-    expect(await prisma.pago.count()).toBe(0);
-  });
-
-  it('un pago rechazado queda RECHAZADO y no suma a lo pagado', async () => {
-    await pedidoRepository.confirmar(cuenta, [agua()]);
-    expect(
-      await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, async () => ({
-        estado: 'RECHAZADO',
-      })),
-    ).toBe('RECHAZADO');
-    const mesa = await cuentaMesaRepository.buscarDelComensal(e.comensalId, e.cuentaMesaId);
-    expect(mesa!.pagado).toBe(0);
   });
 });
 
@@ -151,7 +98,7 @@ describe('reservaRepository.cerrar', () => {
   it('pagada, cierra sin pedir confirmación', async () => {
     const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
     await entregar(pedido.id);
-    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar);
+    await pagoAprobado();
 
     expect((await cerrar(false)).resultado).toBe('CERRADA');
   });
@@ -181,7 +128,7 @@ describe('cuentaMesaRepository.registrarVisita', () => {
 
   it('con un pago aprobado registra una visita, una sola vez', async () => {
     await pedidoRepository.confirmar(cuenta, [agua()]);
-    await cuentaMesaRepository.registrarPago(e.cuentaMesaId, e.comensalId, aprobar);
+    await pagoAprobado();
 
     expect(await visitar()).toBe(true);
     expect(await visitar()).toBe(false);

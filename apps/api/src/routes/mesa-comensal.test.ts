@@ -7,6 +7,14 @@ jest.mock('../repositories/usuario.repository', () => ({
   usuarioRepository: { findCredencialesByEmail: jest.fn(), findSesionById: jest.fn() },
 }));
 
+jest.mock('../services/pago.service', () => ({
+  pagoService: {
+    pagar: jest.fn().mockResolvedValue({ pagoId: 'p1', urlPago: 'https://mp/pagar' }),
+    estado: jest.fn(),
+    urlDePago: jest.fn().mockReturnValue(null),
+  },
+}));
+
 jest.mock('../services/beneficios-comensal.service', () => ({
   beneficiosComensalService: { deMesa: jest.fn(), fidelidad: jest.fn().mockResolvedValue([]) },
 }));
@@ -57,6 +65,24 @@ describe('/api/comensal/mesa', () => {
       .post('/api/comensal/mesa/no-es-uuid/pagos')
       .set('Cookie', cookieDeComensal())
       .expect(400);
+  });
+
+  it('pagar sin medio de pago responde 400', async () => {
+    await request(app)
+      .post(`/api/comensal/mesa/${CUENTA}/pagos`)
+      .set('Cookie', cookieDeComensal())
+      .send({})
+      .expect(400);
+  });
+
+  it('paga como el comensal de la sesión y devuelve la URL de Mercado Pago', async () => {
+    const { pagoService } = jest.requireMock('../services/pago.service');
+    await request(app)
+      .post(`/api/comensal/mesa/${CUENTA}/pagos`)
+      .set('Cookie', cookieDeComensal())
+      .send({ metodo: 'TARJETA' })
+      .expect(201, { pagoId: 'p1', urlPago: 'https://mp/pagar' });
+    expect(pagoService.pagar).toHaveBeenCalledWith(IDS.comensal, CUENTA, { metodo: 'TARJETA' });
   });
 });
 

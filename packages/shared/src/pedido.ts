@@ -87,6 +87,9 @@ export interface MiMesa {
   pagado: number;
   saldo: number;
   pagoHabilitado: boolean;
+  // Pago esperando el resultado de Mercado Pago; urlPago null si ya no se
+  // puede retomar (vence solo).
+  pagoEnCurso: { pagoId: string; urlPago: string | null } | null;
 }
 
 // Detalle del 409 cuando no alcanza el stock de un plato.

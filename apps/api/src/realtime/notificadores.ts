@@ -39,6 +39,7 @@ export function registrarNotificadores(io: Pick<Server, 'to'>, bus: BusEventos):
         io.to(salaComensal(evento.comensalId)).emit(EVENTOS_SOCKET.pedidoCambio, evento.cambio);
         break;
       case 'PAGO_APROBADO':
+      case 'PAGO_RECHAZADO':
       case 'CUENTA_MESA_CERRADA': {
         const cambio: CambioMesa = { cuentaMesaId: evento.cuentaMesaId };
         io.to(salaComensal(evento.comensalId)).emit(EVENTOS_SOCKET.mesaCambio, cambio);
