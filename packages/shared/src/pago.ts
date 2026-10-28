@@ -9,9 +9,9 @@ export type MetodoPago = (typeof METODOS_PAGO)[number];
 export const ESTADOS_PAGO = ['PENDIENTE', 'APROBADO', 'RECHAZADO'] as const;
 export type EstadoPago = (typeof ESTADOS_PAGO)[number];
 
+// El medio (tarjeta o dinero en cuenta) se elige en Mercado Pago.
 export const pagoInputSchema = z.object({
   beneficioId: z.uuid().nullish(),
-  metodo: z.enum(METODOS_PAGO),
 });
 export type PagoInput = z.infer<typeof pagoInputSchema>;
 

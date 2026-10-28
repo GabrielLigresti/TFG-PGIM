@@ -8,11 +8,10 @@ describe('pasarela simulada', () => {
       await pasarela.iniciarCobro({
         id: 'P1',
         monto: 1500,
-        metodo: 'TARJETA',
         descripcion: 'Mesa',
         venceEn: new Date(),
       }),
-    ).toEqual({ tipo: 'APROBADO_AL_INSTANTE', referenciaExterna: 'SIM-P1' });
+    ).toEqual({ tipo: 'APROBADO_AL_INSTANTE', referenciaExterna: 'SIM-P1', metodo: 'TARJETA' });
   });
 
   it('nunca deja un pago en curso', async () => {
@@ -28,7 +27,6 @@ describe('pasarela simulada', () => {
       pasarela.iniciarCobro({
         id: 'P1',
         monto: 1500,
-        metodo: 'TARJETA',
         descripcion: 'Mesa',
         venceEn: new Date(),
       }),

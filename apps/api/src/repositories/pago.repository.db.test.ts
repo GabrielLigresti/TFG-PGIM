@@ -90,7 +90,6 @@ const crear = (datos: { cuentaMesaId?: string; comensalId?: string; beneficioId?
     {
       comensalId: datos.comensalId ?? e.comensalId,
       cuentaMesaId: datos.cuentaMesaId ?? e.cuentaMesaId,
-      metodo: 'TARJETA',
       beneficioId: datos.beneficioId ?? null,
       ahora: AHORA(),
     },
@@ -98,13 +97,19 @@ const crear = (datos: { cuentaMesaId?: string; comensalId?: string; beneficioId?
   );
 
 const aprobar = (pagoId: string) =>
-  pagoRepository.resolver(pagoId, { estado: 'APROBADO', referenciaExterna: `MP-${pagoId}` });
+  pagoRepository.resolver(pagoId, {
+    estado: 'APROBADO',
+    referenciaExterna: `MP-${pagoId}`,
+    metodo: 'BILLETERA_VIRTUAL',
+  });
 
 describe('pagoRepository.crearPendiente', () => {
   it('crea un pago pendiente por el saldo y no deja abrir otro', async () => {
     await pedir(e.cuentaMesaId, e.comensalId, 600);
     const r = await crear();
     expect(r).toMatchObject({ resultado: 'CREADO', monto: 600, sucursalId: e.sucursalId });
+    // El medio lo elige el comensal en Mercado Pago: hasta aprobarse, sin medio.
+    expect((await prisma.pago.findFirstOrThrow()).metodo).toBeNull();
     expect(await crear()).toEqual({
       resultado: 'EN_CURSO',
       pagoId: (r as { pagoId: string }).pagoId,
@@ -197,6 +202,7 @@ describe('pagoRepository.resolver', () => {
     expect(await prisma.pago.findUniqueOrThrow({ where: { id: pagoId } })).toMatchObject({
       estado: 'APROBADO',
       referenciaExterna: `MP-${pagoId}`,
+      metodo: 'BILLETERA_VIRTUAL',
     });
     const cuenta = await prisma.cuentaFidelidad.findFirstOrThrow({
       include: { movimientos: true },
@@ -298,7 +304,6 @@ describe('pagoRepository, consultas', () => {
     expect(await pagoRepository.pendienteDelComensal(e.comensalId, pagoId)).toMatchObject({
       pagoId,
       monto: 1000,
-      metodo: 'TARJETA',
       mesaNumero: 4,
     });
     const otra = await otraMesa();

@@ -7,10 +7,10 @@ import { crearPasarelaMercadoPago } from './mercado-pago';
 
 export type MetodoPago = 'TARJETA' | 'BILLETERA_VIRTUAL';
 
+// El medio (tarjeta o dinero en cuenta) lo elige el comensal en Mercado Pago.
 export interface CobroAIniciar {
   id: string;
   monto: number;
-  metodo: MetodoPago;
   descripcion: string;
   // Hasta cuándo se puede pagar (15 minutos desde que se creó el pago).
   venceEn: Date;
@@ -18,7 +18,7 @@ export interface CobroAIniciar {
 
 export type InicioCobro =
   | { tipo: 'REDIRECCION'; urlPago: string }
-  | { tipo: 'APROBADO_AL_INSTANTE'; referenciaExterna: string };
+  | { tipo: 'APROBADO_AL_INSTANTE'; referenciaExterna: string; metodo: MetodoPago };
 
 // Lo que informa la pasarela sobre todos los intentos de un pago.
 export type ConsultaCobro =
@@ -42,6 +42,7 @@ export function crearPasarelaSimulada(habilitada: boolean): PasarelaPago {
       return {
         tipo: 'APROBADO_AL_INSTANTE',
         referenciaExterna: `${PREFIJO_PAGO_SIMULADO}${pago.id}`,
+        metodo: 'TARJETA',
       };
     },
     // Aprueba al instante, así que nunca deja un pago pendiente que consultar.

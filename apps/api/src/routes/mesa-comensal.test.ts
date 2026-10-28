@@ -68,11 +68,11 @@ describe('/api/comensal/mesa', () => {
       .expect(400);
   });
 
-  it('pagar sin medio de pago responde 400', async () => {
+  it('pagar con un beneficio inválido responde 400', async () => {
     await request(app)
       .post(`/api/comensal/mesa/${CUENTA}/pagos`)
       .set('Cookie', cookieDeComensal())
-      .send({})
+      .send({ beneficioId: 'no-es-uuid' })
       .expect(400);
   });
 
@@ -81,9 +81,9 @@ describe('/api/comensal/mesa', () => {
     await request(app)
       .post(`/api/comensal/mesa/${CUENTA}/pagos`)
       .set('Cookie', cookieDeComensal())
-      .send({ metodo: 'TARJETA' })
+      .send({})
       .expect(201, { pagoId: 'p1', urlPago: 'https://mp/pagar' });
-    expect(pagoService.pagar).toHaveBeenCalledWith(IDS.comensal, CUENTA, { metodo: 'TARJETA' });
+    expect(pagoService.pagar).toHaveBeenCalledWith(IDS.comensal, CUENTA, {});
   });
 
   it('el estado y el continuar de un pago van siempre como el comensal de la sesión', async () => {

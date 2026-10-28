@@ -16,12 +16,14 @@ export interface ConfigMercadoPago {
 // Sin respuesta en este tiempo, el pago o la tarea no quedan colgados.
 const TIMEOUT_MS = 10_000;
 
-// El efectivo (Rapipago, Pago Fácil) queda siempre afuera: el pago tiene que
-// resolverse mientras el comensal está en la mesa.
-const EXCLUIDOS: Record<MetodoPago, string[]> = {
-  TARJETA: ['account_money', 'ticket', 'atm'],
-  BILLETERA_VIRTUAL: ['credit_card', 'debit_card', 'prepaid_card', 'ticket', 'atm'],
-};
+// El comensal elige en Mercado Pago entre tarjeta y dinero en cuenta (el
+// dinero en cuenta no se puede excluir). El efectivo (Rapipago, Pago Fácil)
+// queda afuera: el pago tiene que resolverse mientras está en la mesa.
+const EXCLUIDOS = ['ticket', 'atm'];
+
+// Para las métricas: dinero en cuenta, Mercado Crédito y billeteras cuentan como
+// billetera virtual; las tarjetas (crédito, débito, prepaga), como tarjeta.
+const BILLETERA = new Set(['account_money', 'digital_currency', 'digital_wallet']);
 
 const EN_PROCESO = new Set(['pending', 'in_process', 'authorized']);
 
@@ -33,7 +35,7 @@ interface CobroMp {
 }
 
 const metodoDe = (tipo: string | undefined): MetodoPago =>
-  tipo === 'account_money' ? 'BILLETERA_VIRTUAL' : 'TARJETA';
+  tipo && BILLETERA.has(tipo) ? 'BILLETERA_VIRTUAL' : 'TARJETA';
 
 const estadoDe = (status: string) =>
   status === 'approved' ? 'APROBADO' : EN_PROCESO.has(status) ? 'EN_PROCESO' : 'SIN_APROBAR';
@@ -70,7 +72,7 @@ export function crearPasarelaMercadoPago(config: ConfigMercadoPago): PasarelaPag
         auto_return: 'approved',
         expires: true,
         expiration_date_to: pago.venceEn.toISOString(),
-        payment_methods: { excluded_payment_types: EXCLUIDOS[pago.metodo].map((id) => ({ id })) },
+        payment_methods: { excluded_payment_types: EXCLUIDOS.map((id) => ({ id })) },
       });
       return { tipo: 'REDIRECCION', urlPago: preferencia.init_point };
     },

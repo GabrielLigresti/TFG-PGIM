@@ -27,7 +27,6 @@ export type ValidarBeneficio = (
 export interface DatosPagoNuevo {
   comensalId: string;
   cuentaMesaId: string;
-  metodo: MetodoPago;
   beneficioId: string | null;
   ahora: Date;
 }
@@ -65,7 +64,6 @@ export interface ResolucionPago {
 export interface PagoPendiente {
   pagoId: string;
   monto: number;
-  metodo: MetodoPago;
   mesaNumero: number;
   restaurante: string;
   creadoEn: Date;
@@ -151,7 +149,7 @@ export const pagoRepository: PagoRepository = {
 
           const monto = centavos(saldo - descuento);
           const pago = await tx.pago.create({
-            data: { cuentaMesaId, comensalId, monto, metodo: datos.metodo },
+            data: { cuentaMesaId, comensalId, monto },
             select: { id: true, fecha: true },
           });
           if (beneficio) {
@@ -191,14 +189,13 @@ export const pagoRepository: PagoRepository = {
           {
             estado: 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
             monto: string;
-            metodo: MetodoPago;
             comensal_id: string;
             cuenta_mesa_id: string;
             sucursal_id: string;
             restaurante_id: string;
           }[]
         >`
-          SELECT p.estado, p.monto, p.metodo, p.comensal_id, p.cuenta_mesa_id,
+          SELECT p.estado, p.monto, p.comensal_id, p.cuenta_mesa_id,
                  r.sucursal_id, s.restaurante_id
           FROM pago p
           JOIN cuenta_mesa c ON c.id = p.cuenta_mesa_id
@@ -244,8 +241,8 @@ export const pagoRepository: PagoRepository = {
           data: {
             estado: estadoDePago(pago.estado).aprobar(),
             referenciaExterna: resultado.referenciaExterna,
-            ...(resultado.metodo &&
-              resultado.metodo !== pago.metodo && { metodo: resultado.metodo }),
+            // El medio que eligió el comensal en Mercado Pago (null en un pago de $0).
+            metodo: resultado.metodo ?? null,
           },
         });
 
@@ -340,7 +337,6 @@ export const pagoRepository: PagoRepository = {
       select: {
         id: true,
         monto: true,
-        metodo: true,
         fecha: true,
         cuentaMesa: {
           select: {
@@ -358,7 +354,6 @@ export const pagoRepository: PagoRepository = {
       pago && {
         pagoId: pago.id,
         monto: Number(pago.monto),
-        metodo: pago.metodo,
         mesaNumero: pago.cuentaMesa.reserva.mesa.numero,
         restaurante: pago.cuentaMesa.reserva.sucursal.restaurante.nombre,
         creadoEn: pago.fecha,

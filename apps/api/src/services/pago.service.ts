@@ -121,7 +121,6 @@ export function createPagoService(
         {
           comensalId,
           cuentaMesaId,
-          metodo: input.metodo,
           beneficioId: input.beneficioId ?? null,
           ahora: ahora(),
         },
@@ -156,7 +155,6 @@ export function createPagoService(
         inicio = await pasarela.iniciarCobro({
           id: r.pagoId,
           monto: r.monto,
-          metodo: input.metodo,
           descripcion: `Mesa ${r.mesaNumero} — ${r.restaurante}`,
           venceEn: vencimientoDe(r.creadoEn),
         });
@@ -173,6 +171,7 @@ export function createPagoService(
         await resolver(r.pagoId, {
           estado: 'APROBADO',
           referenciaExterna: inicio.referenciaExterna,
+          metodo: inicio.metodo,
         });
         return { pagoId: r.pagoId, urlPago: null };
       }
@@ -195,12 +194,15 @@ export function createPagoService(
       const inicio = await pasarela.iniciarCobro({
         id: pagoId,
         monto: pago.monto,
-        metodo: pago.metodo,
         descripcion: `Mesa ${pago.mesaNumero} — ${pago.restaurante}`,
         venceEn,
       });
       if (inicio.tipo === 'APROBADO_AL_INSTANTE') {
-        await resolver(pagoId, { estado: 'APROBADO', referenciaExterna: inicio.referenciaExterna });
+        await resolver(pagoId, {
+          estado: 'APROBADO',
+          referenciaExterna: inicio.referenciaExterna,
+          metodo: inicio.metodo,
+        });
         return { pagoId, urlPago: null };
       }
       urls.set(pagoId, inicio.urlPago);

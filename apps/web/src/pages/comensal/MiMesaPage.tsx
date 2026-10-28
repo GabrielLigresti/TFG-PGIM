@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import type { BeneficiosMesa, MetodoPago, MiMesa, PagoIniciado, PagoInput } from '@pgim/shared';
+import type { BeneficiosMesa, MiMesa, PagoIniciado, PagoInput } from '@pgim/shared';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import {
   ResultadoPagoVista,
@@ -40,7 +40,6 @@ export function MiMesaPage() {
     puedePagar ? `/comensal/mesa/${datos.cuentaMesaId}/beneficios` : null,
   );
   const [beneficioId, setBeneficioId] = useState<string | null>(null);
-  const [metodo, setMetodo] = useState<MetodoPago>('TARJETA');
   const pago = useGuardar();
 
   // Si el beneficio elegido deja de estar disponible, vuelve a "Sin beneficio".
@@ -52,7 +51,7 @@ export function MiMesaPage() {
 
   async function pagar() {
     if (!datos) return;
-    const cuerpo: PagoInput = { metodo, beneficioId };
+    const cuerpo: PagoInput = { beneficioId };
     const respuesta = await pago.enviar<PagoIniciado>(
       `/comensal/mesa/${datos.cuentaMesaId}/pagos`,
       'POST',
@@ -230,8 +229,6 @@ export function MiMesaPage() {
               beneficios={beneficios.datos}
               beneficioId={beneficioId}
               onBeneficio={setBeneficioId}
-              metodo={metodo}
-              onMetodo={setMetodo}
             />
           )}
           <Aviso>{pago.error ?? beneficios.error}</Aviso>

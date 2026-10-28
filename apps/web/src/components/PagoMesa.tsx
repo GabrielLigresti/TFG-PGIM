@@ -4,7 +4,6 @@ import {
   EVENTOS_SOCKET,
   type BeneficiosMesa,
   type EstadoPagoComensal,
-  type MetodoPago,
   type PagoIniciado,
   type ProgresoBeneficio,
   type ResultadoPago,
@@ -15,11 +14,6 @@ import { useEventoSocket } from '../lib/socket';
 import { Aviso, Boton } from './ui';
 
 // Piezas del pago de la mesa (CU-06) y del progreso de fidelidad del comensal.
-
-const NOMBRE_METODO: Record<MetodoPago, string> = {
-  TARJETA: 'Tarjeta de crédito o débito',
-  BILLETERA_VIRTUAL: 'Dinero en cuenta de Mercado Pago',
-};
 
 const claseOpcion =
   'flex min-h-11 cursor-pointer items-center gap-3 rounded-control border px-3 py-2 has-[:checked]:border-accent has-[:checked]:bg-accent-soft has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-accent/20';
@@ -96,14 +90,10 @@ export function SeleccionPago({
   beneficios,
   beneficioId,
   onBeneficio,
-  metodo,
-  onMetodo,
 }: {
   beneficios: BeneficiosMesa | null;
   beneficioId: string | null;
   onBeneficio(id: string | null): void;
-  metodo: MetodoPago;
-  onMetodo(metodo: MetodoPago): void;
 }) {
   const disponibles = beneficios?.disponibles ?? [];
   const faltan = (beneficios?.noAlcanzados ?? []).filter(conProgreso);
@@ -148,23 +138,10 @@ export function SeleccionPago({
         <p className="text-sm text-meta">Ya usaste un beneficio en esta mesa.</p>
       )}
 
-      <fieldset className="space-y-2">
-        <legend className="mb-2 font-semibold text-ink">¿Cómo pagás?</legend>
-        {(['TARJETA', 'BILLETERA_VIRTUAL'] as const).map((m) => (
-          <Opcion
-            key={m}
-            nombre="metodo"
-            valor={m}
-            elegida={metodo === m}
-            onElegir={() => onMetodo(m)}
-          >
-            {NOMBRE_METODO[m]}
-          </Opcion>
-        ))}
-        <p className="text-sm text-meta">
-          Pagás en Mercado Pago y volvés acá. Tus datos de pago no pasan por el restaurante.
-        </p>
-      </fieldset>
+      <p className="text-sm text-meta">
+        Pagás en Mercado Pago, con tarjeta o dinero en cuenta, y volvés acá. Tus datos de pago no
+        pasan por el restaurante.
+      </p>
 
       {faltan.length > 0 && (
         <section className="space-y-3 rounded-panel border border-line bg-surface p-4">

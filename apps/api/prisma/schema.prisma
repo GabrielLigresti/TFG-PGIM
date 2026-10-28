@@ -467,14 +467,15 @@ model LineaPedido {
 }
 
 model Pago {
-  id                String     @id @default(uuid(7)) @db.Uuid
-  cuentaMesaId      String     @map("cuenta_mesa_id") @db.Uuid
-  comensalId        String     @map("comensal_id") @db.Uuid
-  monto             Decimal    @db.Decimal(12, 2)
-  metodo            MetodoPago
-  estado            EstadoPago @default(PENDIENTE)
-  referenciaExterna String?    @unique @map("referencia_externa")
-  fecha             DateTime   @default(now()) @db.Timestamptz(6)
+  id                String      @id @default(uuid(7)) @db.Uuid
+  cuentaMesaId      String      @map("cuenta_mesa_id") @db.Uuid
+  comensalId        String      @map("comensal_id") @db.Uuid
+  monto             Decimal     @db.Decimal(12, 2)
+  // Lo informa Mercado Pago al aprobarse: el comensal lo elige allá.
+  metodo            MetodoPago?
+  estado            EstadoPago  @default(PENDIENTE)
+  referenciaExterna String?     @unique @map("referencia_externa")
+  fecha             DateTime    @default(now()) @db.Timestamptz(6)
 
   cuentaMesa          CuentaMesa          @relation(fields: [cuentaMesaId], references: [id])
   comensal            Comensal            @relation(fields: [comensalId], references: [usuarioId])

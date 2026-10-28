@@ -28,7 +28,6 @@ describe('pasarela de Mercado Pago', () => {
     const inicio = await crearPasarelaMercadoPago(config(f)).iniciarCobro({
       id: PAGO,
       monto: 18750,
-      metodo: 'TARJETA',
       descripcion: 'Mesa 4 — La Parrilla Demo',
       venceEn: VENCE,
     });
@@ -58,35 +57,15 @@ describe('pasarela de Mercado Pago', () => {
     });
   });
 
-  it('con tarjeta excluye el dinero en cuenta y el efectivo', async () => {
+  it('excluye solo el efectivo: el comensal elige tarjeta o dinero en cuenta en Mercado Pago', async () => {
     const f = fetchFalso({ init_point: 'x' });
     await crearPasarelaMercadoPago(config(f)).iniciarCobro({
       id: PAGO,
       monto: 1,
-      metodo: 'TARJETA',
       descripcion: 'Mesa',
       venceEn: VENCE,
     });
     expect(cuerpo(f).payment_methods.excluded_payment_types).toEqual([
-      { id: 'account_money' },
-      { id: 'ticket' },
-      { id: 'atm' },
-    ]);
-  });
-
-  it('con dinero en cuenta excluye las tarjetas y el efectivo', async () => {
-    const f = fetchFalso({ init_point: 'x' });
-    await crearPasarelaMercadoPago(config(f)).iniciarCobro({
-      id: PAGO,
-      monto: 1,
-      metodo: 'BILLETERA_VIRTUAL',
-      descripcion: 'Mesa',
-      venceEn: VENCE,
-    });
-    expect(cuerpo(f).payment_methods.excluded_payment_types).toEqual([
-      { id: 'credit_card' },
-      { id: 'debit_card' },
-      { id: 'prepaid_card' },
       { id: 'ticket' },
       { id: 'atm' },
     ]);
@@ -95,7 +74,7 @@ describe('pasarela de Mercado Pago', () => {
   it('un error de Mercado Pago no expone el token', async () => {
     const f = fetchFalso({ message: 'invalid' }, 401);
     const error = await crearPasarelaMercadoPago(config(f))
-      .iniciarCobro({ id: PAGO, monto: 1, metodo: 'TARJETA', descripcion: 'Mesa', venceEn: VENCE })
+      .iniciarCobro({ id: PAGO, monto: 1, descripcion: 'Mesa', venceEn: VENCE })
       .catch((e: Error) => e);
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain('401');
@@ -136,6 +115,13 @@ describe('pasarela de Mercado Pago', () => {
 
     it('sin intentos: sin aprobar', async () => {
       expect(await consultar([]).resultado).toEqual({ estado: 'SIN_APROBAR' });
+    });
+
+    it('con Mercado Crédito: billetera virtual', async () => {
+      const { resultado } = consultar([
+        { id: 14, status: 'approved', payment_type_id: 'digital_currency' },
+      ]);
+      expect(await resultado).toMatchObject({ metodo: 'BILLETERA_VIRTUAL' });
     });
 
     it('con dinero en cuenta: billetera virtual', async () => {

@@ -6,7 +6,7 @@ import type { BeneficiosComensalRepository } from './beneficios-comensal.service
 import { createPagoService } from './pago.service';
 
 const AHORA = new Date('2026-11-10T12:00:00Z');
-const INPUT = { metodo: 'TARJETA' as const, beneficioId: null };
+const INPUT = { beneficioId: null };
 const CREADO_EN = new Date('2026-11-10T11:58:00Z');
 
 const resolucion = (d: Partial<ResolucionPago> = {}): ResolucionPago => ({
@@ -88,7 +88,6 @@ describe('pagoService.pagar', () => {
     expect(pasarela.iniciarCobro).toHaveBeenCalledWith({
       id: 'p1',
       monto: 18000,
-      metodo: 'TARJETA',
       descripcion: 'Mesa 4 — La Parrilla',
       venceEn: new Date('2026-11-10T12:13:00Z'),
     });
@@ -116,14 +115,17 @@ describe('pagoService.pagar', () => {
 
   it('con la pasarela simulada se aprueba al instante', async () => {
     const { servicio, repo } = armar({
-      iniciarCobro: jest
-        .fn()
-        .mockResolvedValue({ tipo: 'APROBADO_AL_INSTANTE', referenciaExterna: 'SIM-p1' }),
+      iniciarCobro: jest.fn().mockResolvedValue({
+        tipo: 'APROBADO_AL_INSTANTE',
+        referenciaExterna: 'SIM-p1',
+        metodo: 'TARJETA',
+      }),
     });
     expect(await servicio.pagar('c', 'cm', INPUT)).toEqual({ pagoId: 'p1', urlPago: null });
     expect(repo.resolver).toHaveBeenCalledWith('p1', {
       estado: 'APROBADO',
       referenciaExterna: 'SIM-p1',
+      metodo: 'TARJETA',
     });
   });
 
@@ -272,7 +274,6 @@ describe('pagoService.continuar', () => {
   const pendiente = {
     pagoId: 'p1',
     monto: 18000,
-    metodo: 'TARJETA' as const,
     mesaNumero: 4,
     restaurante: 'La Parrilla',
     creadoEn: CREADO_EN,
