@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { Trash2, TriangleAlert } from 'lucide-react';
-import type { FaltaStock, PedidoCola, PedidoInput } from '@pgim/shared';
+import type { FaltaStock, MenuSucursal, PedidoCola, PedidoInput } from '@pgim/shared';
 import { useAvisos } from '../../components/AvisoEmergente';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { SelectorCantidad } from '../../components/SelectorCantidad';
@@ -9,6 +10,7 @@ import { useCarrito } from '../../lib/carrito';
 import { formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useMiMesa } from '../../lib/miMesa';
+import { useRecurso } from '../../lib/useRecurso';
 
 // Pedido en armado (CU-04): el comensal revisa cantidades y observaciones y lo
 // confirma. Si a un plato no le alcanza el stock, el pedido se conserva.
@@ -21,6 +23,35 @@ export function PedidoPage() {
   const carrito = useCarrito(cuentaMesaId);
   const envio = useGuardar();
   const sinStock = (envio.detalles as FaltaStock | null)?.itemMenuId;
+
+  // El carrito guarda el precio de cuando se agregó el plato: al abrir el
+  // pedido se pone al día con el menú, que es el precio que cobra la cocina.
+  const menu = useRecurso<MenuSucursal>(
+    sucursalId ? `/comensal/sucursales/${sucursalId}/menu` : null,
+  );
+  const [preciosNuevos, setPreciosNuevos] = useState<string[]>([]);
+  const { actualizar } = carrito;
+  useEffect(() => {
+    if (!menu.datos?.menu || !cuentaMesaId) return;
+    const vigentes = new Map(
+      menu.datos.menu.categorias
+        .flatMap((c) => c.platos)
+        .map((p) => [
+          p.id,
+          {
+            id: p.id,
+            nombre: p.nombre,
+            precio: p.precio,
+            admiteObservaciones: p.admiteObservaciones,
+          },
+        ]),
+    );
+    const cambiados = actualizar(vigentes);
+    if (cambiados.length > 0) {
+      setPreciosNuevos(cambiados.map((p) => `${p.nombre}: ahora ${formatoPesos(p.precio)}`));
+    }
+    // Solo cuando llega el menú: actualizar es una función nueva en cada render.
+  }, [menu.datos, cuentaMesaId]);
 
   async function confirmar() {
     if (!cuentaMesaId) return;
@@ -51,6 +82,14 @@ export function PedidoPage() {
       accionFija={accion || undefined}
     >
       <TituloComensal>Tu pedido</TituloComensal>
+      {preciosNuevos.length > 0 && (
+        <div className="my-3">
+          <Aviso tono="ok">
+            Actualizamos {preciosNuevos.length === 1 ? 'el precio' : 'los precios'} con el menú de
+            hoy. {preciosNuevos.join('. ')}.
+          </Aviso>
+        </div>
+      )}
       <EstadoCarga cargando={mesa.cargando && !mesa.datos} error={mesa.error} />
       {!mesa.cargando && !mesa.datos && !mesa.error && (
         <p className="mt-4 rounded-panel border border-line bg-surface p-4 text-sm text-meta">

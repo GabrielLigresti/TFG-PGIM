@@ -90,6 +90,28 @@ export function useCarrito(cuentaMesaId: string | null) {
     cambiar(indice: number, cambios: Partial<Omit<LineaCarrito, 'plato'>>) {
       cambiarLineas(lineas.map((l, i) => (i === indice ? { ...l, ...cambios } : l)));
     },
+    // Pone al día precio y aclaraciones con el menú vigente. Devuelve los
+    // platos cuyo precio cambió, para avisarle al comensal antes de confirmar.
+    actualizar(vigentes: Map<string, PlatoCarrito>): PlatoCarrito[] {
+      const cambiados: PlatoCarrito[] = [];
+      const nuevas = lineas.map((l) => {
+        const vigente = vigentes.get(l.plato.id);
+        if (!vigente) return l;
+        if (vigente.precio !== l.plato.precio) cambiados.push(vigente);
+        return {
+          ...l,
+          plato: vigente,
+          observaciones: vigente.admiteObservaciones === false ? '' : l.observaciones,
+        };
+      });
+      const distintos = nuevas.some(
+        (l, i) =>
+          l.plato.precio !== lineas[i]!.plato.precio ||
+          l.plato.admiteObservaciones !== lineas[i]!.plato.admiteObservaciones,
+      );
+      if (distintos) cambiarLineas(nuevas);
+      return cambiados.filter((p, i, todos) => todos.findIndex((o) => o.id === p.id) === i);
+    },
     quitar(indice: number) {
       cambiarLineas(lineas.filter((_, i) => i !== indice));
     },
