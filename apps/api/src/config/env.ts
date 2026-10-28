@@ -11,6 +11,11 @@ const envSchema = z.object({
   UPLOADS_DIR: z.string().default('uploads'),
   // Habilita el pago de prueba aunque la API corra en producción (demo).
   PAGO_SIMULADO: z.stringbool().default(false),
+  // Mercado Pago (Checkout Pro). Si falta alguna de las tres se usa el pago de
+  // prueba. PUBLIC_URL es la URL del túnel: cambia en cada arranque.
+  MP_ACCESS_TOKEN: z.string().min(1).optional(),
+  MP_WEBHOOK_SECRET: z.string().min(1).optional(),
+  PUBLIC_URL: z.url().optional(),
 });
 
 export const env = envSchema.parse(process.env);

@@ -1,7 +1,6 @@
 import type { PedidoComensal, Referencia } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
-import type { ResultadoCobro } from '../pagos/pasarela';
 
 // "Mi mesa": la cuenta de mesa del comensal con sus pedidos y lo pagado.
 export interface FilaMesa {
@@ -15,6 +14,9 @@ export interface FilaMesa {
   pedidos: PedidoComensal[];
   pagado: number;
 }
+
+export type ResultadoCobro =
+  { estado: 'APROBADO'; referenciaExterna: string } | { estado: 'RECHAZADO' };
 
 export type ResultadoPago = 'APROBADO' | 'RECHAZADO' | 'SIN_SALDO' | 'CERRADA';
 
