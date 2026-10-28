@@ -53,10 +53,11 @@ export const descripcionBeneficio = (b: Pick<FilaBeneficio, 'tipoDescuento' | 'v
     ? `${b.valor} % de descuento`
     : `${pesos.format(b.valor)} de descuento`;
 
-// Puntos y primera visita se canjean una vez por edición; visitas y monto
-// vuelven a contar desde el último canje (lo resuelve el repositorio).
+// Primera visita se canjea una vez por edición. Visitas y monto vuelven a
+// contar desde el último canje (lo resuelve el repositorio) y los puntos son
+// un saldo: se canjea cada vez que alcanzan, porque el canje los descuenta.
 const canjeadoEnCiclo = (b: FilaBeneficio, e: ElegibilidadBeneficio) =>
-  e.canjeadoEnEdicion && (b.criterioTipo === 'PUNTOS' || b.criterioTipo === 'NUEVO_CLIENTE');
+  e.canjeadoEnEdicion && b.criterioTipo === 'NUEVO_CLIENTE';
 
 // Reparte los beneficios vigentes entre los que el comensal puede usar en esta
 // mesa y los que todavía no alcanzó. La usa también el pago, para revalidar el

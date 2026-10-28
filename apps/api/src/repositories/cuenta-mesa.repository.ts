@@ -24,7 +24,7 @@ export interface CuentaMesaRepository {
   mesaAbiertaDelComensal(comensalId: string, sucursalId?: string): Promise<FilaMesa | null>;
   // Solo la cuenta cuya reserva es del comensal, abierta o cerrada.
   buscarDelComensal(comensalId: string, cuentaMesaId: string): Promise<FilaMesa | null>;
-  // RegistroVisitas: si el titular pagó algo, alta de la cuenta de fidelidad
+  // RegistroVisitas: si el titular tiene un pago aprobado, alta de la cuenta de fidelidad
   // (si no tenía) y una visita por cuenta de mesa. true si la visita es nueva.
   registrarVisita(
     cuentaMesaId: string,
@@ -166,11 +166,11 @@ export const cuentaMesaRepository: CuentaMesaRepository = {
 
   registrarVisita(cuentaMesaId, restauranteId, comensalId) {
     return prisma.$transaction(async (tx) => {
-      const pagado = await tx.pago.aggregate({
+      // Un pago aprobado alcanza, aunque sea de $0 porque lo cubrió un beneficio.
+      const aprobados = await tx.pago.count({
         where: { cuentaMesaId, comensalId, estado: 'APROBADO' },
-        _sum: { monto: true },
       });
-      if (!(Number(pagado._sum.monto ?? 0) > 0)) return false;
+      if (aprobados === 0) return false;
 
       const cuenta = await tx.cuentaFidelidad.upsert({
         where: { comensalId_restauranteId: { comensalId, restauranteId } },

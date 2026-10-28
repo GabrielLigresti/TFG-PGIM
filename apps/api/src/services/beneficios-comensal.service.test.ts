@@ -107,9 +107,15 @@ describe('clasificarBeneficios', () => {
     expect(r).toEqual({ disponibles: [], noAlcanzados: [] });
   });
 
-  it('una recompensa por puntos canjeada en esta edición no se vuelve a ofrecer', () => {
+  it('una recompensa por puntos se puede canjear de nuevo si alcanzan los puntos', () => {
     const puntos = fila({ id: 'pts', criterioTipo: 'PUNTOS', criterioValor: 300 });
     const r = clasificar([puntos], new Map([['pts', eleg({ puntos: 900 }, true)]]));
+    expect(r.disponibles.map((d) => d.id)).toEqual(['pts']);
+  });
+
+  it('la de primera visita no se repite', () => {
+    const nuevo = fila({ id: 'nuevo', criterioTipo: 'NUEVO_CLIENTE', criterioValor: 1 });
+    const r = clasificar([nuevo], new Map([['nuevo', eleg({ tienePagosAprobados: false }, true)]]));
     expect(r).toEqual({ disponibles: [], noAlcanzados: [] });
   });
 

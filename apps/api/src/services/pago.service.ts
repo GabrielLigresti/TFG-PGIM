@@ -55,7 +55,7 @@ export function createPagoService(
     return recompensas
       .filter((b) => {
         const e = porBeneficio.get(b.id);
-        if (!e || (e.canjeadoEnEdicion && b.criterioTipo === 'PUNTOS')) return false;
+        if (!e) return false;
         const antes =
           b.criterioTipo === 'MONTO'
             ? { ...e.datos, montoGastado: e.datos.montoGastado - r.monto }

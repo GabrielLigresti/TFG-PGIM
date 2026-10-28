@@ -173,6 +173,19 @@ describe('cuentaMesaRepository.registrarVisita', () => {
     expect(fidelidad.cantidadVisitas).toBe(1);
   });
 
+  it('una mesa pagada entera con un beneficio ($0) también suma visita', async () => {
+    await prisma.pago.create({
+      data: {
+        cuentaMesaId: e.cuentaMesaId,
+        comensalId: e.comensalId,
+        monto: 0,
+        metodo: 'TARJETA',
+        estado: 'APROBADO',
+      },
+    });
+    expect(await visitar()).toBe(true);
+  });
+
   it('sin pago no registra visita ni crea la cuenta de fidelidad', async () => {
     expect(await visitar()).toBe(false);
     expect(await prisma.visita.count()).toBe(0);
