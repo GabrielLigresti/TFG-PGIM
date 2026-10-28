@@ -32,6 +32,7 @@ export interface FilaReserva {
 export interface FilaReservaPanel extends FilaReserva {
   comensalNombre: string;
   comensalTelefono: string | null;
+  pagoEnCurso: boolean;
 }
 
 export interface DatosReserva {
@@ -142,15 +143,19 @@ export function aFilaReserva({ sucursal, mesa, ...fila }: Fila): FilaReserva {
 const seleccionPanel = {
   ...seleccionReserva,
   comensal: { select: { nombre: true, telefono: true } },
+  cuentaMesa: {
+    select: { _count: { select: { pagos: { where: { estado: 'PENDIENTE' } } } } },
+  },
 } satisfies Prisma.ReservaSelect;
 
 type FilaPanel = Prisma.ReservaGetPayload<{ select: typeof seleccionPanel }>;
 
-function aFilaReservaPanel({ comensal, ...fila }: FilaPanel): FilaReservaPanel {
+function aFilaReservaPanel({ comensal, cuentaMesa, ...fila }: FilaPanel): FilaReservaPanel {
   return {
     ...aFilaReserva(fila),
     comensalNombre: comensal.nombre,
     comensalTelefono: comensal.telefono,
+    pagoEnCurso: (cuentaMesa?._count.pagos ?? 0) > 0,
   };
 }
 

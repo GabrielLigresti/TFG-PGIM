@@ -152,6 +152,7 @@ export function ReservasPage() {
               valor: (r) => (
                 <span className="inline-flex flex-wrap items-center gap-2">
                   <Estado entidad="reserva" valor={r.estado} />
+                  {r.pagoEnCurso && <Estado entidad="pago" valor="PENDIENTE" />}
                   {r.estado === 'PENDIENTE' && (
                     <span className="text-xs text-meta">
                       Tolerancia hasta {formatoHora(r.limiteLlegada)}

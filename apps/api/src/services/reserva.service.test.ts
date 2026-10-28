@@ -56,6 +56,7 @@ function filaPanel(cambios: Partial<FilaReservaPanel> = {}): FilaReservaPanel {
     ...fila({ inicio: new Date(A_LAS_20) }),
     comensalNombre: 'Carlos',
     comensalTelefono: null,
+    pagoEnCurso: false,
     ...cambios,
   };
 }
@@ -397,6 +398,23 @@ describe('activación (CU-12)', () => {
       message: 'El comensal tiene otra mesa abierta. Cerrala antes de activar esta.',
     });
     expect(bus.publicar).not.toHaveBeenCalled();
+  });
+
+  it('marca el pago en curso solo en una mesa activa', async () => {
+    const repo = repoFalso({
+      listarDelDia: jest
+        .fn()
+        .mockResolvedValue([
+          filaPanel({ id: 'activa', estado: 'ACTIVA', pagoEnCurso: true }),
+          filaPanel({ id: 'cerrada', estado: 'FINALIZADA', pagoEnCurso: true }),
+        ]),
+    });
+    const { service } = servicio(repo, undefined, DENTRO);
+    const lista = await service.delDia(R, S, '2026-10-30');
+    expect(lista.map((r) => [r.id, r.pagoEnCurso])).toEqual([
+      ['activa', true],
+      ['cerrada', false],
+    ]);
   });
 
   it('activable refleja la ventana en el listado del día', async () => {
