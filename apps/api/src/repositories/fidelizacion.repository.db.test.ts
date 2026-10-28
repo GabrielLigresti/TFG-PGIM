@@ -1,6 +1,7 @@
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
 import { crearEscenario, limpiarBase, type Escenario } from '../test/db-setup';
+import { fidelizacionRepository } from './fidelizacion.repository';
 
 afterAll(() => prisma.$disconnect());
 
@@ -32,7 +33,9 @@ function crearBeneficioCrudo(datos: Partial<Prisma.BeneficioUncheckedCreateInput
 
 describe('restricciones de beneficio en la base', () => {
   it('acepta un beneficio válido', async () => {
-    await expect(crearBeneficioCrudo({ stockInicial: 5, stockDisponible: 5 })).resolves.toBeDefined();
+    await expect(
+      crearBeneficioCrudo({ stockInicial: 5, stockDisponible: 5 }),
+    ).resolves.toBeDefined();
   });
 
   it('rechaza un stock disponible mayor al inicial', async () => {
@@ -65,7 +68,12 @@ describe('restricciones de beneficio en la base', () => {
       /beneficio_campos_por_clase_check/,
     );
     await expect(
-      crearBeneficioCrudo({ clase: 'PROMOCION', menuId: e.menuId, criterioTipo: null, criterioValor: null }),
+      crearBeneficioCrudo({
+        clase: 'PROMOCION',
+        menuId: e.menuId,
+        criterioTipo: null,
+        criterioValor: null,
+      }),
     ).resolves.toBeDefined();
   });
 
@@ -83,5 +91,59 @@ describe('restricciones de cuenta de fidelidad en la base', () => {
         data: { comensalId: e.comensalId, restauranteId: e.restauranteId, puntos: -1 },
       }),
     ).rejects.toThrow(/cuenta_fidelidad_puntos_check/);
+  });
+});
+
+describe('fidelizacionRepository.relanzarBeneficio', () => {
+  const nueva = () => ({
+    vigenciaDesde: new Date('2026-12-01T00:00:00Z'),
+    vigenciaHasta: new Date('2026-12-30T00:00:00Z'),
+    stockDisponible: 5,
+  });
+
+  it('cuenta los pagos en curso con el beneficio bloqueado y no relanza si hay uno', async () => {
+    const b = await crearBeneficioCrudo({ stockInicial: 5, stockDisponible: 0 });
+    const pago = await prisma.pago.create({
+      data: {
+        cuentaMesaId: e.cuentaMesaId,
+        comensalId: e.comensalId,
+        monto: 100,
+        metodo: 'TARJETA',
+      },
+    });
+    await prisma.beneficioAplicado.create({
+      data: { pagoId: pago.id, beneficioId: b.id, montoDescontado: 10 },
+    });
+
+    const relanzado = await fidelizacionRepository.relanzarBeneficio(
+      e.restauranteId,
+      b.id,
+      (fila) => (fila.pagosEnCurso > 0 ? null : nueva()),
+    );
+    expect(relanzado).toBe(false);
+    expect(
+      (await prisma.beneficio.findUniqueOrThrow({ where: { id: b.id } })).stockDisponible,
+    ).toBe(0);
+
+    await prisma.pago.update({ where: { id: pago.id }, data: { estado: 'RECHAZADO' } });
+    expect(
+      await fidelizacionRepository.relanzarBeneficio(e.restauranteId, b.id, (fila) =>
+        fila.pagosEnCurso > 0 ? null : nueva(),
+      ),
+    ).toBe(true);
+    expect(await prisma.beneficio.findUniqueOrThrow({ where: { id: b.id } })).toMatchObject({
+      stockDisponible: 5,
+      vigenciaDesde: new Date('2026-12-01T00:00:00Z'),
+    });
+  });
+
+  it('no toca un beneficio de otro restaurante', async () => {
+    const b = await crearBeneficioCrudo();
+    const otro = await prisma.restaurante.create({
+      data: { nombre: 'Otro', cuit: '30-00000000-1' },
+    });
+    expect(await fidelizacionRepository.relanzarBeneficio(otro.id, b.id, () => nueva())).toBe(
+      false,
+    );
   });
 });
