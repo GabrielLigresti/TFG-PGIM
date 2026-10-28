@@ -39,7 +39,9 @@ describe('estadoBeneficio', () => {
 
   it('termina al vencer o al agotarse el stock', () => {
     expect(estadoBeneficio(base, new Date('2026-11-30T00:00:00Z'))).toBe('TERMINADO');
-    expect(estadoBeneficio({ ...base, stockDisponible: 0 }, new Date('2026-11-10'))).toBe('TERMINADO');
+    expect(estadoBeneficio({ ...base, stockDisponible: 0 }, new Date('2026-11-10'))).toBe(
+      'TERMINADO',
+    );
   });
 
   it('sin límite de stock sigue vigente', () => {
@@ -67,7 +69,10 @@ describe('calcularDescuento', () => {
 
 describe('criterios de elegibilidad', () => {
   it('por visitas', () => {
-    expect(criterioDe('VISITAS', 5).progreso(datos({ visitas: 3 }))).toEqual({ actual: 3, requerido: 5 });
+    expect(criterioDe('VISITAS', 5).progreso(datos({ visitas: 3 }))).toEqual({
+      actual: 3,
+      requerido: 5,
+    });
     expect(criterioDe('VISITAS', 5).esElegible(datos({ visitas: 4 }))).toBe(false);
     expect(criterioDe('VISITAS', 5).esElegible(datos({ visitas: 5 }))).toBe(true);
   });
@@ -86,10 +91,14 @@ describe('criterios de elegibilidad', () => {
   });
 
   it('nuevo cliente: sin pagos aprobados en el restaurante, ignora el valor', () => {
-    expect(criterioDe('NUEVO_CLIENTE', 1).esElegible(datos({ tienePagosAprobados: false }))).toBe(true);
+    expect(criterioDe('NUEVO_CLIENTE', 1).esElegible(datos({ tienePagosAprobados: false }))).toBe(
+      true,
+    );
     expect(criterioDe('NUEVO_CLIENTE', 1).esElegible(datos())).toBe(false);
     expect(criterioDe('NUEVO_CLIENTE', 1).progreso(datos())).toEqual({ actual: 0, requerido: 1 });
-    expect(criterioDe('NUEVO_CLIENTE', null).progreso(datos({ tienePagosAprobados: false }))).toEqual({
+    expect(
+      criterioDe('NUEVO_CLIENTE', null).progreso(datos({ tienePagosAprobados: false })),
+    ).toEqual({
       actual: 1,
       requerido: 1,
     });
@@ -98,8 +107,12 @@ describe('criterios de elegibilidad', () => {
 
 describe('desdeDelCiclo', () => {
   it('lo más reciente entre el inicio de la vigencia y el último canje', () => {
-    expect(desdeDelCiclo(new Date('2026-11-01'), new Date('2026-11-05'))).toEqual(new Date('2026-11-05'));
-    expect(desdeDelCiclo(new Date('2026-11-01'), new Date('2026-10-20'))).toEqual(new Date('2026-11-01'));
+    expect(desdeDelCiclo(new Date('2026-11-01'), new Date('2026-11-05'))).toEqual(
+      new Date('2026-11-05'),
+    );
+    expect(desdeDelCiclo(new Date('2026-11-01'), new Date('2026-10-20'))).toEqual(
+      new Date('2026-11-01'),
+    );
     expect(desdeDelCiclo(new Date('2026-11-01'), null)).toEqual(new Date('2026-11-01'));
   });
 });

@@ -30,7 +30,10 @@ export function estadoBeneficio(b: DatosBeneficio, ahora: Date): EstadoBeneficio
 }
 
 // Sobre el saldo de la cuenta, con tope en el saldo.
-export function calcularDescuento(b: Pick<DatosBeneficio, 'tipoDescuento' | 'valor'>, saldo: number): number {
+export function calcularDescuento(
+  b: Pick<DatosBeneficio, 'tipoDescuento' | 'valor'>,
+  saldo: number,
+): number {
   const descuento = b.tipoDescuento === 'PORCENTAJE' ? (saldo * b.valor) / 100 : b.valor;
   return centavos(Math.min(descuento, saldo));
 }
@@ -55,7 +58,10 @@ export interface CriterioElegibilidad {
 }
 
 // Criterio con un umbral: elegible al alcanzarlo.
-function porUmbral(requerido: number, medir: (d: DatosElegibilidad) => number): CriterioElegibilidad {
+function porUmbral(
+  requerido: number,
+  medir: (d: DatosElegibilidad) => number,
+): CriterioElegibilidad {
   return {
     esElegible: (d) => medir(d) >= requerido,
     progreso: (d) => ({ actual: Math.min(medir(d), requerido), requerido }),
@@ -85,7 +91,9 @@ export function criterioDe(tipo: TipoCriterio, valor: number | null): CriterioEl
 // Visitas y monto cuentan desde lo más reciente entre el inicio de la edición
 // y el último canje aprobado de esa recompensa.
 export function desdeDelCiclo(vigenciaDesde: Date, ultimoCanjeAprobado: Date | null): Date {
-  return ultimoCanjeAprobado && ultimoCanjeAprobado > vigenciaDesde ? ultimoCanjeAprobado : vigenciaDesde;
+  return ultimoCanjeAprobado && ultimoCanjeAprobado > vigenciaDesde
+    ? ultimoCanjeAprobado
+    : vigenciaDesde;
 }
 
 // Sobre lo pagado, redondeando hacia abajo. En centavos enteros para que la
