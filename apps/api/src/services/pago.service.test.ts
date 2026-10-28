@@ -237,3 +237,40 @@ describe('pagoService.estado', () => {
     await expect(servicio.estado('c', 'cm', 'p1')).rejects.toMatchObject({ status: 404 });
   });
 });
+
+describe('pagoService.vencerPendientes', () => {
+  it('consulta cada pago vencido y lo resuelve según Mercado Pago', async () => {
+    const consultas: Record<string, unknown> = {
+      aprobado: { estado: 'APROBADO', referenciaExterna: 'MP-9', metodo: 'BILLETERA_VIRTUAL' },
+      enProceso: { estado: 'EN_PROCESO' },
+      sinAprobar: { estado: 'SIN_APROBAR' },
+    };
+    const { servicio, repo, pasarela } = armar({
+      consultarPago: jest.fn(async (id: string) => consultas[id]) as never,
+    });
+    repo.pendientesVencidos.mockResolvedValue(['aprobado', 'enProceso', 'sinAprobar']);
+
+    expect(await servicio.vencerPendientes(AHORA)).toBe(2);
+    expect(repo.pendientesVencidos).toHaveBeenCalledWith(new Date('2026-11-10T11:45:00Z'));
+    expect(pasarela.consultarPago).toHaveBeenCalledTimes(3);
+    expect(repo.resolver.mock.calls).toEqual([
+      ['aprobado', { estado: 'APROBADO', referenciaExterna: 'MP-9', metodo: 'BILLETERA_VIRTUAL' }],
+      ['sinAprobar', { estado: 'RECHAZADO' }],
+    ]);
+  });
+
+  it('un error con un pago no corta los demás', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { servicio, repo } = armar({
+      consultarPago: jest
+        .fn()
+        .mockRejectedValueOnce(new Error('Mercado Pago respondió 500'))
+        .mockResolvedValue({ estado: 'SIN_APROBAR' }),
+    });
+    repo.pendientesVencidos.mockResolvedValue(['falla', 'otro']);
+
+    expect(await servicio.vencerPendientes(AHORA)).toBe(1);
+    expect(repo.resolver).toHaveBeenCalledWith('otro', { estado: 'RECHAZADO' });
+    error.mockRestore();
+  });
+});

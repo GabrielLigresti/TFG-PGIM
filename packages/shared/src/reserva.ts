@@ -80,6 +80,7 @@ export const EVENTOS_SOCKET = {
   pedidoNuevo: 'pedido:nuevo',
   pedidoCambio: 'pedido:cambio',
   mesaCambio: 'mesa:cambio',
+  pagoResultado: 'pago:resultado',
   alertaNueva: 'alerta:nueva',
 } as const;
 

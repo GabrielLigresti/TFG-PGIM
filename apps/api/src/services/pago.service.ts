@@ -1,5 +1,6 @@
 import type { PagoIniciado, PagoInput, EstadoPagoComensal } from '@pgim/shared';
 import { criterioDe } from '../domain/beneficio';
+import { PAGO_VENCE_MIN } from '../domain/pago';
 import { busEventos, type BusEventos } from '../domain/eventos';
 import { AppError } from '../lib/errors';
 import { pasarela as pasarelaPorDefecto, type PasarelaPago } from '../pagos/pasarela';
@@ -159,6 +160,34 @@ export function createPagoService(
       }
       urls.set(r.pagoId, inicio.urlPago);
       return { pagoId: r.pagoId, urlPago: inicio.urlPago };
+    },
+
+    // Tarea programada: un PENDIENTE de más de 15 minutos se resuelve con lo
+    // que informe la pasarela sobre todos sus intentos. Si alguno sigue en
+    // proceso, se espera a la próxima vuelta. Devuelve cuántos resolvió.
+    async vencerPendientes(instante: Date): Promise<number> {
+      const limite = new Date(instante.getTime() - PAGO_VENCE_MIN * 60_000);
+      let resueltos = 0;
+      for (const pagoId of await repo.pendientesVencidos(limite)) {
+        try {
+          const consulta = await pasarela.consultarPago(pagoId);
+          if (consulta.estado === 'EN_PROCESO') continue;
+          await resolver(
+            pagoId,
+            consulta.estado === 'APROBADO'
+              ? {
+                  estado: 'APROBADO',
+                  referenciaExterna: consulta.referenciaExterna,
+                  metodo: consulta.metodo,
+                }
+              : { estado: 'RECHAZADO' },
+          );
+          resueltos++;
+        } catch (e) {
+          console.error(`No se pudo vencer el pago ${pagoId}`, e);
+        }
+      }
+      return resueltos;
     },
 
     async estado(

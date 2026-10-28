@@ -1,12 +1,12 @@
-import { iniciarVencimientoReservas } from './vencimiento-reservas';
+import { iniciarTareaPeriodica } from './periodica';
 
-describe('tarea de vencimiento de reservas', () => {
+describe('tarea periódica', () => {
   beforeEach(() => jest.useFakeTimers());
   afterEach(() => jest.useRealTimers());
 
   it('corre al iniciar y cada intervalo', async () => {
     const vencer = jest.fn().mockResolvedValue(0);
-    const detener = iniciarVencimientoReservas(vencer, 60_000);
+    const detener = iniciarTareaPeriodica('vencer', vencer, 60_000);
 
     await jest.advanceTimersByTimeAsync(120_000);
 
@@ -16,7 +16,7 @@ describe('tarea de vencimiento de reservas', () => {
 
   it('no superpone ejecuciones', async () => {
     const vencer = jest.fn(() => new Promise<number>(() => {}));
-    const detener = iniciarVencimientoReservas(vencer, 60_000);
+    const detener = iniciarTareaPeriodica('vencer', vencer, 60_000);
 
     await jest.advanceTimersByTimeAsync(180_000);
 
@@ -26,7 +26,7 @@ describe('tarea de vencimiento de reservas', () => {
 
   it('la función devuelta la detiene', async () => {
     const vencer = jest.fn().mockResolvedValue(0);
-    const detener = iniciarVencimientoReservas(vencer, 60_000);
+    const detener = iniciarTareaPeriodica('vencer', vencer, 60_000);
     await jest.advanceTimersByTimeAsync(0);
 
     detener();
@@ -38,7 +38,7 @@ describe('tarea de vencimiento de reservas', () => {
   it('un error no detiene la tarea', async () => {
     const consola = jest.spyOn(console, 'error').mockImplementation();
     const vencer = jest.fn().mockRejectedValueOnce(new Error('sin base')).mockResolvedValue(0);
-    const detener = iniciarVencimientoReservas(vencer, 60_000);
+    const detener = iniciarTareaPeriodica('vencer', vencer, 60_000);
 
     await jest.advanceTimersByTimeAsync(60_000);
 
@@ -47,4 +47,17 @@ describe('tarea de vencimiento de reservas', () => {
     detener();
     consola.mockRestore();
   });
+});
+
+it('un error queda en el log con el nombre de la tarea y no la detiene', async () => {
+  jest.useFakeTimers();
+  const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+  const tarea = jest.fn().mockRejectedValue(new Error('base caída'));
+  const detener = iniciarTareaPeriodica('vencer pagos', tarea, 60_000);
+  await jest.advanceTimersByTimeAsync(60_000);
+  expect(tarea).toHaveBeenCalledTimes(2);
+  expect(error).toHaveBeenCalledWith('Error en la tarea vencer pagos', expect.any(Error));
+  detener();
+  error.mockRestore();
+  jest.useRealTimers();
 });
