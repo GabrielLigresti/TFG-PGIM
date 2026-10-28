@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
-import { CalendarDays, ChevronLeft, House, LogOut, Receipt } from 'lucide-react';
+import type { MiMesa } from '@pgim/shared';
+import { CalendarDays, ChevronLeft, House, LogOut, Receipt, Star } from 'lucide-react';
 import { useSesion } from '../auth/SesionProvider';
 import { useMiMesa } from '../lib/miMesa';
 
 const PESTANIAS = [
   { a: '/inicio', texto: 'Inicio', icono: House },
   { a: '/reservas', texto: 'Reservas', icono: CalendarDays },
+  { a: '/puntos', texto: 'Mis puntos', icono: Star },
 ];
 
 // Título de las pantallas del comensal.
@@ -23,15 +25,19 @@ export function TituloComensal({ children }: { children: ReactNode }) {
 export function LayoutComensal({
   volver,
   accionFija,
+  mesaActiva,
   children,
 }: {
   volver?: { a: string; texto: string };
   accionFija?: ReactNode;
+  // La pantalla que ya consultó la mesa la pasa, para no pedirla dos veces.
+  mesaActiva?: MiMesa | null;
   children: ReactNode;
 }) {
   const { sesion, logout } = useSesion();
   // "Mi mesa" aparece solo mientras el comensal tiene una mesa activa.
-  const mesa = useMiMesa(null).datos;
+  const consultada = useMiMesa(null, mesaActiva === undefined).datos;
+  const mesa = mesaActiva === undefined ? consultada : mesaActiva;
   const pestanias = mesa
     ? [...PESTANIAS, { a: '/mesa', texto: 'Mi mesa', icono: Receipt }]
     : PESTANIAS;
@@ -79,7 +85,7 @@ export function LayoutComensal({
           className="border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
         >
           <div
-            className={`mx-auto grid h-14 max-w-[480px] ${mesa ? 'grid-cols-3' : 'grid-cols-2'}`}
+            className={`mx-auto grid h-14 max-w-[480px] ${mesa ? 'grid-cols-4' : 'grid-cols-3'}`}
           >
             {pestanias.map(({ a, texto, icono: Icono }) => (
               <NavLink

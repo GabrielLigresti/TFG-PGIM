@@ -12,6 +12,7 @@ import { PanelPage } from './pages/PanelPage';
 import { RegistroPage } from './pages/RegistroPage';
 import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
+import { MisPuntosPage } from './pages/comensal/MisPuntosPage';
 import { MiMesaPage } from './pages/comensal/MiMesaPage';
 import { MisReservasPage } from './pages/comensal/MisReservasPage';
 import { PedidoPage } from './pages/comensal/PedidoPage';
@@ -110,6 +111,7 @@ export default function App() {
                 <Route path="/s/:sucursalId/pedido" element={paraComensal(<PedidoPage />)} />
                 <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
                 <Route path="/mesa" element={paraComensal(<MiMesaPage />)} />
+                <Route path="/puntos" element={paraComensal(<MisPuntosPage />)} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>
             </ProveedorConfirmacion>

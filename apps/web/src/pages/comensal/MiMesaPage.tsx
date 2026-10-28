@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router';
-import type { MiMesa } from '@pgim/shared';
-import { useAvisos } from '../../components/AvisoEmergente';
-import { useConfirmar } from '../../components/Confirmacion';
+import { Link, useSearchParams } from 'react-router';
+import type { BeneficiosMesa, MetodoPago, MiMesa, PagoIniciado, PagoInput } from '@pgim/shared';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
+import { ResultadoPagoVista, SeleccionPago, useSeguimientoPago } from '../../components/PagoMesa';
 import { Aviso, Boton, EstadoCarga, Estado } from '../../components/ui';
 import { formatoHora, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useMiMesa } from '../../lib/miMesa';
+import { useRecurso } from '../../lib/useRecurso';
 
 // "Mi mesa": los pedidos del comensal con su estado en vivo, lo pagado y el
-// saldo. El pago, por ahora, es de prueba (no cobra nada).
+// saldo. Paga siempre el saldo total, con un beneficio opcional, en Mercado
+// Pago; al volver (?pago=<id>) se muestra el resultado.
 export function MiMesaPage() {
   const mesa = useMiMesa(null);
-  const pago = useGuardar();
-  const confirmar = useConfirmar();
-  const { avisar } = useAvisos();
+  const [parametros, setParametros] = useSearchParams();
+  const pagoSeguido = parametros.get('pago');
   // Si la mesa estaba abierta y deja de estarlo, la cerró el personal.
   const [ultima, setUltima] = useState<MiMesa | null>(null);
   useEffect(() => {
@@ -23,35 +23,74 @@ export function MiMesaPage() {
   }, [mesa.datos]);
 
   const datos = mesa.datos;
+  const cuentaMesaId = datos?.cuentaMesaId ?? ultima?.cuentaMesaId ?? null;
+  const seguimiento = useSeguimientoPago(cuentaMesaId, pagoSeguido);
+  const puedePagar = !!datos && datos.saldo > 0 && datos.pagoHabilitado && !datos.pagoEnCurso;
+
+  const beneficios = useRecurso<BeneficiosMesa>(
+    puedePagar ? `/comensal/mesa/${datos.cuentaMesaId}/beneficios` : null,
+  );
+  const [beneficioId, setBeneficioId] = useState<string | null>(null);
+  const [metodo, setMetodo] = useState<MetodoPago>('TARJETA');
+  const pago = useGuardar();
+
+  // Si el beneficio elegido deja de estar disponible, vuelve a "Sin beneficio".
+  const elegido = beneficios.datos?.disponibles.find((b) => b.id === beneficioId) ?? null;
+  useEffect(() => {
+    if (beneficioId && beneficios.datos && !elegido) setBeneficioId(null);
+  }, [beneficioId, beneficios.datos, elegido]);
+  const aPagar = datos ? Math.max(0, datos.saldo - (elegido?.descuento ?? 0)) : 0;
 
   async function pagar() {
     if (!datos) return;
-    const ok = await confirmar({
-      mensaje: `¿Pagar ${formatoPesos(datos.saldo)}?`,
-      detalle: 'Es un pago de prueba: no se cobra nada.',
-      accion: 'Pagar',
-      principal: true,
-    });
-    if (!ok) return;
-    if (await pago.enviar(`/comensal/mesa/${datos.cuentaMesaId}/pagos`, 'POST')) {
-      avisar('Pago aprobado');
+    const cuerpo: PagoInput = { metodo, beneficioId };
+    const respuesta = await pago.enviar<PagoIniciado>(
+      `/comensal/mesa/${datos.cuentaMesaId}/pagos`,
+      'POST',
+      cuerpo,
+    );
+    if (!respuesta) {
+      // El beneficio se agotó o ya no vale: se vuelve a ofrecer lo que queda.
+      beneficios.recargar();
+      mesa.recargar();
+      return;
+    }
+    const { pagoId, urlPago } = respuesta.datos;
+    if (urlPago) window.location.assign(urlPago);
+    else {
+      setParametros({ pago: pagoId });
       mesa.recargar();
     }
   }
 
+  function terminarSeguimiento() {
+    setParametros({});
+    pago.setError(null);
+    mesa.recargar();
+    beneficios.recargar();
+  }
+
   const claseAccion =
     'inline-flex min-h-11 flex-1 items-center justify-center rounded-control px-4 text-sm font-semibold';
-  const accion = datos && (
+  const accion = datos && !pagoSeguido && (
     <>
-      {datos.saldo > 0 && datos.pagoHabilitado && (
+      {puedePagar && (
         <Boton densidad="comensal" className="flex-1" disabled={pago.enviando} onClick={pagar}>
-          {pago.enviando ? 'Pagando…' : `Pagar ${formatoPesos(datos.saldo)}`}
+          {pago.enviando ? 'Abriendo Mercado Pago…' : `Pagar ${formatoPesos(aPagar)}`}
         </Boton>
+      )}
+      {datos.pagoEnCurso?.urlPago && (
+        <a
+          href={datos.pagoEnCurso.urlPago}
+          className={`${claseAccion} bg-accent text-white hover:bg-accent-hover`}
+        >
+          Continuar el pago
+        </a>
       )}
       <Link
         to={`/s/${datos.sucursal.id}/menu`}
         className={`${claseAccion} ${
-          datos.saldo > 0
+          puedePagar || datos.pagoEnCurso?.urlPago
             ? 'border border-line-strong bg-surface text-text hover:bg-panel'
             : 'bg-accent text-white hover:bg-accent-hover'
         }`}
@@ -62,8 +101,13 @@ export function MiMesaPage() {
   );
 
   return (
-    <LayoutComensal accionFija={accion || undefined}>
+    <LayoutComensal accionFija={accion || undefined} mesaActiva={datos}>
       <EstadoCarga cargando={mesa.cargando && !datos && !ultima} error={mesa.error} />
+      {pagoSeguido && (
+        <div className="mb-4">
+          <ResultadoPagoVista {...seguimiento} onListo={terminarSeguimiento} />
+        </div>
+      )}
       {!datos && !mesa.cargando && !mesa.error && (
         <div className="space-y-2">
           <TituloComensal>{ultima ? 'Gracias por tu visita' : 'Mi mesa'}</TituloComensal>
@@ -133,12 +177,48 @@ export function MiMesaPage() {
               <dt className="text-meta">Pagado</dt>
               <dd className="tabular-nums">{formatoPesos(datos.pagado)}</dd>
             </div>
+            {datos.descuentos > 0 && (
+              <div className="flex justify-between">
+                <dt className="text-meta">Beneficios usados</dt>
+                <dd className="tabular-nums">−{formatoPesos(datos.descuentos)}</dd>
+              </div>
+            )}
+            {elegido && puedePagar && (
+              <div className="flex justify-between text-accent-ink">
+                <dt>{elegido.nombre}</dt>
+                <dd className="tabular-nums">−{formatoPesos(elegido.descuento)}</dd>
+              </div>
+            )}
             <div className="flex justify-between text-base font-semibold text-ink">
-              <dt>Saldo</dt>
-              <dd className="tabular-nums">{formatoPesos(datos.saldo)}</dd>
+              <dt>{elegido && puedePagar ? 'A pagar' : 'Saldo'}</dt>
+              <dd className="tabular-nums">{formatoPesos(puedePagar ? aPagar : datos.saldo)}</dd>
             </div>
           </dl>
-          <Aviso>{pago.error}</Aviso>
+
+          {datos.pagoEnCurso && !pagoSeguido && (
+            <section
+              role="status"
+              className="space-y-1 rounded-panel border border-line bg-surface p-4"
+            >
+              <p className="font-semibold text-ink">Tenés un pago en curso</p>
+              <p className="text-sm text-meta">
+                {datos.pagoEnCurso.urlPago
+                  ? 'Podés terminarlo en Mercado Pago. Si no lo completás, vence a los 15 minutos y no se cobra nada.'
+                  : 'Si no se completó, vence a los 15 minutos y no se cobra nada. Después podés volver a pagar.'}
+              </p>
+            </section>
+          )}
+
+          {puedePagar && !pagoSeguido && (
+            <SeleccionPago
+              beneficios={beneficios.datos}
+              beneficioId={beneficioId}
+              onBeneficio={setBeneficioId}
+              metodo={metodo}
+              onMetodo={setMetodo}
+            />
+          )}
+          <Aviso>{pago.error ?? beneficios.error}</Aviso>
         </div>
       )}
     </LayoutComensal>
