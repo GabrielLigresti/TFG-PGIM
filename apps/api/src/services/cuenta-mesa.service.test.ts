@@ -18,6 +18,7 @@ function mesa(cambios: Partial<FilaMesa> = {}): FilaMesa {
     abiertaEn: new Date('2026-10-30T22:55:00.000Z'),
     pedidos: [pedido('a', 1000, 'ENTREGADO'), pedido('b', 500, 'CANCELADO')],
     pagado: 0,
+    descuentos: 0,
     pagoPendienteId: null,
     ...cambios,
   };

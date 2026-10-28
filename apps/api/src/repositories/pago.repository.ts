@@ -106,8 +106,8 @@ export const pagoRepository: PagoRepository = {
           });
           if (enCurso) return { resultado: 'EN_CURSO', pagoId: enCurso.id };
 
-          const { total, pagado } = await totalesDeCuenta(tx, cuentaMesaId);
-          const saldo = centavos(total - pagado);
+          const { total, pagado, descuentos } = await totalesDeCuenta(tx, cuentaMesaId);
+          const saldo = centavos(total - pagado - descuentos);
           if (saldo <= 0) return { resultado: 'SIN_SALDO' };
 
           let descuento = 0;

@@ -85,6 +85,8 @@ export interface MiMesa {
   pedidos: PedidoComensal[];
   total: number;
   pagado: number;
+  // Lo que cubrieron los beneficios de pagos aprobados.
+  descuentos: number;
   saldo: number;
   pagoHabilitado: boolean;
   // Pago esperando el resultado de Mercado Pago; urlPago null si ya no se

@@ -28,7 +28,8 @@ export function createCuentaMesaService(
       pedidos: fila.pedidos,
       total,
       pagado: fila.pagado,
-      saldo: centavos(total - fila.pagado),
+      descuentos: fila.descuentos,
+      saldo: centavos(total - fila.pagado - fila.descuentos),
       pagoHabilitado: pasarela.habilitada,
       pagoEnCurso: fila.pagoPendienteId
         ? { pagoId: fila.pagoPendienteId, urlPago: urlDePago(fila.pagoPendienteId) }

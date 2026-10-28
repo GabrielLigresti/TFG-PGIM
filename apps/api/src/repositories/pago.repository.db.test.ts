@@ -2,6 +2,8 @@ import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
 import { validarBeneficioElegido } from '../services/pago.service';
 import { crearEscenario, limpiarBase, type Escenario } from '../test/db-setup';
+import { cuentaMesaRepository } from './cuenta-mesa.repository';
+import { contextoMesa } from './elegibilidad';
 import { pagoRepository } from './pago.repository';
 import { pedidoRepository } from './pedido.repository';
 
@@ -128,6 +130,18 @@ describe('pagoRepository.crearPendiente', () => {
     expect(
       (await prisma.beneficio.findUniqueOrThrow({ where: { id: b.id } })).stockDisponible,
     ).toBe(2);
+  });
+
+  it('el descuento de un pago aprobado también cubre el saldo', async () => {
+    await pedir(e.cuentaMesaId, e.comensalId, 20000);
+    const b = await crearBeneficio({ valor: 50 });
+    const { pagoId } = (await crear({ beneficioId: b.id })) as { pagoId: string };
+    await aprobar(pagoId);
+
+    expect(await crear()).toEqual({ resultado: 'SIN_SALDO' });
+    const mesa = await cuentaMesaRepository.buscarDelComensal(e.comensalId, e.cuentaMesaId);
+    expect(mesa).toMatchObject({ pagado: 10000, descuentos: 10000 });
+    expect(await contextoMesa(prisma, e.comensalId, e.cuentaMesaId)).toMatchObject({ saldo: 0 });
   });
 
   it('la última unidad de un beneficio se la lleva un solo pago', async () => {

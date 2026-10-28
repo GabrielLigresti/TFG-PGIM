@@ -302,7 +302,7 @@ export const reservaRepository: ReservaRepository = {
       // dos la bloquean igual).
       await tx.$queryRaw`SELECT id FROM cuenta_mesa WHERE id = ${cuentaMesaId}::uuid FOR UPDATE`;
 
-      const { total, pagado, pedidosActivos } = await totalesDeCuenta(tx, cuentaMesaId);
+      const { total, pagado, descuentos, pedidosActivos } = await totalesDeCuenta(tx, cuentaMesaId);
       if (pedidosActivos > 0) {
         return { resultado: 'BLOQUEADA', bloqueo: { pedidosSinEntregar: pedidosActivos } };
       }
@@ -310,7 +310,7 @@ export const reservaRepository: ReservaRepository = {
       // después sobre una mesa cerrada.
       const pagosEnCurso = await tx.pago.count({ where: { cuentaMesaId, estado: 'PENDIENTE' } });
       if (pagosEnCurso > 0) return { resultado: 'BLOQUEADA', bloqueo: { pagoEnCurso: true } };
-      const saldo = Math.round((total - pagado) * 100) / 100;
+      const saldo = Math.round((total - pagado - descuentos) * 100) / 100;
       if (saldo > 0 && !confirmarSaldo) {
         return { resultado: 'BLOQUEADA', bloqueo: { saldoPendiente: saldo } };
       }

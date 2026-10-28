@@ -13,6 +13,8 @@ export interface FilaMesa {
   abiertaEn: Date;
   pedidos: PedidoComensal[];
   pagado: number;
+  // Descuentos de los beneficios de pagos aprobados: también cubren el saldo.
+  descuentos: number;
   // El pago PENDIENTE de la mesa, si hay uno (nunca hay dos).
   pagoPendienteId: string | null;
 }
@@ -63,7 +65,12 @@ const seleccionMesa = {
   },
   pagos: {
     where: { estado: { not: 'RECHAZADO' } },
-    select: { id: true, estado: true, monto: true },
+    select: {
+      id: true,
+      estado: true,
+      monto: true,
+      beneficiosAplicados: { select: { montoDescontado: true } },
+    },
   },
 } satisfies Prisma.CuentaMesaSelect;
 
@@ -73,6 +80,7 @@ const centavos = (valor: number) => Math.round(valor * 100) / 100;
 
 function aFilaMesa(fila: Fila): FilaMesa {
   const { reserva } = fila;
+  const aprobados = fila.pagos.filter((p) => p.estado === 'APROBADO');
   return {
     cuentaMesaId: fila.id,
     estado: fila.estado,
@@ -98,21 +106,25 @@ function aFilaMesa(fila: Fila): FilaMesa {
         lineas,
       };
     }),
-    pagado: centavos(
-      fila.pagos.filter((p) => p.estado === 'APROBADO').reduce((t, p) => t + Number(p.monto), 0),
+    pagado: centavos(aprobados.reduce((t, p) => t + Number(p.monto), 0)),
+    descuentos: centavos(
+      aprobados
+        .flatMap((p) => p.beneficiosAplicados)
+        .reduce((t, b) => t + Number(b.montoDescontado), 0),
     ),
     pagoPendienteId: fila.pagos.find((p) => p.estado === 'PENDIENTE')?.id ?? null,
   };
 }
 
-// Total de los pedidos no cancelados y lo pagado (pagos aprobados), para el
+// Total de los pedidos no cancelados, lo pagado y lo descontado por beneficios
+// (pagos aprobados); saldo = total − pagado − descuentos. Para el
 // cierre de mesa dentro de su transacción.
 export async function totalesDeCuenta(
   tx: Prisma.TransactionClient,
   cuentaMesaId: string,
-): Promise<{ total: number; pagado: number; pedidosActivos: number }> {
+): Promise<{ total: number; pagado: number; descuentos: number; pedidosActivos: number }> {
   const [fila] = await tx.$queryRaw<
-    { total: string | null; pagado: string | null; activos: bigint }[]
+    { total: string | null; pagado: string | null; descuentos: string | null; activos: bigint }[]
   >`
     SELECT
       (SELECT SUM(lp.cantidad * lp.precio_unitario) FROM linea_pedido lp
@@ -120,12 +132,16 @@ export async function totalesDeCuenta(
          WHERE p.cuenta_mesa_id = ${cuentaMesaId}::uuid AND p.estado <> 'CANCELADO') AS total,
       (SELECT SUM(monto) FROM pago
          WHERE cuenta_mesa_id = ${cuentaMesaId}::uuid AND estado = 'APROBADO') AS pagado,
+      (SELECT SUM(ba.monto_descontado) FROM beneficio_aplicado ba
+         JOIN pago p ON p.id = ba.pago_id
+         WHERE p.cuenta_mesa_id = ${cuentaMesaId}::uuid AND p.estado = 'APROBADO') AS descuentos,
       (SELECT COUNT(*) FROM pedido
          WHERE cuenta_mesa_id = ${cuentaMesaId}::uuid
            AND estado IN ('CONFIRMADO', 'EN_PREPARACION', 'LISTO')) AS activos`;
   return {
     total: Number(fila?.total ?? 0),
     pagado: Number(fila?.pagado ?? 0),
+    descuentos: Number(fila?.descuentos ?? 0),
     pedidosActivos: Number(fila?.activos ?? 0),
   };
 }

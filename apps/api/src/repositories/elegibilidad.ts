@@ -127,7 +127,7 @@ export async function contextoMesa(
       },
       pagos: {
         where: { estado: 'APROBADO' },
-        select: { monto: true, _count: { select: { beneficiosAplicados: true } } },
+        select: { monto: true, beneficiosAplicados: { select: { montoDescontado: true } } },
       },
     },
   });
@@ -135,12 +135,19 @@ export async function contextoMesa(
   const total = cuenta.pedidos
     .flatMap((p) => p.lineas)
     .reduce((t, l) => t + l.cantidad * Number(l.precioUnitario), 0);
-  const pagado = cuenta.pagos.reduce((t, p) => t + Number(p.monto), 0);
+  // Lo descontado por un beneficio también cubre la cuenta.
+  const cubierto = cuenta.pagos.reduce(
+    (t, p) =>
+      t +
+      Number(p.monto) +
+      p.beneficiosAplicados.reduce((d, b) => d + Number(b.montoDescontado), 0),
+    0,
+  );
   return {
     restauranteId: cuenta.reserva.sucursal.restauranteId,
     menuActivoId: cuenta.reserva.sucursal.menuActivoId,
-    saldo: Math.round((total - pagado) * 100) / 100,
-    beneficioUsado: cuenta.pagos.some((p) => p._count.beneficiosAplicados > 0),
+    saldo: Math.round((total - cubierto) * 100) / 100,
+    beneficioUsado: cuenta.pagos.some((p) => p.beneficiosAplicados.length > 0),
   };
 }
 
