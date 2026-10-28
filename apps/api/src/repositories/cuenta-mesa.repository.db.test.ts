@@ -110,6 +110,21 @@ describe('reservaRepository.cerrar', () => {
     expect((await cerrar(false)).resultado).toBe('CERRADA');
   });
 
+  it('con un pago en curso se bloquea', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
+    await entregar(pedido.id);
+    await prisma.pago.create({
+      data: {
+        cuentaMesaId: e.cuentaMesaId,
+        comensalId: e.comensalId,
+        monto: 600,
+        metodo: 'TARJETA',
+      },
+    });
+
+    expect(await cerrar(true)).toEqual({ resultado: 'BLOQUEADA', bloqueo: { pagoEnCurso: true } });
+  });
+
   it('una reserva que ya no está activa no se cierra', async () => {
     await prisma.reserva.update({ where: { id: e.reservaId }, data: { estado: 'FINALIZADA' } });
     expect(await cerrar(true)).toEqual({ resultado: 'CAMBIO' });
@@ -142,5 +157,63 @@ describe('cuentaMesaRepository.registrarVisita', () => {
     expect(await visitar()).toBe(false);
     expect(await prisma.visita.count()).toBe(0);
     expect(await prisma.cuentaFidelidad.count()).toBe(0);
+  });
+});
+
+describe('reservaRepository.activar', () => {
+  // Una reserva PENDIENTE del mismo comensal en otra sucursal del restaurante.
+  async function reservaEnOtraSucursal(comensalId = e.comensalId) {
+    const sucursal = await prisma.sucursal.create({
+      data: {
+        restauranteId: e.restauranteId,
+        nombre: 'Norte',
+        direccion: 'Calle Norte 1',
+        horarioApertura: new Date('1970-01-01T12:00:00Z'),
+        horarioCierre: new Date('1970-01-01T00:00:00Z'),
+        toleranciaNoShowMin: 15,
+      },
+    });
+    const mesa = await prisma.mesa.create({
+      data: { sucursalId: sucursal.id, numero: 1, capacidad: 2, posX: 1, posY: 1 },
+    });
+    const inicio = new Date();
+    inicio.setUTCMinutes(0, 0, 0);
+    const reserva = await prisma.reserva.create({
+      data: {
+        sucursalId: sucursal.id,
+        mesaId: mesa.id,
+        comensalId,
+        inicio,
+        cantidadPersonas: 2,
+        modoAsignacion: 'MANUAL',
+      },
+    });
+    return { sucursalId: sucursal.id, reservaId: reserva.id };
+  }
+
+  const activar = (r: { sucursalId: string; reservaId: string }) =>
+    reservaRepository.activar(e.restauranteId, r.sucursalId, r.reservaId, 'PENDIENTE', 'ACTIVA');
+
+  it('con otra mesa abierta del comensal no se activa', async () => {
+    const norte = await reservaEnOtraSucursal();
+    expect(await activar(norte)).toBe('OTRA_MESA_ABIERTA');
+    expect(
+      (await prisma.reserva.findUniqueOrThrow({ where: { id: norte.reservaId } })).estado,
+    ).toBe('PENDIENTE');
+  });
+
+  it('sin otra mesa abierta, se activa y abre la cuenta', async () => {
+    await prisma.cuentaMesa.update({ where: { id: e.cuentaMesaId }, data: { estado: 'CERRADA' } });
+    const norte = await reservaEnOtraSucursal();
+    expect(await activar(norte)).toBe('ACTIVADA');
+    expect(await prisma.cuentaMesa.count({ where: { estado: 'ABIERTA' } })).toBe(1);
+  });
+
+  it('dos activaciones simultáneas del mismo comensal dejan una sola mesa abierta', async () => {
+    await prisma.cuentaMesa.update({ where: { id: e.cuentaMesaId }, data: { estado: 'CERRADA' } });
+    const [a, b] = [await reservaEnOtraSucursal(), await reservaEnOtraSucursal()];
+    const resultados = await Promise.all([activar(a), activar(b)]);
+    expect(resultados.sort()).toEqual(['ACTIVADA', 'OTRA_MESA_ABIERTA']);
+    expect(await prisma.cuentaMesa.count({ where: { estado: 'ABIERTA' } })).toBe(1);
   });
 });

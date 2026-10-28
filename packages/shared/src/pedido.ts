@@ -102,6 +102,8 @@ export interface FaltaStock {
 export interface BloqueoCierre {
   pedidosSinEntregar?: number;
   saldoPendiente?: number;
+  // Un pago esperando el resultado de Mercado Pago (vence a los 15 minutos).
+  pagoEnCurso?: true;
 }
 
 export interface CambioPedido {

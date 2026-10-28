@@ -77,14 +77,16 @@ export interface ReservaRepository {
     id: string,
   ): Promise<FilaReservaPanel | null>;
   // Cambio de estado de la activación (lo decide el State) y apertura de la
-  // cuenta de mesa, en una transacción. false si la reserva ya no estaba en `desde`.
+  // cuenta de mesa, en una transacción. CAMBIO si la reserva ya no estaba en
+  // `desde`; OTRA_MESA_ABIERTA si el comensal ya tiene una mesa abierta en
+  // cualquier sucursal (una sola por comensal).
   activar(
     restauranteId: string,
     sucursalId: string,
     id: string,
     desde: EstadoReserva,
     hacia: EstadoReserva,
-  ): Promise<boolean>;
+  ): Promise<ResultadoActivacion>;
   // CU-18: cierra la mesa de una reserva ACTIVA en una transacción. Se
   // bloquea con pedidos sin entregar o, sin confirmarSaldo, con saldo
   // pendiente. CAMBIO si la reserva ya no estaba ACTIVA en esa sucursal.
@@ -98,6 +100,8 @@ export interface ReservaRepository {
   // las de sucursales dadas de baja, para que no queden pendientes para siempre.
   pendientesIniciadas(ahora: Date): Promise<FilaReserva[]>;
 }
+
+export type ResultadoActivacion = 'ACTIVADA' | 'CAMBIO' | 'OTRA_MESA_ABIERTA';
 
 export type ResultadoCierre =
   | { resultado: 'CERRADA'; cuentaMesaId: string; comensalId: string }
@@ -262,14 +266,27 @@ export const reservaRepository: ReservaRepository = {
   },
 
   activar(restauranteId, sucursalId, id, desde, hacia) {
-    return prisma.$transaction(async (tx) => {
+    return prisma.$transaction(async (tx): Promise<ResultadoActivacion> => {
+      const reserva = await tx.reserva.findFirst({
+        where: { id, ...deLaSucursal(restauranteId, sucursalId) },
+        select: { comensalId: true },
+      });
+      if (!reserva) return 'CAMBIO';
+      // Dos sucursales pueden activar a la vez reservas del mismo comensal y no
+      // hay una fila común que bloquear: el candado es por comensal.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('mesa-comensal:' || ${reserva.comensalId}))`;
+      const abierta = await tx.cuentaMesa.count({
+        where: { estado: 'ABIERTA', reserva: { comensalId: reserva.comensalId } },
+      });
+      if (abierta > 0) return 'OTRA_MESA_ABIERTA';
+
       const { count } = await tx.reserva.updateMany({
         where: { id, estado: desde, ...deLaSucursal(restauranteId, sucursalId) },
         data: { estado: hacia },
       });
-      if (count !== 1) return false;
+      if (count !== 1) return 'CAMBIO';
       await tx.cuentaMesa.create({ data: { reservaId: id } });
-      return true;
+      return 'ACTIVADA';
     });
   },
 
@@ -289,6 +306,10 @@ export const reservaRepository: ReservaRepository = {
       if (pedidosActivos > 0) {
         return { resultado: 'BLOQUEADA', bloqueo: { pedidosSinEntregar: pedidosActivos } };
       }
+      // Si se cerrara con un pago en curso, Mercado Pago podría aprobarlo
+      // después sobre una mesa cerrada.
+      const pagosEnCurso = await tx.pago.count({ where: { cuentaMesaId, estado: 'PENDIENTE' } });
+      if (pagosEnCurso > 0) return { resultado: 'BLOQUEADA', bloqueo: { pagoEnCurso: true } };
       const saldo = Math.round((total - pagado) * 100) / 100;
       if (saldo > 0 && !confirmarSaldo) {
         return { resultado: 'BLOQUEADA', bloqueo: { saldoPendiente: saldo } };
