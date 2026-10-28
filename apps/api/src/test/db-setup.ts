@@ -12,6 +12,7 @@ export interface Escenario {
   quesoId: string;
   pizzaId: string;
   aguaId: string;
+  menuId: string;
 }
 
 // Vacía todas las tablas de la app (no las de Prisma).
@@ -143,5 +144,6 @@ export async function crearEscenario(): Promise<Escenario> {
     quesoId: queso.id,
     pizzaId: pizza.id,
     aguaId: agua.id,
+    menuId: menu.id,
   };
 }

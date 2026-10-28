@@ -115,10 +115,11 @@ const HORARIOS_SERVICIO = [
 ] as const;
 
 const CATEGORIAS = [
-  { nombre: 'Entradas', requiereReceta: false },
-  { nombre: 'Principales', requiereReceta: true },
-  { nombre: 'Postres', requiereReceta: true },
-  { nombre: 'Bebidas', requiereReceta: false },
+  { nombre: 'Entradas', requiereReceta: false, admiteObservaciones: true },
+  { nombre: 'Principales', requiereReceta: true, admiteObservaciones: true },
+  { nombre: 'Postres', requiereReceta: true, admiteObservaciones: true },
+  // Las bebidas no llevan aclaración.
+  { nombre: 'Bebidas', requiereReceta: false, admiteObservaciones: false },
 ] as const;
 
 type NombreCategoria = (typeof CATEGORIAS)[number]['nombre'];
@@ -356,11 +357,11 @@ async function seedMenuEInventario(
   adminId: string,
 ): Promise<string[]> {
   const categoriaIds = new Map<NombreCategoria, string>();
-  for (const { nombre, requiereReceta } of CATEGORIAS) {
+  for (const { nombre, requiereReceta, admiteObservaciones } of CATEGORIAS) {
     const categoria = await tx.categoria.upsert({
       where: { restauranteId_nombre: { restauranteId, nombre } },
-      update: { requiereReceta },
-      create: { restauranteId, nombre, requiereReceta },
+      update: { requiereReceta, admiteObservaciones },
+      create: { restauranteId, nombre, requiereReceta, admiteObservaciones },
     });
     categoriaIds.set(nombre, categoria.id);
   }
@@ -474,6 +475,76 @@ async function seedMenus(
     ids.push(fila.id);
   }
   return ids[0]!;
+}
+
+// Programa de puntos ($1 = 0,01 punto) y un beneficio de cada tipo, vigentes
+// por 60 días desde que corre el seed. Si un beneficio ya existe, no se toca:
+// así un seed repetido no repone su stock ni le cambia la vigencia.
+async function seedFidelizacion(
+  tx: Prisma.TransactionClient,
+  restauranteId: string,
+  cartaId: string,
+): Promise<void> {
+  await tx.programaFidelidad.upsert({
+    where: { restauranteId },
+    update: {},
+    create: { restauranteId, puntosPorUnidad: 0.01 },
+  });
+  const grupo =
+    (await tx.grupoBeneficios.findFirst({ where: { restauranteId, nombre: 'Bienvenida' } })) ??
+    (await tx.grupoBeneficios.create({ data: { restauranteId, nombre: 'Bienvenida' } }));
+
+  const vigenciaDesde = new Date();
+  const vigenciaHasta = new Date(vigenciaDesde.getTime() + 60 * 24 * 60 * 60 * 1000);
+  const beneficios = [
+    {
+      nombre: '2x1 de los martes',
+      clase: 'PROMOCION',
+      menuId: cartaId,
+      tipoDescuento: 'PORCENTAJE',
+      valor: 50,
+      stockInicial: 20,
+      stockDisponible: 20,
+    },
+    {
+      nombre: 'Postre de regalo',
+      clase: 'RECOMPENSA',
+      criterioTipo: 'VISITAS',
+      criterioValor: 3,
+      tipoDescuento: 'MONTO_FIJO',
+      valor: 3000,
+    },
+    {
+      nombre: 'Canje de 500 puntos',
+      clase: 'RECOMPENSA',
+      criterioTipo: 'PUNTOS',
+      criterioValor: 500,
+      tipoDescuento: 'PORCENTAJE',
+      valor: 15,
+    },
+    {
+      nombre: 'Bienvenida',
+      clase: 'RECOMPENSA',
+      criterioTipo: 'NUEVO_CLIENTE',
+      criterioValor: 1, // el DER lo exige en toda recompensa; este criterio no lo usa
+      tipoDescuento: 'PORCENTAJE',
+      valor: 10,
+      grupoId: grupo.id,
+    },
+  ] as const satisfies Omit<
+    Prisma.BeneficioUncheckedCreateInput,
+    'restauranteId' | 'vigenciaDesde' | 'vigenciaHasta'
+  >[];
+  for (const beneficio of beneficios) {
+    const existe = await tx.beneficio.findFirst({
+      where: { restauranteId, nombre: beneficio.nombre },
+    });
+    if (!existe) {
+      await tx.beneficio.create({
+        data: { ...beneficio, restauranteId, vigenciaDesde, vigenciaHasta },
+      });
+    }
+  }
 }
 
 // Modelos de demo (Kenney, CC0; ver modelos-demo/LICENCIA.md), ya a escala
@@ -594,6 +665,7 @@ async function main(): Promise<void> {
       where: { id: sucursalIds.get('Centro')! },
       data: { menuActivoId: cartaId },
     });
+    await seedFidelizacion(tx, restaurante.id, cartaId);
 
     for (const { email, nombre } of COMENSALES) {
       const comensal = await tx.usuario.upsert({
