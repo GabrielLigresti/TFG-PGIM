@@ -15,3 +15,4 @@ export * from './reserva';
 export * from './pedido';
 export * from './alerta';
 export * from './fidelizacion';
+export * from './pago';
