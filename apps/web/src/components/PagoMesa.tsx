@@ -5,13 +5,14 @@ import {
   type BeneficiosMesa,
   type EstadoPagoComensal,
   type MetodoPago,
+  type PagoIniciado,
   type ProgresoBeneficio,
   type ResultadoPago,
 } from '@pgim/shared';
-import { api } from '../lib/api';
+import { ApiError, api } from '../lib/api';
 import { formatoDiaYHora, formatoPesos } from '../lib/formato';
 import { useEventoSocket } from '../lib/socket';
-import { Boton } from './ui';
+import { Aviso, Boton } from './ui';
 
 // Piezas del pago de la mesa (CU-06) y del progreso de fidelidad del comensal.
 
@@ -178,12 +179,13 @@ export function SeleccionPago({
 }
 
 const ESPERA_CONSULTA_MS = 3000;
+const ESPERA_LENTA_MS = 15_000;
 const LIMITE_CONSULTA_MS = 30_000;
 
 // Sigue un pago hasta que se resuelve: escucha el aviso en tiempo real y, por
 // si el socket todavía no conectó al volver de Mercado Pago, consulta cada 3 s
-// hasta 30 s.
-export function useSeguimientoPago(cuentaMesaId: string | null, pagoId: string | null) {
+// durante 30 s y después cada 15 s. No necesita la mesa: puede estar cerrada.
+export function useSeguimientoPago(pagoId: string | null) {
   const [estado, setEstado] = useState<EstadoPagoComensal | null>(null);
   const [desbloqueados, setDesbloqueados] = useState<string[]>([]);
   const [demorado, setDemorado] = useState(false);
@@ -192,15 +194,13 @@ export function useSeguimientoPago(cuentaMesaId: string | null, pagoId: string |
     setEstado(null);
     setDesbloqueados([]);
     setDemorado(false);
-    if (!cuentaMesaId || !pagoId) return;
+    if (!pagoId) return;
     let vigente = true;
     const inicio = Date.now();
     let espera: ReturnType<typeof setTimeout>;
     const consultar = async () => {
       try {
-        const actual = await api<EstadoPagoComensal>(
-          `/comensal/mesa/${cuentaMesaId}/pagos/${pagoId}`,
-        );
+        const actual = await api<EstadoPagoComensal>(`/comensal/pagos/${pagoId}`);
         if (!vigente) return;
         setEstado(actual);
         if (actual.estado !== 'PENDIENTE') return;
@@ -208,38 +208,94 @@ export function useSeguimientoPago(cuentaMesaId: string | null, pagoId: string |
         // Un corte momentáneo: se reintenta en la próxima vuelta.
       }
       if (!vigente) return;
-      if (Date.now() - inicio >= LIMITE_CONSULTA_MS) setDemorado(true);
-      else espera = setTimeout(consultar, ESPERA_CONSULTA_MS);
+      const lento = Date.now() - inicio >= LIMITE_CONSULTA_MS;
+      if (lento) setDemorado(true);
+      espera = setTimeout(consultar, lento ? ESPERA_LENTA_MS : ESPERA_CONSULTA_MS);
     };
     void consultar();
     return () => {
       vigente = false;
       clearTimeout(espera);
     };
-  }, [cuentaMesaId, pagoId]);
+  }, [pagoId]);
 
   useEventoSocket<ResultadoPago>(EVENTOS_SOCKET.pagoResultado, (r) => {
-    if (r.pagoId !== pagoId || !cuentaMesaId) return;
+    if (r.pagoId !== pagoId) return;
     setDesbloqueados(r.desbloqueados);
-    // El comprobante llega con la consulta.
-    void api<EstadoPagoComensal>(`/comensal/mesa/${cuentaMesaId}/pagos/${pagoId}`).then(setEstado);
+    // El comprobante llega con la consulta; si falla, la consulta periódica lo trae.
+    api<EstadoPagoComensal>(`/comensal/pagos/${pagoId}`)
+      .then(setEstado)
+      .catch(() => {});
   });
 
   return { estado, desbloqueados, demorado };
 }
 
+// Vuelve a abrir Mercado Pago para un pago en curso (con el mismo link o uno
+// nuevo si se perdió).
+export function useContinuarPago() {
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  async function continuar(pagoId: string) {
+    setEnviando(true);
+    setError(null);
+    try {
+      const { urlPago } = await api<PagoIniciado>(`/comensal/pagos/${pagoId}/continuar`, {
+        method: 'POST',
+      });
+      if (urlPago) window.location.assign(urlPago);
+      else window.location.reload();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No pudimos abrir Mercado Pago');
+      setEnviando(false);
+    }
+  }
+  return { continuar, enviando, error };
+}
+
 export function ResultadoPagoVista({
+  pagoId,
   estado,
   desbloqueados,
   demorado,
+  sinAprobar,
   onListo,
 }: {
+  pagoId: string;
   estado: EstadoPagoComensal | null;
   desbloqueados: string[];
   demorado: boolean;
+  // Mercado Pago avisó al volver que este intento no se aprobó: se puede probar
+  // con otro medio en la misma página de pago mientras no venza.
+  sinAprobar: boolean;
   onListo(): void;
 }) {
+  const retomar = useContinuarPago();
   if (!estado || estado.estado === 'PENDIENTE') {
+    const volver = (
+      <>
+        <Boton
+          densidad="comensal"
+          disabled={retomar.enviando}
+          onClick={() => retomar.continuar(pagoId)}
+        >
+          {retomar.enviando ? 'Abriendo Mercado Pago…' : 'Volver a Mercado Pago'}
+        </Boton>
+        <Aviso>{retomar.error}</Aviso>
+      </>
+    );
+    if (sinAprobar) {
+      return (
+        <section role="alert" className="space-y-3 rounded-panel border border-line bg-surface p-4">
+          <p className="font-semibold text-ink">El pago no se aprobó</p>
+          <p className="text-sm text-meta">
+            No se te cobró nada. Podés probar con otro medio en Mercado Pago. Si no lo completás, el
+            pago vence a los 15 minutos y después podés volver a pagar.
+          </p>
+          {volver}
+        </section>
+      );
+    }
     return (
       <section
         role="status"
@@ -252,6 +308,7 @@ export function ResultadoPagoVista({
             ? 'Mercado Pago todavía no confirmó tu pago. Te avisamos acá cuando llegue.'
             : 'Esperamos la confirmación de Mercado Pago.'}
         </p>
+        {demorado && volver}
       </section>
     );
   }

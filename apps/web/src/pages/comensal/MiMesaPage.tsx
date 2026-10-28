@@ -2,7 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import type { BeneficiosMesa, MetodoPago, MiMesa, PagoIniciado, PagoInput } from '@pgim/shared';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
-import { ResultadoPagoVista, SeleccionPago, useSeguimientoPago } from '../../components/PagoMesa';
+import {
+  ResultadoPagoVista,
+  SeleccionPago,
+  useContinuarPago,
+  useSeguimientoPago,
+} from '../../components/PagoMesa';
 import { Aviso, Boton, EstadoCarga, Estado } from '../../components/ui';
 import { formatoHora, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
@@ -23,8 +28,12 @@ export function MiMesaPage() {
   }, [mesa.datos]);
 
   const datos = mesa.datos;
-  const cuentaMesaId = datos?.cuentaMesaId ?? ultima?.cuentaMesaId ?? null;
-  const seguimiento = useSeguimientoPago(cuentaMesaId, pagoSeguido);
+  const seguimiento = useSeguimientoPago(pagoSeguido);
+  // Mercado Pago agrega el resultado del intento a la URL de regreso. Es solo
+  // una pista para la pantalla: lo que vale es el estado del pago en PGIM.
+  const estadoMp = parametros.get('collection_status') ?? parametros.get('status');
+  const sinAprobar = estadoMp === 'rejected' || estadoMp === 'null';
+  const retomar = useContinuarPago();
   const puedePagar = !!datos && datos.saldo > 0 && datos.pagoHabilitado && !datos.pagoEnCurso;
 
   const beneficios = useRecurso<BeneficiosMesa>(
@@ -79,18 +88,20 @@ export function MiMesaPage() {
           {pago.enviando ? 'Abriendo Mercado Pago…' : `Pagar ${formatoPesos(aPagar)}`}
         </Boton>
       )}
-      {datos.pagoEnCurso?.urlPago && (
-        <a
-          href={datos.pagoEnCurso.urlPago}
-          className={`${claseAccion} bg-accent text-white hover:bg-accent-hover`}
+      {datos.pagoEnCurso && (
+        <Boton
+          densidad="comensal"
+          className="flex-1"
+          disabled={retomar.enviando}
+          onClick={() => retomar.continuar(datos.pagoEnCurso!.pagoId)}
         >
-          Continuar el pago
-        </a>
+          {retomar.enviando ? 'Abriendo Mercado Pago…' : 'Continuar el pago'}
+        </Boton>
       )}
       <Link
         to={`/s/${datos.sucursal.id}/menu`}
         className={`${claseAccion} ${
-          puedePagar || datos.pagoEnCurso?.urlPago
+          puedePagar || datos.pagoEnCurso
             ? 'border border-line-strong bg-surface text-text hover:bg-panel'
             : 'bg-accent text-white hover:bg-accent-hover'
         }`}
@@ -105,7 +116,12 @@ export function MiMesaPage() {
       <EstadoCarga cargando={mesa.cargando && !datos && !ultima} error={mesa.error} />
       {pagoSeguido && (
         <div className="mb-4">
-          <ResultadoPagoVista {...seguimiento} onListo={terminarSeguimiento} />
+          <ResultadoPagoVista
+            pagoId={pagoSeguido}
+            {...seguimiento}
+            sinAprobar={sinAprobar}
+            onListo={terminarSeguimiento}
+          />
         </div>
       )}
       {!datos && !mesa.cargando && !mesa.error && (
@@ -202,10 +218,10 @@ export function MiMesaPage() {
             >
               <p className="font-semibold text-ink">Tenés un pago en curso</p>
               <p className="text-sm text-meta">
-                {datos.pagoEnCurso.urlPago
-                  ? 'Podés terminarlo en Mercado Pago. Si no lo completás, vence a los 15 minutos y no se cobra nada.'
-                  : 'Si no se completó, vence a los 15 minutos y no se cobra nada. Después podés volver a pagar.'}
+                Podés terminarlo en Mercado Pago. Si no lo completás, vence a los 15 minutos y no se
+                cobra nada.
               </p>
+              <Aviso>{retomar.error}</Aviso>
             </section>
           )}
 
