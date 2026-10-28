@@ -6,6 +6,7 @@ import {
   type PedidoInput,
 } from '@pgim/shared';
 import { validar, validarParams } from '../middleware/auth';
+import { beneficiosComensalService } from '../services/beneficios-comensal.service';
 import { cuentaMesaService } from '../services/cuenta-mesa.service';
 import { pedidoService } from '../services/pedido.service';
 
@@ -26,4 +27,14 @@ mesaComensalRouter.get('/mesa', async (req, res) => {
 
 mesaComensalRouter.post('/mesa/:id/pagos', validarParams(idParamSchema), async (req, res) => {
   res.json(await cuentaMesaService.pagar(req.sesion!.usuario.id, req.params.id as string));
+});
+
+// Beneficios que puede usar al pagar esta mesa y progreso del resto.
+mesaComensalRouter.get('/mesa/:id/beneficios', validarParams(idParamSchema), async (req, res) => {
+  res.json(await beneficiosComensalService.deMesa(req.sesion!.usuario.id, req.params.id as string));
+});
+
+// "Mis puntos": una tarjeta por restaurante donde tiene cuenta de fidelidad.
+mesaComensalRouter.get('/fidelidad', async (req, res) => {
+  res.json(await beneficiosComensalService.fidelidad(req.sesion!.usuario.id));
 });

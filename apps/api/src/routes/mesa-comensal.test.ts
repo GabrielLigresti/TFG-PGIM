@@ -1,9 +1,14 @@
 import request from 'supertest';
 import { createApp } from '../app';
+import { IDS } from '../test/fake-usuarios';
 import { cookieConPermisos, cookieDeComensal } from '../test/sesion-falsa';
 
 jest.mock('../repositories/usuario.repository', () => ({
   usuarioRepository: { findCredencialesByEmail: jest.fn(), findSesionById: jest.fn() },
+}));
+
+jest.mock('../services/beneficios-comensal.service', () => ({
+  beneficiosComensalService: { deMesa: jest.fn(), fidelidad: jest.fn().mockResolvedValue([]) },
 }));
 
 const CUENTA = '01900000-0000-7000-8000-000000000061';
@@ -52,5 +57,38 @@ describe('/api/comensal/mesa', () => {
       .post('/api/comensal/mesa/no-es-uuid/pagos')
       .set('Cookie', cookieDeComensal())
       .expect(400);
+  });
+});
+
+describe('/api/comensal/mesa/:id/beneficios', () => {
+  const app = createApp();
+  const { beneficiosComensalService } = jest.requireMock('../services/beneficios-comensal.service');
+
+  it('consulta siempre como el comensal de la sesión', async () => {
+    beneficiosComensalService.deMesa.mockResolvedValue({
+      disponibles: [],
+      noAlcanzados: [],
+      beneficioUsado: false,
+    });
+    await request(app)
+      .get(`/api/comensal/mesa/${CUENTA}/beneficios`)
+      .set('Cookie', cookieDeComensal())
+      .expect(200);
+    expect(beneficiosComensalService.deMesa).toHaveBeenCalledWith(IDS.comensal, CUENTA);
+  });
+
+  it('el personal no consulta beneficios de una mesa', async () => {
+    await request(app)
+      .get(`/api/comensal/mesa/${CUENTA}/beneficios`)
+      .set('Cookie', cookieConPermisos(['beneficio.ver']))
+      .expect(403);
+  });
+
+  it('"Mis puntos" responde las cuentas del comensal', async () => {
+    await request(app)
+      .get('/api/comensal/fidelidad')
+      .set('Cookie', cookieDeComensal())
+      .expect(200, []);
+    expect(beneficiosComensalService.fidelidad).toHaveBeenCalledWith(IDS.comensal);
   });
 });

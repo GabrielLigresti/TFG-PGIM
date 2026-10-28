@@ -110,3 +110,51 @@ export interface BeneficioPanel {
   // Pagos PENDIENTE que lo usan: mientras haya, no se relanza.
   pagosEnCurso: number;
 }
+
+// ─── Comensal ────────────────────────────────────────────────────────────────
+
+export type UnidadProgreso = 'visitas' | 'pesos' | 'puntos' | 'primera visita';
+
+export interface ProgresoBeneficio {
+  actual: number;
+  requerido: number;
+  unidad: UnidadProgreso;
+}
+
+export interface BeneficioDisponible {
+  id: string;
+  nombre: string;
+  // "10 % de descuento", "$ 3.000 de descuento".
+  descripcion: string;
+  // Sobre el saldo actual de la mesa.
+  descuento: number;
+}
+
+export interface BeneficioNoAlcanzado {
+  id: string;
+  nombre: string;
+  descripcion: string;
+  progreso: ProgresoBeneficio;
+}
+
+// Lo que el comensal puede elegir al pagar y lo que le falta para el resto.
+export interface BeneficiosMesa {
+  disponibles: BeneficioDisponible[];
+  noAlcanzados: BeneficioNoAlcanzado[];
+  // La mesa ya usó un beneficio en un pago aprobado (uno por mesa).
+  beneficioUsado: boolean;
+}
+
+export interface RecompensaComensal extends BeneficioNoAlcanzado {
+  alcanzada: boolean;
+}
+
+// "Mis puntos": una tarjeta por restaurante donde el comensal tiene cuenta.
+export interface FidelidadComensal {
+  restaurante: Referencia;
+  puntos: number;
+  visitas: number;
+  // Sin programa, el restaurante no acredita puntos (sí visitas).
+  programa: boolean;
+  recompensas: RecompensaComensal[];
+}
