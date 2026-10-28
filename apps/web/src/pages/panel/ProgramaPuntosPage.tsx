@@ -22,6 +22,11 @@ const EJEMPLO = 10000;
 
 const puntosDe = (monto: number, tasa: number) => Math.floor(monto * tasa + 1e-9);
 
+// La base guarda puntos por cada $1 (0,01); el restaurante piensa en "1 punto
+// cada $100". Se muestra y se carga así.
+const pesosPorPunto = (tasa: number) => Math.round((1 / tasa) * 100) / 100;
+const tasaDe = (pesos: number) => Math.round((1 / pesos) * 10_000) / 10_000;
+
 // Programa de puntos del restaurante. Es permanente: una vez creado siempre
 // acumula, la tasa no cambia y los puntos no vencen.
 export function ProgramaPuntosPage() {
@@ -41,9 +46,9 @@ export function ProgramaPuntosPage() {
         <Panel>
           <dl className="grid gap-3 sm:grid-cols-2">
             <div>
-              <dt className="text-sm text-meta">Puntos por cada $1</dt>
+              <dt className="text-sm text-meta">Tasa</dt>
               <dd className="text-2xl font-semibold tabular-nums text-ink">
-                {datos.puntosPorUnidad.toLocaleString('es-AR', { maximumFractionDigits: 4 })}
+                1 punto cada {formatoPesos(pesosPorPunto(datos.puntosPorUnidad))}
               </dd>
             </div>
             <div>
@@ -76,10 +81,11 @@ export function ProgramaPuntosPage() {
 }
 
 function FormularioPrograma({ onCreado }: { onCreado(): void }) {
-  const [tasa, setTasa] = useState('0,01');
+  const [pesos, setPesos] = useState('100');
   const { enviar, enviando, error } = useGuardar();
   const confirmar = useConfirmar();
-  const valor = aNumero(tasa);
+  const porPunto = aNumero(pesos);
+  const valor = porPunto > 0 ? tasaDe(porPunto) : Number.NaN;
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -100,18 +106,18 @@ function FormularioPrograma({ onCreado }: { onCreado(): void }) {
     <Panel titulo="Crear el programa">
       <form onSubmit={onSubmit} className="space-y-4">
         <Campo
-          etiqueta="Puntos por cada $1"
+          etiqueta="Cada cuántos pesos se suma 1 punto"
           ayuda={
             Number.isFinite(valor) && valor > 0
               ? `Un consumo de ${formatoPesos(EJEMPLO)} sumaría ${puntosDe(EJEMPLO, valor)} puntos.`
-              : 'Por ejemplo, 0,01 suma 1 punto cada $100.'
+              : 'Por ejemplo, con 100 se suma 1 punto cada $100.'
           }
         >
           <input
             {...propsDecimal}
             required
-            value={tasa}
-            onChange={(e) => setTasa(e.target.value)}
+            value={pesos}
+            onChange={(e) => setPesos(e.target.value)}
             className={claseInput}
           />
         </Campo>

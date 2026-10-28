@@ -35,7 +35,19 @@ export const textoDescuento = (b: Pick<BeneficioPanel, 'tipoDescuento' | 'valor'
 export const inicioDelDia = (fecha: string) => `${fecha}T00:00:00-03:00`;
 export const finDelDia = (fecha: string) => `${sumarDias(fecha, 1)}T00:00:00-03:00`;
 export const diaDe = (instante: string) => hoyArgentina(new Date(instante));
-export const ultimoDiaDe = (finExclusivo: string) => sumarDias(diaDe(finExclusivo), -1);
+
+const horaArgentina = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+
+// Último día con el beneficio vigente. Si termina a las 00:00 (cargado por
+// días), es el anterior; si termina a otra hora (relanzado "desde ahora"),
+// es ese mismo día.
+export const ultimoDiaDe = (fin: string) =>
+  horaArgentina.format(new Date(fin)) === '00:00' ? sumarDias(diaDe(fin), -1) : diaDe(fin);
 
 export const textoVigencia = (b: Pick<BeneficioPanel, 'vigenciaDesde' | 'vigenciaHasta'>) =>
   `${formatoFecha(diaDe(b.vigenciaDesde))} al ${formatoFecha(ultimoDiaDe(b.vigenciaHasta))}`;

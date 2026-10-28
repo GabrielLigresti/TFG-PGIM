@@ -169,7 +169,9 @@ export const fidelizacionRepository: FidelizacionRepository = {
       data: { nombre },
     });
     if (count !== 1) return null;
-    const cantidadBeneficios = await prisma.beneficio.count({ where: { grupoId: id } });
+    const cantidadBeneficios = await prisma.beneficio.count({
+      where: { grupoId: id, restauranteId },
+    });
     return { id, nombre, cantidadBeneficios };
   },
 

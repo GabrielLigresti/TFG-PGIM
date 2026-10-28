@@ -132,9 +132,6 @@ export function createMenuService(
       await repo.desactivarPlato(restauranteId, id);
     },
 
-    // CU-16: el .glb es obligatorio y trae la escala y la porción; el .usdz
-    // (iOS) es opcional y solo se suma a un modelo existente. El archivo nuevo
-    // se guarda antes que la fila y el viejo se borra al final.
     // Foto desde la computadora: reemplaza la URL y borra la subida anterior.
     async subirFoto(restauranteId: string, id: string, archivo: Buffer) {
       const plato = await obtenerPlato(restauranteId, id);
@@ -149,6 +146,9 @@ export function createMenuService(
       return obtenerPlato(restauranteId, id);
     },
 
+    // CU-16: el .glb es obligatorio y trae la escala y la porción; el .usdz
+    // (iOS) es opcional y solo se suma a un modelo existente. El archivo nuevo
+    // se guarda antes que la fila y el viejo se borra al final.
     async subirModelo(
       restauranteId: string,
       id: string,
