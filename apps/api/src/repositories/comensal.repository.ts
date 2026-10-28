@@ -14,7 +14,7 @@ export interface PlatoDelMenu {
   fotoUrl: string | null;
   disponible: boolean;
   activo: boolean;
-  categoria: { id: string; nombre: string; requiereReceta: boolean };
+  categoria: { id: string; nombre: string; requiereReceta: boolean; admiteObservaciones: boolean };
   tieneReceta: boolean;
   // Para calcular el stock que consume: null si el plato no tiene receta.
   receta: RecetaFila | null;
@@ -51,7 +51,9 @@ const seleccionPlato = {
   fotoUrl: true,
   disponible: true,
   activo: true,
-  categoria: { select: { id: true, nombre: true, requiereReceta: true } },
+  categoria: {
+    select: { id: true, nombre: true, requiereReceta: true, admiteObservaciones: true },
+  },
   receta: { select: seleccionReceta },
   insumoId: true,
   modeloRa: {

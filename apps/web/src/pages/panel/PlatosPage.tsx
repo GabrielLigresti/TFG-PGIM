@@ -445,11 +445,14 @@ function FormularioCategoria({
 }) {
   const [nombre, setNombre] = useState(categoria?.nombre ?? '');
   const [requiereReceta, setRequiereReceta] = useState(categoria?.requiereReceta ?? false);
+  const [admiteObservaciones, setAdmiteObservaciones] = useState(
+    categoria?.admiteObservaciones ?? true,
+  );
   const { enviar, enviando, error } = useGuardar();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const datos: CategoriaInput = { nombre, requiereReceta };
+    const datos: CategoriaInput = { nombre, requiereReceta, admiteObservaciones };
     const respuesta = categoria
       ? await enviar(`/categorias/${categoria.id}`, 'PUT', datos)
       : await enviar('/categorias', 'POST', datos);
@@ -474,6 +477,11 @@ function FormularioCategoria({
           etiqueta="Sus platos requieren receta"
           checked={requiereReceta}
           onChange={setRequiereReceta}
+        />
+        <Casilla
+          etiqueta="El cliente puede agregar una aclaración (por ejemplo, «sin cebolla»)"
+          checked={admiteObservaciones}
+          onChange={setAdmiteObservaciones}
         />
         <Aviso>{error}</Aviso>
         <Acciones onCerrar={onCerrar} enviando={enviando} />

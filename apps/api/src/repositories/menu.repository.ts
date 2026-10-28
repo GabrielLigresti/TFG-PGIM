@@ -54,6 +54,7 @@ const seleccionCategoria = {
   id: true,
   nombre: true,
   requiereReceta: true,
+  admiteObservaciones: true,
   _count: { select: { items: true } },
 } satisfies Prisma.CategoriaSelect;
 

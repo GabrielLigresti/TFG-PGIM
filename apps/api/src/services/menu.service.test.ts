@@ -59,6 +59,7 @@ const principales: Categoria = {
   id: 'principales',
   nombre: 'Principales',
   requiereReceta: true,
+  admiteObservaciones: true,
   cantidadPlatos: 3,
 };
 

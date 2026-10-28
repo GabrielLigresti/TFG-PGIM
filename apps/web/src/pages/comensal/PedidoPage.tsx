@@ -107,14 +107,16 @@ export function PedidoPage() {
                         Quitar
                       </Boton>
                     </div>
-                    <input
-                      value={l.observaciones}
-                      maxLength={200}
-                      placeholder="Observaciones (opcional)"
-                      aria-label={`Observaciones de ${l.plato.nombre}`}
-                      onChange={(e) => carrito.cambiar(i, { observaciones: e.target.value })}
-                      className={`${claseInput} text-base`}
-                    />
+                    {l.plato.admiteObservaciones !== false && (
+                      <input
+                        value={l.observaciones}
+                        maxLength={200}
+                        placeholder="Observaciones (opcional)"
+                        aria-label={`Observaciones de ${l.plato.nombre}`}
+                        onChange={(e) => carrito.cambiar(i, { observaciones: e.target.value })}
+                        className={`${claseInput} text-base`}
+                      />
+                    )}
                   </li>
                 );
               })}

@@ -8,6 +8,8 @@ export interface PlatoCarrito {
   id: string;
   nombre: string;
   precio: number;
+  // false: su categoría no lleva aclaración. Falta en carritos guardados antes.
+  admiteObservaciones?: boolean;
 }
 
 export interface LineaCarrito {

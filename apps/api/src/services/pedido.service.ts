@@ -105,6 +105,12 @@ export function createPedidoService(
       const lineas: LineaAConfirmar[] = input.lineas.map((l) => {
         const visible = porId.get(l.itemMenuId);
         if (!visible) throw new AppError(400, 'Un plato del pedido ya no está en el menú');
+        if (l.observaciones && !visible.plato.admiteObservaciones) {
+          throw new AppError(
+            400,
+            `Los platos de ${visible.plato.categoria.nombre} no llevan aclaraciones`,
+          );
+        }
         const insumos = new Map(
           [...(visible.insumos ?? [])].map(([id, cantidad]) => [id, cantidad * l.cantidad]),
         );
