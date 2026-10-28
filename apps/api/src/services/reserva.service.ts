@@ -307,12 +307,14 @@ export function createReservaService(
         throw new AppError(409, 'La reserva cambió de estado; recargá la pantalla');
       }
       if (cierre.resultado === 'BLOQUEADA') {
-        const { pedidosSinEntregar, saldoPendiente, pagoEnCurso } = cierre.bloqueo;
+        const { pedidosSinEntregar, saldoPendiente, pagoEnCurso, pagoEnRevision } = cierre.bloqueo;
         const mensaje = pedidosSinEntregar
           ? `Hay ${pedidosSinEntregar} ${pedidosSinEntregar === 1 ? 'pedido' : 'pedidos'} sin entregar. Esperá a que se entreguen antes de cerrar la mesa.`
           : pagoEnCurso
-            ? 'Hay un pago en curso. Esperá a que se confirme o venza (hasta 15 minutos).'
-            : `Queda un saldo de ${formatoPesos(saldoPendiente ?? 0)} sin pagar.`;
+            ? 'Hay un pago en curso. Esperá a que se confirme o venza (unos 15 minutos).'
+            : pagoEnRevision
+              ? 'Mercado Pago todavía está revisando un pago de esta mesa.'
+              : `Queda un saldo de ${formatoPesos(saldoPendiente ?? 0)} sin pagar.`;
         throw new AppError(409, mensaje, cierre.bloqueo);
       }
       publicar('RESERVA_FINALIZADA', fila, hacia);

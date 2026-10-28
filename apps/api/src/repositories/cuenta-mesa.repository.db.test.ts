@@ -125,6 +125,26 @@ describe('reservaRepository.cerrar', () => {
     expect(await cerrar(true)).toEqual({ resultado: 'BLOQUEADA', bloqueo: { pagoEnCurso: true } });
   });
 
+  it('un pago que Mercado Pago sigue revisando después del vencimiento se cierra con confirmación', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [agua()]);
+    await entregar(pedido.id);
+    await prisma.pago.create({
+      data: {
+        cuentaMesaId: e.cuentaMesaId,
+        comensalId: e.comensalId,
+        monto: 600,
+        metodo: 'TARJETA',
+        fecha: new Date(Date.now() - 20 * 60_000),
+      },
+    });
+
+    expect(await cerrar(false)).toEqual({
+      resultado: 'BLOQUEADA',
+      bloqueo: { pagoEnRevision: true },
+    });
+    expect((await cerrar(true)).resultado).toBe('CERRADA');
+  });
+
   it('una reserva que ya no está activa no se cierra', async () => {
     await prisma.reserva.update({ where: { id: e.reservaId }, data: { estado: 'FINALIZADA' } });
     expect(await cerrar(true)).toEqual({ resultado: 'CAMBIO' });

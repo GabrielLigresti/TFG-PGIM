@@ -65,8 +65,19 @@ export function ReservasPage() {
       avisar(`Mesa ${r.mesa.numero} cerrada`);
       recargar();
     } catch (e) {
-      const saldo =
-        e instanceof ApiError && (e.detalles as BloqueoCierre | undefined)?.saldoPendiente;
+      const bloqueo = e instanceof ApiError ? (e.detalles as BloqueoCierre | undefined) : undefined;
+      if (bloqueo?.pagoEnRevision && !confirmarSaldo) {
+        setEnviando(false);
+        const ok = await confirmar({
+          mensaje: `Mercado Pago todavía está revisando un pago de la mesa ${r.mesa.numero}. ¿Cerrarla igual?`,
+          detalle:
+            'Si Mercado Pago lo aprueba después, el pago se registra igual y queda para conciliar.',
+          accion: 'Cerrar mesa',
+        });
+        if (ok) await cerrar(r, true);
+        return;
+      }
+      const saldo = bloqueo?.saldoPendiente;
       if (saldo && !confirmarSaldo) {
         setEnviando(false);
         const ok = await confirmar({

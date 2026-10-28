@@ -2,6 +2,7 @@ import type { BloqueoCierre, EstadoReserva, Mesa, ModoAsignacion } from '@pgim/s
 import type { Prisma } from '../generated/prisma/client';
 import { aHora } from '../lib/hora';
 import { prisma } from '../lib/prisma';
+import { MARGEN_VENCIMIENTO_MIN, PAGO_VENCE_MIN } from '../domain/pago';
 import { totalesDeCuenta } from './cuenta-mesa.repository';
 import { aMesa } from './mesa.repository';
 
@@ -89,7 +90,8 @@ export interface ReservaRepository {
     hacia: EstadoReserva,
   ): Promise<ResultadoActivacion>;
   // CU-18: cierra la mesa de una reserva ACTIVA en una transacción. Se
-  // bloquea con pedidos sin entregar o, sin confirmarSaldo, con saldo
+  // bloquea con pedidos sin entregar o un pago en curso; sin confirmarSaldo,
+  // también con un pago que Mercado Pago sigue revisando o con saldo
   // pendiente. CAMBIO si la reserva ya no estaba ACTIVA en esa sucursal.
   cerrar(
     restauranteId: string,
@@ -311,10 +313,21 @@ export const reservaRepository: ReservaRepository = {
       if (pedidosActivos > 0) {
         return { resultado: 'BLOQUEADA', bloqueo: { pedidosSinEntregar: pedidosActivos } };
       }
-      // Si se cerrara con un pago en curso, Mercado Pago podría aprobarlo
-      // después sobre una mesa cerrada.
-      const pagosEnCurso = await tx.pago.count({ where: { cuentaMesaId, estado: 'PENDIENTE' } });
-      if (pagosEnCurso > 0) return { resultado: 'BLOQUEADA', bloqueo: { pagoEnCurso: true } };
+      // Con un pago en curso no se cierra: Mercado Pago podría aprobarlo
+      // después sobre una mesa cerrada. Pasado el vencimiento, si Mercado Pago
+      // lo sigue revisando (puede tardar horas), se cierra con confirmación y
+      // el pago queda para conciliar.
+      const vencido = new Date(Date.now() - (PAGO_VENCE_MIN + MARGEN_VENCIMIENTO_MIN) * 60_000);
+      const pendientes = await tx.pago.findMany({
+        where: { cuentaMesaId, estado: 'PENDIENTE' },
+        select: { fecha: true },
+      });
+      if (pendientes.some((p) => p.fecha >= vencido)) {
+        return { resultado: 'BLOQUEADA', bloqueo: { pagoEnCurso: true } };
+      }
+      if (pendientes.length > 0 && !confirmarSaldo) {
+        return { resultado: 'BLOQUEADA', bloqueo: { pagoEnRevision: true } };
+      }
       const saldo = Math.round((total - pagado - descuentos) * 100) / 100;
       if (saldo > 0 && !confirmarSaldo) {
         return { resultado: 'BLOQUEADA', bloqueo: { saldoPendiente: saldo } };

@@ -106,6 +106,8 @@ export interface BloqueoCierre {
   saldoPendiente?: number;
   // Un pago esperando el resultado de Mercado Pago (vence a los 15 minutos).
   pagoEnCurso?: true;
+  // Vencido, pero Mercado Pago lo sigue revisando: se cierra con confirmación.
+  pagoEnRevision?: true;
 }
 
 export interface CambioPedido {
