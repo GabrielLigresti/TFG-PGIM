@@ -7,6 +7,7 @@ import { createPagoService } from './pago.service';
 
 const AHORA = new Date('2026-11-10T12:00:00Z');
 const INPUT = { metodo: 'TARJETA' as const, beneficioId: null };
+const CREADO_EN = new Date('2026-11-10T11:58:00Z');
 
 const resolucion = (d: Partial<ResolucionPago> = {}): ResolucionPago => ({
   estado: 'APROBADO',
@@ -49,10 +50,13 @@ function armar(pasarela: Partial<PasarelaPago> = {}) {
       sucursalId: 's',
       mesaNumero: 4,
       restaurante: 'La Parrilla',
+      creadoEn: CREADO_EN,
     }),
     resolver: jest.fn().mockResolvedValue(resolucion()),
     pendientesVencidos: jest.fn().mockResolvedValue([]),
     estadoDelComensal: jest.fn().mockResolvedValue(null),
+    buscar: jest.fn().mockResolvedValue(null),
+    pendienteDelComensal: jest.fn().mockResolvedValue(null),
   };
   const pasarelaFalsa: jest.Mocked<PasarelaPago> = {
     habilitada: true,
@@ -80,11 +84,13 @@ describe('pagoService.pagar', () => {
       pagoId: 'p1',
       urlPago: 'https://mp/pagar',
     });
+    // La preferencia vence a los 15 minutos de creado el pago, no de llamar a Mercado Pago.
     expect(pasarela.iniciarCobro).toHaveBeenCalledWith({
       id: 'p1',
       monto: 18000,
       metodo: 'TARJETA',
       descripcion: 'Mesa 4 — La Parrilla',
+      venceEn: new Date('2026-11-10T12:13:00Z'),
     });
     expect(servicio.urlDePago('p1')).toBe('https://mp/pagar');
   });
@@ -98,6 +104,7 @@ describe('pagoService.pagar', () => {
       sucursalId: 's',
       mesaNumero: 4,
       restaurante: 'La Parrilla',
+      creadoEn: CREADO_EN,
     });
     expect(await servicio.pagar('c', 'cm', INPUT)).toEqual({ pagoId: 'p1', urlPago: null });
     expect(pasarela.iniciarCobro).not.toHaveBeenCalled();
@@ -216,6 +223,28 @@ describe('pagoService.resolver', () => {
     ]);
   });
 
+  it('un cobro aprobado sobre un pago ya rechazado queda en el log para conciliar', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { servicio, repo, eventos } = armar();
+    repo.resolver.mockResolvedValue(null);
+    repo.buscar.mockResolvedValue({ estado: 'RECHAZADO', referenciaExterna: null });
+    await servicio.resolver('p1', { estado: 'APROBADO', referenciaExterna: 'MP-9' });
+    expect(eventos).toEqual([]);
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('conciliar'));
+    expect(error.mock.calls[0]![0]).toContain('MP-9');
+    error.mockRestore();
+  });
+
+  it('un segundo cobro aprobado del mismo pago también queda para conciliar', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { servicio, repo } = armar();
+    repo.resolver.mockResolvedValue(null);
+    repo.buscar.mockResolvedValue({ estado: 'APROBADO', referenciaExterna: 'MP-1' });
+    await servicio.resolver('p1', { estado: 'APROBADO', referenciaExterna: 'MP-2' });
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('conciliar'));
+    error.mockRestore();
+  });
+
   it('una notificación repetida no publica nada', async () => {
     const { servicio, repo, eventos } = armar();
     repo.resolver.mockResolvedValue(null);
@@ -232,9 +261,58 @@ describe('pagoService.resolver', () => {
 });
 
 describe('pagoService.estado', () => {
-  it('un pago de otra mesa o de otro comensal responde 404', async () => {
+  it('un pago de otro comensal responde 404', async () => {
+    const { servicio, repo } = armar();
+    await expect(servicio.estado('c', 'p1')).rejects.toMatchObject({ status: 404 });
+    expect(repo.estadoDelComensal).toHaveBeenCalledWith('c', 'p1');
+  });
+});
+
+describe('pagoService.continuar', () => {
+  const pendiente = {
+    pagoId: 'p1',
+    monto: 18000,
+    metodo: 'TARJETA' as const,
+    mesaNumero: 4,
+    restaurante: 'La Parrilla',
+    creadoEn: CREADO_EN,
+  };
+
+  it('devuelve el link que ya tenía', async () => {
+    const { servicio, repo, pasarela } = armar();
+    await servicio.pagar('c', 'cm', INPUT);
+    repo.pendienteDelComensal.mockResolvedValue(pendiente);
+    expect(await servicio.continuar('c', 'p1')).toEqual({
+      pagoId: 'p1',
+      urlPago: 'https://mp/pagar',
+    });
+    expect(pasarela.iniciarCobro).toHaveBeenCalledTimes(1);
+  });
+
+  it('si el link se perdió (la API se reinició) arma otro con el mismo vencimiento', async () => {
+    const { servicio, repo, pasarela } = armar();
+    repo.pendienteDelComensal.mockResolvedValue(pendiente);
+    expect(await servicio.continuar('c', 'p1')).toEqual({
+      pagoId: 'p1',
+      urlPago: 'https://mp/pagar',
+    });
+    expect(pasarela.iniciarCobro).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'p1', venceEn: new Date('2026-11-10T12:13:00Z') }),
+    );
+  });
+
+  it('un pago ya vencido no se puede continuar', async () => {
+    const { servicio, repo } = armar();
+    repo.pendienteDelComensal.mockResolvedValue({
+      ...pendiente,
+      creadoEn: new Date('2026-11-10T11:40:00Z'),
+    });
+    await expect(servicio.continuar('c', 'p1')).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('un pago que no está pendiente o es de otro comensal responde 404', async () => {
     const { servicio } = armar();
-    await expect(servicio.estado('c', 'cm', 'p1')).rejects.toMatchObject({ status: 404 });
+    await expect(servicio.continuar('c', 'p1')).rejects.toMatchObject({ status: 404 });
   });
 });
 
@@ -251,7 +329,9 @@ describe('pagoService.vencerPendientes', () => {
     repo.pendientesVencidos.mockResolvedValue(['aprobado', 'enProceso', 'sinAprobar']);
 
     expect(await servicio.vencerPendientes(AHORA)).toBe(2);
-    expect(repo.pendientesVencidos).toHaveBeenCalledWith(new Date('2026-11-10T11:45:00Z'));
+    // 15 minutos de vencimiento más 3 de margen: Mercado Pago puede tardar en
+    // mostrar un cobro hecho en el último segundo.
+    expect(repo.pendientesVencidos).toHaveBeenCalledWith(new Date('2026-11-10T11:42:00Z'));
     expect(pasarela.consultarPago).toHaveBeenCalledTimes(3);
     expect(repo.resolver.mock.calls).toEqual([
       ['aprobado', { estado: 'APROBADO', referenciaExterna: 'MP-9', metodo: 'BILLETERA_VIRTUAL' }],

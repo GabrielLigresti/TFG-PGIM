@@ -1,4 +1,3 @@
-import { PAGO_VENCE_MIN } from '../domain/pago';
 import type { ConsultaCobro, MetodoPago, PasarelaPago } from './pasarela';
 
 // Checkout Pro de Mercado Pago por su API REST. Los datos de la tarjeta nunca
@@ -12,8 +11,10 @@ export interface ConfigMercadoPago {
   // URL pública (el túnel en desarrollo): webhook y regreso del comensal.
   publicUrl: string;
   fetch?: typeof fetch;
-  ahora?: () => Date;
 }
+
+// Sin respuesta en este tiempo, el pago o la tarea no quedan colgados.
+const TIMEOUT_MS = 10_000;
 
 // El efectivo (Rapipago, Pago Fácil) queda siempre afuera: el pago tiene que
 // resolverse mientras el comensal está en la mesa.
@@ -40,6 +41,7 @@ const estadoDe = (status: string) =>
 async function llamar<T>(config: ConfigMercadoPago, ruta: string, cuerpo?: unknown): Promise<T> {
   const respuesta = await (config.fetch ?? fetch)(`${API}${ruta}`, {
     method: cuerpo === undefined ? 'GET' : 'POST',
+    signal: AbortSignal.timeout(TIMEOUT_MS),
     headers: {
       Authorization: `Bearer ${config.accessToken}`,
       'Content-Type': 'application/json',
@@ -53,13 +55,11 @@ async function llamar<T>(config: ConfigMercadoPago, ruta: string, cuerpo?: unkno
 }
 
 export function crearPasarelaMercadoPago(config: ConfigMercadoPago): PasarelaPago {
-  const ahora = config.ahora ?? (() => new Date());
   return {
     habilitada: true,
 
     async iniciarCobro(pago) {
       const regreso = `${config.publicUrl}/mesa?pago=${pago.id}`;
-      const vence = new Date(ahora().getTime() + PAGO_VENCE_MIN * 60_000);
       const preferencia = await llamar<{ init_point: string }>(config, '/checkout/preferences', {
         items: [
           { title: pago.descripcion, quantity: 1, unit_price: pago.monto, currency_id: 'ARS' },
@@ -69,7 +69,7 @@ export function crearPasarelaMercadoPago(config: ConfigMercadoPago): PasarelaPag
         back_urls: { success: regreso, failure: regreso, pending: regreso },
         auto_return: 'approved',
         expires: true,
-        expiration_date_to: vence.toISOString(),
+        expiration_date_to: pago.venceEn.toISOString(),
         payment_methods: { excluded_payment_types: EXCLUIDOS[pago.metodo].map((id) => ({ id })) },
       });
       return { tipo: 'REDIRECCION', urlPago: preferencia.init_point };

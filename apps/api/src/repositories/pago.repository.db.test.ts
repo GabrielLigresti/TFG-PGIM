@@ -292,6 +292,25 @@ describe('pagoRepository.resolver', () => {
 });
 
 describe('pagoRepository, consultas', () => {
+  it('un pago pendiente se puede retomar solo por su comensal, y uno resuelto no', async () => {
+    await pedir(e.cuentaMesaId, e.comensalId, 1000);
+    const { pagoId } = (await crear()) as { pagoId: string };
+    expect(await pagoRepository.pendienteDelComensal(e.comensalId, pagoId)).toMatchObject({
+      pagoId,
+      monto: 1000,
+      metodo: 'TARJETA',
+      mesaNumero: 4,
+    });
+    const otra = await otraMesa();
+    expect(await pagoRepository.pendienteDelComensal(otra.comensalId, pagoId)).toBeNull();
+    await aprobar(pagoId);
+    expect(await pagoRepository.pendienteDelComensal(e.comensalId, pagoId)).toBeNull();
+    expect(await pagoRepository.buscar(pagoId)).toEqual({
+      estado: 'APROBADO',
+      referenciaExterna: `MP-${pagoId}`,
+    });
+  });
+
   it('lista los pendientes anteriores al límite', async () => {
     await pedir(e.cuentaMesaId, e.comensalId, 1000);
     const { pagoId } = (await crear()) as { pagoId: string };
@@ -308,9 +327,7 @@ describe('pagoRepository, consultas', () => {
     const { pagoId } = (await crear({ beneficioId: b.id })) as { pagoId: string };
     await aprobar(pagoId);
 
-    expect(
-      await pagoRepository.estadoDelComensal(e.comensalId, e.cuentaMesaId, pagoId),
-    ).toMatchObject({
+    expect(await pagoRepository.estadoDelComensal(e.comensalId, pagoId)).toMatchObject({
       pagoId,
       estado: 'APROBADO',
       monto: 18000,
@@ -323,8 +340,6 @@ describe('pagoRepository, consultas', () => {
       },
     });
     const otra = await otraMesa();
-    expect(
-      await pagoRepository.estadoDelComensal(otra.comensalId, e.cuentaMesaId, pagoId),
-    ).toBeNull();
+    expect(await pagoRepository.estadoDelComensal(otra.comensalId, pagoId)).toBeNull();
   });
 });

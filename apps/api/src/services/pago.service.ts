@@ -1,6 +1,6 @@
 import type { PagoIniciado, PagoInput, EstadoPagoComensal } from '@pgim/shared';
 import { criterioDe } from '../domain/beneficio';
-import { PAGO_VENCE_MIN } from '../domain/pago';
+import { MARGEN_VENCIMIENTO_MIN, PAGO_VENCE_MIN, vencimientoDe } from '../domain/pago';
 import { busEventos, type BusEventos } from '../domain/eventos';
 import { AppError } from '../lib/errors';
 import { pasarela as pasarelaPorDefecto, type PasarelaPago } from '../pagos/pasarela';
@@ -66,10 +66,27 @@ export function createPagoService(
       .map((b) => b.nombre);
   }
 
+  // Un cobro aprobado que llega sobre un pago ya resuelto (rechazado por
+  // vencimiento, o una preferencia pagada dos veces) no se acredita solo: queda
+  // en el log para devolverlo o acreditarlo a mano.
+  async function avisarCobroSinAcreditar(pagoId: string, referenciaExterna: string) {
+    const actual = await repo.buscar(pagoId);
+    if (!actual || actual.referenciaExterna === referenciaExterna) return;
+    console.error(
+      `Cobro ${referenciaExterna} aprobado en Mercado Pago sobre el pago ${pagoId}, ` +
+        `que ya estaba ${actual.estado}: conciliar a mano (devolver o acreditar).`,
+    );
+  }
+
   async function resolver(pagoId: string, resultado: ResultadoCobroPago): Promise<void> {
     const r = await repo.resolver(pagoId, resultado);
     urls.delete(pagoId);
-    if (!r) return;
+    if (!r) {
+      if (resultado.estado === 'APROBADO') {
+        await avisarCobroSinAcreditar(pagoId, resultado.referenciaExterna);
+      }
+      return;
+    }
     const evento = {
       pagoId: r.pagoId,
       cuentaMesaId: r.cuentaMesaId,
@@ -141,6 +158,7 @@ export function createPagoService(
           monto: r.monto,
           metodo: input.metodo,
           descripcion: `Mesa ${r.mesaNumero} — ${r.restaurante}`,
+          venceEn: vencimientoDe(r.creadoEn),
         });
       } catch (e) {
         // Sin preferencia nadie pudo pagar: se rechaza ya y se puede reintentar.
@@ -162,11 +180,41 @@ export function createPagoService(
       return { pagoId: r.pagoId, urlPago: inicio.urlPago };
     },
 
-    // Tarea programada: un PENDIENTE de más de 15 minutos se resuelve con lo
-    // que informe la pasarela sobre todos sus intentos. Si alguno sigue en
-    // proceso, se espera a la próxima vuelta. Devuelve cuántos resolvió.
+    // Vuelve a abrir Mercado Pago para un pago en curso: con el mismo link o,
+    // si se perdió (la API se reinició), con una preferencia nueva para el
+    // mismo pago, que vence a la misma hora.
+    async continuar(comensalId: string, pagoId: string): Promise<PagoIniciado> {
+      const pago = await repo.pendienteDelComensal(comensalId, pagoId);
+      if (!pago) throw new AppError(404, 'El pago no existe o ya se resolvió');
+      const venceEn = vencimientoDe(pago.creadoEn);
+      if (ahora() >= venceEn) {
+        throw new AppError(409, 'El pago venció. En unos minutos vas a poder pagar de nuevo.');
+      }
+      const guardada = urls.get(pagoId);
+      if (guardada) return { pagoId, urlPago: guardada };
+      const inicio = await pasarela.iniciarCobro({
+        id: pagoId,
+        monto: pago.monto,
+        metodo: pago.metodo,
+        descripcion: `Mesa ${pago.mesaNumero} — ${pago.restaurante}`,
+        venceEn,
+      });
+      if (inicio.tipo === 'APROBADO_AL_INSTANTE') {
+        await resolver(pagoId, { estado: 'APROBADO', referenciaExterna: inicio.referenciaExterna });
+        return { pagoId, urlPago: null };
+      }
+      urls.set(pagoId, inicio.urlPago);
+      return { pagoId, urlPago: inicio.urlPago };
+    },
+
+    // Tarea programada: un PENDIENTE vencido (15 minutos más el margen) se
+    // resuelve con lo que informe la pasarela sobre todos sus intentos. Si
+    // alguno sigue en proceso, se espera a la próxima vuelta. Devuelve cuántos
+    // resolvió.
     async vencerPendientes(instante: Date): Promise<number> {
-      const limite = new Date(instante.getTime() - PAGO_VENCE_MIN * 60_000);
+      const limite = new Date(
+        instante.getTime() - (PAGO_VENCE_MIN + MARGEN_VENCIMIENTO_MIN) * 60_000,
+      );
       let resueltos = 0;
       for (const pagoId of await repo.pendientesVencidos(limite)) {
         try {
@@ -190,12 +238,8 @@ export function createPagoService(
       return resueltos;
     },
 
-    async estado(
-      comensalId: string,
-      cuentaMesaId: string,
-      pagoId: string,
-    ): Promise<EstadoPagoComensal> {
-      const estado = await repo.estadoDelComensal(comensalId, cuentaMesaId, pagoId);
+    async estado(comensalId: string, pagoId: string): Promise<EstadoPagoComensal> {
+      const estado = await repo.estadoDelComensal(comensalId, pagoId);
       if (!estado) throw new AppError(404, 'El pago no existe');
       return estado;
     },

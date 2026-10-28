@@ -16,8 +16,8 @@ const config = (f: typeof fetch) => ({
   accessToken: 'TEST-token-secreto',
   publicUrl: 'https://ejemplo.trycloudflare.com',
   fetch: f,
-  ahora: () => AHORA,
 });
+const VENCE = new Date(AHORA.getTime() + 15 * 60_000);
 
 const cuerpo = (f: jest.MockedFunction<typeof fetch>) =>
   JSON.parse(f.mock.calls[0]![1]!.body as string);
@@ -30,7 +30,9 @@ describe('pasarela de Mercado Pago', () => {
       monto: 18750,
       metodo: 'TARJETA',
       descripcion: 'Mesa 4 — La Parrilla Demo',
+      venceEn: VENCE,
     });
+    expect(f.mock.calls[0]![1]!.signal).toBeInstanceOf(AbortSignal);
 
     expect(inicio).toEqual({ tipo: 'REDIRECCION', urlPago: 'https://mp.test/checkout' });
     const [url, opciones] = f.mock.calls[0]!;
@@ -63,6 +65,7 @@ describe('pasarela de Mercado Pago', () => {
       monto: 1,
       metodo: 'TARJETA',
       descripcion: 'Mesa',
+      venceEn: VENCE,
     });
     expect(cuerpo(f).payment_methods.excluded_payment_types).toEqual([
       { id: 'account_money' },
@@ -78,6 +81,7 @@ describe('pasarela de Mercado Pago', () => {
       monto: 1,
       metodo: 'BILLETERA_VIRTUAL',
       descripcion: 'Mesa',
+      venceEn: VENCE,
     });
     expect(cuerpo(f).payment_methods.excluded_payment_types).toEqual([
       { id: 'credit_card' },
@@ -91,7 +95,7 @@ describe('pasarela de Mercado Pago', () => {
   it('un error de Mercado Pago no expone el token', async () => {
     const f = fetchFalso({ message: 'invalid' }, 401);
     const error = await crearPasarelaMercadoPago(config(f))
-      .iniciarCobro({ id: PAGO, monto: 1, metodo: 'TARJETA', descripcion: 'Mesa' })
+      .iniciarCobro({ id: PAGO, monto: 1, metodo: 'TARJETA', descripcion: 'Mesa', venceEn: VENCE })
       .catch((e: Error) => e);
     expect(error).toBeInstanceOf(Error);
     expect((error as Error).message).toContain('401');

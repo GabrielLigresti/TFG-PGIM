@@ -1,4 +1,4 @@
-import type { EstadoPagoComensal, MetodoPago } from '@pgim/shared';
+import type { EstadoPago, EstadoPagoComensal, MetodoPago } from '@pgim/shared';
 import { calcularPuntos } from '../domain/beneficio';
 import { estadoDePago, formatearComprobante } from '../domain/pago';
 import { prisma } from '../lib/prisma';
@@ -40,6 +40,7 @@ export type ResultadoCrearPago =
       sucursalId: string;
       mesaNumero: number;
       restaurante: string;
+      creadoEn: Date;
     }
   | { resultado: 'EN_CURSO'; pagoId: string }
   | { resultado: 'CERRADA' | 'SIN_SALDO' | 'BENEFICIO_NO_DISPONIBLE' | 'BENEFICIO_AGOTADO' };
@@ -60,18 +61,28 @@ export interface ResolucionPago {
   puntosCanjeados: number;
 }
 
+// Un pago PENDIENTE del comensal, para volver a abrir Mercado Pago.
+export interface PagoPendiente {
+  pagoId: string;
+  monto: number;
+  metodo: MetodoPago;
+  mesaNumero: number;
+  restaurante: string;
+  creadoEn: Date;
+}
+
 export interface PagoRepository {
   crearPendiente(datos: DatosPagoNuevo, validar: ValidarBeneficio): Promise<ResultadoCrearPago>;
   // null si el pago ya no estaba PENDIENTE: una notificación repetida o un
   // vencimiento que llega tarde no hace nada.
   resolver(pagoId: string, resultado: ResultadoCobroPago): Promise<ResolucionPago | null>;
   pendientesVencidos(limite: Date): Promise<string[]>;
-  // Solo un pago de una mesa del comensal.
-  estadoDelComensal(
-    comensalId: string,
-    cuentaMesaId: string,
-    pagoId: string,
-  ): Promise<EstadoPagoComensal | null>;
+  // Estado y referencia actuales, sin filtro de tenant: lo usa la conciliación
+  // de un cobro que llegó sobre un pago ya resuelto.
+  buscar(pagoId: string): Promise<{ estado: EstadoPago; referenciaExterna: string | null } | null>;
+  // Solo pagos del comensal (titular), aunque la mesa ya esté cerrada.
+  estadoDelComensal(comensalId: string, pagoId: string): Promise<EstadoPagoComensal | null>;
+  pendienteDelComensal(comensalId: string, pagoId: string): Promise<PagoPendiente | null>;
 }
 
 const centavos = (valor: number) => Math.round(valor * 100) / 100;
@@ -141,7 +152,7 @@ export const pagoRepository: PagoRepository = {
           const monto = centavos(saldo - descuento);
           const pago = await tx.pago.create({
             data: { cuentaMesaId, comensalId, monto, metodo: datos.metodo },
-            select: { id: true },
+            select: { id: true, fecha: true },
           });
           if (beneficio) {
             await tx.beneficioAplicado.create({
@@ -162,6 +173,7 @@ export const pagoRepository: PagoRepository = {
             sucursalId: cuenta.sucursal_id,
             mesaNumero: cuenta.numero,
             restaurante: cuenta.restaurante,
+            creadoEn: pago.fecha,
           };
         },
         { timeout: 15_000 },
@@ -315,9 +327,48 @@ export const pagoRepository: PagoRepository = {
     return filas.map((f) => f.id);
   },
 
-  async estadoDelComensal(comensalId, cuentaMesaId, pagoId) {
+  async buscar(pagoId) {
+    return prisma.pago.findUnique({
+      where: { id: pagoId },
+      select: { estado: true, referenciaExterna: true },
+    });
+  },
+
+  async pendienteDelComensal(comensalId, pagoId) {
     const pago = await prisma.pago.findFirst({
-      where: { id: pagoId, cuentaMesaId, comensalId },
+      where: { id: pagoId, comensalId, estado: 'PENDIENTE' },
+      select: {
+        id: true,
+        monto: true,
+        metodo: true,
+        fecha: true,
+        cuentaMesa: {
+          select: {
+            reserva: {
+              select: {
+                mesa: { select: { numero: true } },
+                sucursal: { select: { restaurante: { select: { nombre: true } } } },
+              },
+            },
+          },
+        },
+      },
+    });
+    return (
+      pago && {
+        pagoId: pago.id,
+        monto: Number(pago.monto),
+        metodo: pago.metodo,
+        mesaNumero: pago.cuentaMesa.reserva.mesa.numero,
+        restaurante: pago.cuentaMesa.reserva.sucursal.restaurante.nombre,
+        creadoEn: pago.fecha,
+      }
+    );
+  },
+
+  async estadoDelComensal(comensalId, pagoId) {
+    const pago = await prisma.pago.findFirst({
+      where: { id: pagoId, comensalId },
       select: {
         id: true,
         estado: true,

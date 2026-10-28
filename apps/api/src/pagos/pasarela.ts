@@ -12,6 +12,8 @@ export interface CobroAIniciar {
   monto: number;
   metodo: MetodoPago;
   descripcion: string;
+  // Hasta cuándo se puede pagar (15 minutos desde que se creó el pago).
+  venceEn: Date;
 }
 
 export type InicioCobro =

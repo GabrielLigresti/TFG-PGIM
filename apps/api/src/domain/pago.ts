@@ -16,6 +16,14 @@ export interface EstadoDePago {
 // vence a la vez.
 export const PAGO_VENCE_MIN = 15;
 
+// La tarea de vencimiento espera unos minutos más antes de rechazar: Mercado
+// Pago puede tardar en mostrar un cobro hecho en el último segundo.
+export const MARGEN_VENCIMIENTO_MIN = 3;
+
+// Hasta cuándo se puede pagar: la preferencia vence a la vez.
+export const vencimientoDe = (creadoEn: Date) =>
+  new Date(creadoEn.getTime() + PAGO_VENCE_MIN * 60_000);
+
 class Pendiente implements EstadoDePago {
   readonly nombre = 'PENDIENTE';
   aprobar() {

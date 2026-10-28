@@ -10,6 +10,7 @@ describe('pasarela simulada', () => {
         monto: 1500,
         metodo: 'TARJETA',
         descripcion: 'Mesa',
+        venceEn: new Date(),
       }),
     ).toEqual({ tipo: 'APROBADO_AL_INSTANTE', referenciaExterna: 'SIM-P1' });
   });
@@ -24,7 +25,13 @@ describe('pasarela simulada', () => {
     const pasarela = crearPasarelaSimulada(false);
     expect(pasarela.habilitada).toBe(false);
     await expect(
-      pasarela.iniciarCobro({ id: 'P1', monto: 1500, metodo: 'TARJETA', descripcion: 'Mesa' }),
+      pasarela.iniciarCobro({
+        id: 'P1',
+        monto: 1500,
+        metodo: 'TARJETA',
+        descripcion: 'Mesa',
+        venceEn: new Date(),
+      }),
     ).rejects.toThrow();
   });
 });

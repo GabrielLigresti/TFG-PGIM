@@ -3,7 +3,6 @@ import {
   consultaMiMesaSchema,
   idParamSchema,
   pagoInputSchema,
-  pagoParamsSchema,
   pedidoInputSchema,
   type PagoInput,
   type PedidoInput,
@@ -48,21 +47,16 @@ mesaComensalRouter.post(
   },
 );
 
-// Estado de un pago, para cuando el comensal vuelve de Mercado Pago y el aviso
-// en tiempo real todavía no llegó.
-mesaComensalRouter.get(
-  '/mesa/:id/pagos/:pagoId',
-  validarParams(pagoParamsSchema),
-  async (req, res) => {
-    res.json(
-      await pagoService.estado(
-        req.sesion!.usuario.id,
-        req.params.id as string,
-        req.params.pagoId as string,
-      ),
-    );
-  },
-);
+// Estado de un pago del comensal, para cuando vuelve de Mercado Pago y el aviso
+// en tiempo real todavía no llegó. No necesita la mesa: puede estar cerrada.
+mesaComensalRouter.get('/pagos/:id', validarParams(idParamSchema), async (req, res) => {
+  res.json(await pagoService.estado(req.sesion!.usuario.id, req.params.id as string));
+});
+
+// Vuelve a abrir Mercado Pago para un pago en curso.
+mesaComensalRouter.post('/pagos/:id/continuar', validarParams(idParamSchema), async (req, res) => {
+  res.json(await pagoService.continuar(req.sesion!.usuario.id, req.params.id as string));
+});
 
 // Beneficios que puede usar al pagar esta mesa y progreso del resto.
 mesaComensalRouter.get('/mesa/:id/beneficios', validarParams(idParamSchema), async (req, res) => {

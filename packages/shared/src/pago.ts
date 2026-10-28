@@ -15,8 +15,6 @@ export const pagoInputSchema = z.object({
 });
 export type PagoInput = z.infer<typeof pagoInputSchema>;
 
-export const pagoParamsSchema = z.object({ id: z.uuid(), pagoId: z.uuid() });
-
 // urlPago null: ya quedó resuelto, sin pasar por Mercado Pago (pago de $0 o
 // pasarela de prueba).
 export interface PagoIniciado {

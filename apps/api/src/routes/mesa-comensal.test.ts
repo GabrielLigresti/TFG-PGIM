@@ -10,7 +10,8 @@ jest.mock('../repositories/usuario.repository', () => ({
 jest.mock('../services/pago.service', () => ({
   pagoService: {
     pagar: jest.fn().mockResolvedValue({ pagoId: 'p1', urlPago: 'https://mp/pagar' }),
-    estado: jest.fn(),
+    estado: jest.fn().mockResolvedValue({ pagoId: 'p1', estado: 'PENDIENTE' }),
+    continuar: jest.fn().mockResolvedValue({ pagoId: 'p1', urlPago: 'https://mp/pagar' }),
     urlDePago: jest.fn().mockReturnValue(null),
   },
 }));
@@ -83,6 +84,21 @@ describe('/api/comensal/mesa', () => {
       .send({ metodo: 'TARJETA' })
       .expect(201, { pagoId: 'p1', urlPago: 'https://mp/pagar' });
     expect(pagoService.pagar).toHaveBeenCalledWith(IDS.comensal, CUENTA, { metodo: 'TARJETA' });
+  });
+
+  it('el estado y el continuar de un pago van siempre como el comensal de la sesión', async () => {
+    const { pagoService } = jest.requireMock('../services/pago.service');
+    const PAGO = '01900000-0000-7000-8000-0000000000aa';
+    await request(app)
+      .get(`/api/comensal/pagos/${PAGO}`)
+      .set('Cookie', cookieDeComensal())
+      .expect(200);
+    expect(pagoService.estado).toHaveBeenCalledWith(IDS.comensal, PAGO);
+    await request(app)
+      .post(`/api/comensal/pagos/${PAGO}/continuar`)
+      .set('Cookie', cookieDeComensal())
+      .expect(200, { pagoId: 'p1', urlPago: 'https://mp/pagar' });
+    expect(pagoService.continuar).toHaveBeenCalledWith(IDS.comensal, PAGO);
   });
 });
 
