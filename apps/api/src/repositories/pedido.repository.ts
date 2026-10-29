@@ -2,6 +2,7 @@ import type { EstadoPedido, PedidoCola } from '@pgim/shared';
 import { ESTADOS_ACTIVOS } from '../domain/pedido';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
+import { bloquearStockDeSucursal } from './bloqueo-stock';
 
 export interface CuentaParaPedido {
   id: string;
@@ -121,12 +122,6 @@ export function aPedidoCola(fila: FilaPedido): PedidoCola {
 // sumarlo, para que la devolución reponga exactamente lo descontado.
 const redondear = (valor: number) => Math.round(valor * 1000) / 1000;
 
-// Confirmaciones y cancelaciones de una sucursal, de a una: el número de
-// pedido es correlativo y las dos mueven las mismas existencias.
-async function bloquearPedidosDeSucursal(tx: Prisma.TransactionClient, sucursalId: string) {
-  await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${`pedido|${sucursalId}`}::text))) AS bloqueo`;
-}
-
 export const pedidoRepository: PedidoRepository = {
   async buscarCuentaDelComensal(comensalId, cuentaMesaId) {
     const fila = await prisma.cuentaMesa.findFirst({
@@ -164,7 +159,7 @@ export const pedidoRepository: PedidoRepository = {
         SELECT id FROM cuenta_mesa WHERE id = ${cuenta.id}::uuid AND estado = 'ABIERTA' FOR UPDATE`;
       if (abierta.length === 0) throw new MesaCerradaError();
       // Número correlativo de la sucursal (max + 1), con el bloqueo tomado.
-      await bloquearPedidosDeSucursal(tx, cuenta.sucursalId);
+      await bloquearStockDeSucursal(tx, cuenta.sucursalId);
       const ultimo = await tx.pedido.aggregate({
         where: { sucursalId: cuenta.sucursalId },
         _max: { numero: true },
@@ -297,7 +292,7 @@ export const pedidoRepository: PedidoRepository = {
   cancelar(restauranteId, sucursalId, id, motivo) {
     return prisma.$transaction(async (tx) => {
       // El mismo bloqueo que confirmar: nunca se cruzan sobre las existencias.
-      await bloquearPedidosDeSucursal(tx, sucursalId);
+      await bloquearStockDeSucursal(tx, sucursalId);
       const { count } = await tx.pedido.updateMany({
         where: { id, estado: 'CONFIRMADO', ...deLaSucursal(restauranteId, sucursalId) },
         data: { estado: 'CANCELADO', motivoCancelacion: motivo },
