@@ -3,7 +3,11 @@ import type { Prisma } from '../generated/prisma/client';
 import type { ConsumoTanda } from '../domain/tanda';
 import { prisma } from '../lib/prisma';
 import { bloquearStockDeSucursal } from './bloqueo-stock';
-import { ExistenciaInsuficienteError, type ContextoMovimiento } from './stock.repository';
+import {
+  ComponenteSinStockError,
+  ExistenciaInsuficienteError,
+  type ContextoMovimiento,
+} from './stock.repository';
 
 const POR_PAGINA = 25;
 
@@ -125,6 +129,14 @@ export const produccionRepository: ProduccionRepository = {
       ]);
       if (!sucursal || componentes !== ids.length) {
         throw new Error('Componente o sucursal fuera del restaurante');
+      }
+      // Con el lock tomado: la baja o la marca pudieron cambiar desde que el servicio leyó.
+      const intermedio = await tx.componenteInventario.findFirstOrThrow({
+        where: { id: t.intermedioId, restauranteId: ctx.restauranteId },
+        select: { activo: true, llevaStock: true },
+      });
+      if (!intermedio.activo || !intermedio.llevaStock) {
+        throw new ComponenteSinStockError(t.intermedioId);
       }
 
       // Ordenados por componente, para que dos transacciones nunca se bloqueen

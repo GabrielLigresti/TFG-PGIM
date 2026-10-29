@@ -10,6 +10,7 @@ import { AppError } from '../lib/errors';
 import { recetaRepository, type RecetaRepository } from '../repositories/receta.repository';
 import {
   AjusteSinDiferenciaError,
+  ComponenteSinStockError,
   ExistenciaInsuficienteError,
   stockRepository,
   type ContextoMovimiento,
@@ -94,6 +95,9 @@ export function createStockService(
             409,
             `No alcanza el stock de ${componente.nombre}: hay ${err.existencia} ${ETIQUETA_UNIDAD[componente.unidadBase]}`,
           );
+        }
+        if (err instanceof ComponenteSinStockError) {
+          throw new AppError(409, `${componente.nombre} ya no lleva stock o está dado de baja`);
         }
         if (err instanceof AjusteSinDiferenciaError) {
           throw new AppError(422, 'El conteo coincide con el stock; no hay nada que ajustar');

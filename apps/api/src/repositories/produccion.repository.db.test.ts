@@ -1,7 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { crearEscenario, limpiarBase, type Escenario } from '../test/db-setup';
 import { produccionRepository } from './produccion.repository';
-import { ExistenciaInsuficienteError } from './stock.repository';
+import { ComponenteSinStockError, ExistenciaInsuficienteError } from './stock.repository';
 
 afterAll(() => prisma.$disconnect());
 
@@ -69,6 +69,20 @@ describe('producción por tandas', () => {
       },
     });
     salsaId = salsa.id;
+  });
+
+  it('una tanda de un intermedio sin la marca lanza ComponenteSinStockError y no escribe', async () => {
+    await prisma.componenteInventario.update({
+      where: { id: salsaId },
+      data: { llevaStock: false },
+    });
+
+    await expect(produccionRepository.registrarTanda(ctx, tandaBase())).rejects.toBeInstanceOf(
+      ComponenteSinStockError,
+    );
+    expect(await existencia(e.harinaId)).toBe(1000);
+    expect(await prisma.tandaProduccion.count()).toBe(0);
+    expect(await prisma.movimientoStock.count({ where: { tipo: 'PRODUCCION' } })).toBe(0);
   });
 
   it('una tanda correcta baja el insumo, crea la existencia y fija el costo', async () => {

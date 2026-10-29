@@ -229,14 +229,13 @@ export function createRecetaService(repo: RecetaRepository) {
           `${intermedio.nombre} se usa en las recetas de ${usos.join(', ')}: sacalo de esas recetas antes de darlo de baja`,
         );
       }
-      const conStock = await repo.existenciasConStock(restauranteId, id);
+      const conStock = await repo.desactivarIntermedio(restauranteId, id);
       if (conStock.length > 0) {
         throw new AppError(
           409,
           `Ajustá a cero el stock de ${intermedio.nombre} en ${nombresDe(conStock)} antes de darlo de baja`,
         );
       }
-      await repo.desactivarIntermedio(restauranteId, id);
     },
 
     // Los pedidos en curso no bloquean el cambio: cancelar revierte los movimientos guardados.
@@ -251,17 +250,16 @@ export function createRecetaService(repo: RecetaRepository) {
             `Cargá la receta de ${intermedio.nombre} antes de activar el stock`,
           );
         }
-        await repo.cambiarLlevaStock(restauranteId, id, true, costoTeorico(intermedio));
+        await repo.activarLlevaStock(restauranteId, id, costoTeorico(intermedio));
         return;
       }
-      const conStock = await repo.existenciasConStock(restauranteId, id);
+      const conStock = await repo.desactivarLlevaStock(restauranteId, id);
       if (conStock.length > 0) {
         throw new AppError(
           409,
           `Ajustá a cero el stock de ${intermedio.nombre} en ${nombresDe(conStock)} antes de desactivarlo`,
         );
       }
-      await repo.cambiarLlevaStock(restauranteId, id, false, null);
     },
   };
   return service;

@@ -20,6 +20,7 @@ import {
 } from '../repositories/produccion.repository';
 import { recetaRepository, type RecetaRepository } from '../repositories/receta.repository';
 import {
+  ComponenteSinStockError,
   ExistenciaInsuficienteError,
   type ContextoMovimiento,
 } from '../repositories/stock.repository';
@@ -175,6 +176,9 @@ export function createProduccionService(
           costoUnitarioTanda: redondearCosto(costoTanda(consumos, obtenida)),
         });
       } catch (err) {
+        if (err instanceof ComponenteSinStockError) {
+          throw new AppError(409, `${intermedio.nombre} ya no lleva stock o está dado de baja`);
+        }
         if (err instanceof ExistenciaInsuficienteError) {
           const faltante = mapa.get(err.componenteId);
           throw new AppError(

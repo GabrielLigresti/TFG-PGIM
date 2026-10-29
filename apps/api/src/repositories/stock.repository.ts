@@ -23,6 +23,14 @@ export class ExistenciaInsuficienteError extends Error {
   }
 }
 
+// El componente ya no puede tener stock: está dado de baja o es un intermedio sin la marca.
+export class ComponenteSinStockError extends Error {
+  constructor(readonly componenteId: string) {
+    super('El componente ya no lleva stock');
+    this.name = 'ComponenteSinStockError';
+  }
+}
+
 // El conteo coincide con lo que dice el sistema.
 export class AjusteSinDiferenciaError extends Error {
   constructor() {
@@ -120,9 +128,13 @@ export const stockRepository: StockRepository = {
       });
       const componente = await tx.componenteInventario.findFirst({
         where: { id: mov.componenteId, restauranteId: ctx.restauranteId },
-        select: { id: true },
+        select: { id: true, activo: true, tipo: true, llevaStock: true },
       });
       if (!sucursal || !componente) throw new Error('Componente o sucursal fuera del restaurante');
+      // Con el lock tomado: la baja o la marca pudieron cambiar desde que el servicio leyó.
+      if (!componente.activo || (componente.tipo !== 'INSUMO' && !componente.llevaStock)) {
+        throw new ComponenteSinStockError(componente.id);
+      }
 
       // Sin fila todavía cuenta como 0: se crea y se bloquea para leerla.
       const fila = await tx.existencia.upsert({

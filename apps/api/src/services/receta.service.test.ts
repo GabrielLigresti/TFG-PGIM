@@ -58,11 +58,11 @@ function repoFalso(conReceta: boolean): jest.Mocked<RecetaRepository> {
     guardarRecetaIntermedio: jest.fn(),
     crearIntermedio: jest.fn(),
     borrarRecetaPlato: jest.fn(),
-    desactivarIntermedio: jest.fn(),
+    desactivarIntermedio: jest.fn().mockResolvedValue([]),
     existeNombre: jest.fn().mockResolvedValue(false),
     usosDeComponente: jest.fn().mockResolvedValue([]),
-    cambiarLlevaStock: jest.fn(),
-    existenciasConStock: jest.fn().mockResolvedValue([]),
+    activarLlevaStock: jest.fn(),
+    desactivarLlevaStock: jest.fn().mockResolvedValue([]),
   };
 }
 
@@ -129,7 +129,7 @@ describe('recetaService', () => {
   it('no da de baja un intermedio con existencia en alguna sucursal', async () => {
     const repo = repoFalso(false);
     repo.cargarCatalogo.mockResolvedValue(new Map([[SALSA, salsa()]]));
-    repo.existenciasConStock.mockResolvedValue([
+    repo.desactivarIntermedio.mockResolvedValue([
       { sucursal: 'Centro', cantidad: 2 },
       { sucursal: 'Palermo', cantidad: 1 },
     ]);
@@ -139,7 +139,6 @@ describe('recetaService', () => {
       message:
         'Ajustá a cero el stock de Salsa de tomate base en Centro, Palermo antes de darlo de baja',
     });
-    expect(repo.desactivarIntermedio).not.toHaveBeenCalled();
   });
 
   describe('cambiarLlevaStock', () => {
@@ -160,7 +159,7 @@ describe('recetaService', () => {
       await expect(service.cambiarLlevaStock(R, SALSA, true)).rejects.toMatchObject({
         status: 409,
       });
-      expect(repo.cambiarLlevaStock).not.toHaveBeenCalled();
+      expect(repo.activarLlevaStock).not.toHaveBeenCalled();
     });
 
     it('no activa un intermedio dado de baja', async () => {
@@ -169,7 +168,7 @@ describe('recetaService', () => {
       await expect(service.cambiarLlevaStock(R, SALSA, true)).rejects.toMatchObject({
         status: 409,
       });
-      expect(repo.cambiarLlevaStock).not.toHaveBeenCalled();
+      expect(repo.activarLlevaStock).not.toHaveBeenCalled();
     });
 
     it('al activar guarda el costo teórico de la receta como costo vigente', async () => {
@@ -178,18 +177,17 @@ describe('recetaService', () => {
       await service.cambiarLlevaStock(R, SALSA, true);
 
       // 200 g de carne a 0,01 por 100 g de rendimiento.
-      expect(repo.cambiarLlevaStock).toHaveBeenCalledWith(R, SALSA, true, 0.02);
+      expect(repo.activarLlevaStock).toHaveBeenCalledWith(R, SALSA, 0.02);
     });
 
     it('no desactiva con existencia en una sucursal', async () => {
       const { repo, service } = conSalsa({ llevaStock: true });
-      repo.existenciasConStock.mockResolvedValue([{ sucursal: 'Centro', cantidad: 3 }]);
+      repo.desactivarLlevaStock.mockResolvedValue([{ sucursal: 'Centro', cantidad: 3 }]);
 
       await expect(service.cambiarLlevaStock(R, SALSA, false)).rejects.toMatchObject({
         status: 409,
         message: 'Ajustá a cero el stock de Salsa de tomate base en Centro antes de desactivarlo',
       });
-      expect(repo.cambiarLlevaStock).not.toHaveBeenCalled();
     });
 
     it('desactiva con todo en cero y limpia el costo vigente', async () => {
@@ -197,7 +195,7 @@ describe('recetaService', () => {
 
       await service.cambiarLlevaStock(R, SALSA, false);
 
-      expect(repo.cambiarLlevaStock).toHaveBeenCalledWith(R, SALSA, false, null);
+      expect(repo.desactivarLlevaStock).toHaveBeenCalledWith(R, SALSA);
     });
 
     it('repetir la marca actual no hace nada', async () => {
@@ -205,8 +203,8 @@ describe('recetaService', () => {
 
       await service.cambiarLlevaStock(R, SALSA, true);
 
-      expect(repo.cambiarLlevaStock).not.toHaveBeenCalled();
-      expect(repo.existenciasConStock).not.toHaveBeenCalled();
+      expect(repo.activarLlevaStock).not.toHaveBeenCalled();
+      expect(repo.desactivarLlevaStock).not.toHaveBeenCalled();
     });
   });
 });

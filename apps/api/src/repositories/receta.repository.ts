@@ -2,6 +2,7 @@ import type { UnidadBase, UnidadMedida } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import type { Componente, Receta } from '../domain/receta';
 import { prisma } from '../lib/prisma';
+import { bloquearStockDeSucursal } from './bloqueo-stock';
 import { existeNombreComponente, usosDeComponente } from './componente.repository';
 
 // Receta tal como sale de la base: las líneas apuntan a componentes por id.
@@ -24,6 +25,8 @@ export interface PlatoConReceta {
   receta: RecetaFila | null;
 }
 
+export type ExistenciaEnSucursal = { sucursal: string; cantidad: number };
+
 export type Catalogo = Map<string, Componente>;
 
 export interface RecetaRepository {
@@ -40,21 +43,14 @@ export interface RecetaRepository {
     receta: Receta,
   ): Promise<string>;
   borrarRecetaPlato(restauranteId: string, itemId: string): Promise<void>;
-  desactivarIntermedio(restauranteId: string, id: string): Promise<void>;
+  // Igual que desactivarLlevaStock: si hay existencia devuelve dónde y no da de baja.
+  desactivarIntermedio(restauranteId: string, id: string): Promise<ExistenciaEnSucursal[]>;
   existeNombre(restauranteId: string, nombre: string): Promise<boolean>;
   usosDeComponente(restauranteId: string, id: string): Promise<string[]>;
-  // Al desactivar la marca el costo vigente se limpia (null).
-  cambiarLlevaStock(
-    restauranteId: string,
-    id: string,
-    llevaStock: boolean,
-    costoVigente: number | null,
-  ): Promise<void>;
-  // Sucursales del restaurante donde la existencia del componente es mayor a 0.
-  existenciasConStock(
-    restauranteId: string,
-    componenteId: string,
-  ): Promise<{ sucursal: string; cantidad: number }[]>;
+  activarLlevaStock(restauranteId: string, id: string, costoVigente: number): Promise<void>;
+  // Con las sucursales bloqueadas, si el intermedio tiene existencia mayor a 0 devuelve
+  // dónde (sin escribir); si no, apaga la marca y limpia el costo vigente.
+  desactivarLlevaStock(restauranteId: string, id: string): Promise<ExistenciaEnSucursal[]>;
 }
 
 export const seleccionReceta = {
@@ -133,6 +129,45 @@ async function escribirReceta(tx: Prisma.TransactionClient, dueno: Dueno, receta
       unidad: l.unidad,
       porcentajeMerma: l.porcentajeMerma,
     })),
+  });
+}
+
+// Bloquea el stock de todas las sucursales del restaurante (ordenadas por id, para no
+// cruzarse con otras transacciones), lee las existencias del intermedio y recién ahí
+// escribe: una tanda o un ajuste no puede entrar entre el chequeo y la escritura.
+async function sinExistencias(
+  restauranteId: string,
+  id: string,
+  datos: Prisma.ComponenteInventarioUpdateInput,
+): Promise<ExistenciaEnSucursal[]> {
+  return prisma.$transaction(async (tx) => {
+    const sucursales = await tx.sucursal.findMany({
+      where: { restauranteId },
+      select: { id: true },
+      orderBy: { id: 'asc' },
+    });
+    for (const s of sucursales) await bloquearStockDeSucursal(tx, s.id);
+    const filas = await tx.existencia.findMany({
+      where: {
+        componenteId: id,
+        cantidadActual: { gt: 0 },
+        componente: { restauranteId },
+        sucursal: { restauranteId },
+      },
+      select: { cantidadActual: true, sucursal: { select: { nombre: true } } },
+      orderBy: { sucursal: { nombre: 'asc' } },
+    });
+    if (filas.length > 0) {
+      return filas.map((f) => ({
+        sucursal: f.sucursal.nombre,
+        cantidad: Number(f.cantidadActual),
+      }));
+    }
+    await tx.componenteInventario.update({
+      where: { id, restauranteId, tipo: 'INTERMEDIO' },
+      data: datos,
+    });
+    return [];
   });
 }
 
@@ -223,33 +258,17 @@ export const recetaRepository: RecetaRepository = {
     await prisma.receta.deleteMany({ where: { itemMenuId: itemId, itemMenu: { restauranteId } } });
   },
 
-  async desactivarIntermedio(restauranteId, id) {
+  desactivarIntermedio: (restauranteId, id) => sinExistencias(restauranteId, id, { activo: false }),
+
+  async activarLlevaStock(restauranteId, id, costoVigente) {
     await prisma.componenteInventario.update({
       where: { id, restauranteId, tipo: 'INTERMEDIO' },
-      data: { activo: false },
+      data: { llevaStock: true, costoCompraVigente: costoVigente },
     });
   },
 
-  async cambiarLlevaStock(restauranteId, id, llevaStock, costoVigente) {
-    await prisma.componenteInventario.update({
-      where: { id, restauranteId, tipo: 'INTERMEDIO' },
-      data: { llevaStock, costoCompraVigente: costoVigente },
-    });
-  },
-
-  async existenciasConStock(restauranteId, componenteId) {
-    const filas = await prisma.existencia.findMany({
-      where: {
-        componenteId,
-        cantidadActual: { gt: 0 },
-        componente: { restauranteId },
-        sucursal: { restauranteId },
-      },
-      select: { cantidadActual: true, sucursal: { select: { nombre: true } } },
-      orderBy: { sucursal: { nombre: 'asc' } },
-    });
-    return filas.map((f) => ({ sucursal: f.sucursal.nombre, cantidad: Number(f.cantidadActual) }));
-  },
+  desactivarLlevaStock: (restauranteId, id) =>
+    sinExistencias(restauranteId, id, { llevaStock: false, costoCompraVigente: null }),
 
   existeNombre: (restauranteId, nombre) => existeNombreComponente(restauranteId, nombre),
 
