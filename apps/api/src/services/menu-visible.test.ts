@@ -32,7 +32,6 @@ const masa: Componente = {
     instrucciones: null,
     lineas: [
       {
-        componenteId: 'harina',
         cantidad: 200,
         unidad: 'GRAMO',
         porcentajeMerma: 0,
