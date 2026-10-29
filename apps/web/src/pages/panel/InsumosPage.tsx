@@ -87,7 +87,8 @@ export function InsumosPage() {
             { titulo: 'Unidad base', valor: (i) => NOMBRE_UNIDAD[i.unidadBase] },
             {
               titulo: 'Costo por unidad',
-              valor: (i) => (i.costoCompra === null ? '—' : formatoPesos(i.costoCompra)),
+              valor: (i) =>
+                i.costoCompraVigente === null ? '—' : formatoPesos(i.costoCompraVigente),
             },
             {
               titulo: `Stock ${sucursal?.nombre ?? ''}`.trim(),
@@ -134,7 +135,7 @@ function FormularioInsumo({
   const [nombre, setNombre] = useState(insumo?.nombre ?? '');
   const [unidadBase, setUnidadBase] = useState<UnidadBase>(insumo?.unidadBase ?? 'GRAMO');
   const [costo, setCosto] = useState(
-    insumo?.costoCompra === null || !insumo ? '' : String(insumo.costoCompra),
+    insumo?.costoCompraVigente === null || !insumo ? '' : String(insumo.costoCompraVigente),
   );
   const [activo, setActivo] = useState(insumo?.activo ?? true);
   const { enviar, enviando, error } = useGuardar();
@@ -144,7 +145,7 @@ function FormularioInsumo({
     const datos: InsumoInput = {
       nombre,
       unidadBase,
-      costoCompra: aNumero(costo),
+      costoCompraVigente: aNumero(costo),
       ...(insumo && { activo }),
     };
     const respuesta = insumo

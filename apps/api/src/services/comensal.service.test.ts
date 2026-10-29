@@ -70,7 +70,8 @@ const queso: Componente = {
   tipo: 'INSUMO',
   unidadBase: 'GRAMO',
   activo: true,
-  costoCompra: 5,
+  costoCompraVigente: 5,
+  llevaStock: false,
   receta: null,
 };
 

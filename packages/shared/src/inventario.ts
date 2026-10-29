@@ -35,7 +35,7 @@ export const insumoInputSchema = z.object({
   nombre: nombreSchema,
   unidadBase: z.enum(UNIDADES_BASE),
   // Costo de compra por unidad base (por gramo, mililitro o unidad).
-  costoCompra: z.number().min(0, 'El costo no puede ser negativo').max(1e9),
+  costoCompraVigente: z.number().min(0, 'El costo no puede ser negativo').max(1e9),
   activo: z.boolean().optional(),
 });
 
@@ -45,7 +45,7 @@ export interface Insumo {
   id: string;
   nombre: string;
   unidadBase: UnidadBase;
-  costoCompra: number | null;
+  costoCompraVigente: number | null;
   activo: boolean;
   // Existencia en la sucursal de trabajo; 0 si todavía no tuvo movimientos.
   stock: number;

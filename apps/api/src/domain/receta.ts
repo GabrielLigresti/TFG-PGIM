@@ -17,8 +17,11 @@ export interface Componente {
   tipo: TipoComponente;
   unidadBase: UnidadBase;
   activo: boolean;
-  // Solo insumos: costo por unidad base.
-  costoCompra: number | null;
+  // Costo por unidad base: la última compra (insumo) o la última tanda
+  // (intermedio con stock).
+  costoCompraVigente: number | null;
+  // Solo intermedios: se produce por tandas y tiene existencia propia.
+  llevaStock: boolean;
   // Solo intermedios.
   receta: Receta | null;
 }
@@ -45,7 +48,7 @@ export function cantidadBruta(linea: LineaReceta): number {
 
 // Insumo: su costo de compra. Intermedio: costo de su receta ÷ rendimiento.
 export function costoUnitario(componente: Componente): number {
-  if (componente.tipo === 'INSUMO') return componente.costoCompra ?? 0;
+  if (componente.tipo === 'INSUMO') return componente.costoCompraVigente ?? 0;
   const { receta } = componente;
   return receta ? costoTotal(receta) / receta.rendimiento : 0;
 }

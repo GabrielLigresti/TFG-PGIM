@@ -335,7 +335,7 @@ async function seedComponente(
     nombre: string;
     tipo: 'INSUMO' | 'INTERMEDIO';
     unidadBase: UnidadBase;
-    costoCompra: number | null;
+    costoCompraVigente: number | null;
   },
 ): Promise<string> {
   const existente = await tx.componenteInventario.findFirst({
@@ -372,7 +372,7 @@ async function seedMenuEInventario(
       nombre: insumo.nombre,
       tipo: 'INSUMO',
       unidadBase: insumo.unidadBase,
-      costoCompra: insumo.costo,
+      costoCompraVigente: insumo.costo,
     });
     componentes.set(insumo.nombre, id);
 
@@ -405,7 +405,7 @@ async function seedMenuEInventario(
     nombre: 'Salsa criolla',
     tipo: 'INTERMEDIO',
     unidadBase: 'GRAMO',
-    costoCompra: null,
+    costoCompraVigente: null,
   });
   componentes.set('Salsa criolla', salsaId);
   await seedReceta(tx, { productoIntermedioId: salsaId }, SALSA_CRIOLLA, componentes);

@@ -200,7 +200,8 @@ export function createRecetaService(repo: RecetaRepository) {
         tipo: 'INTERMEDIO',
         unidadBase: datos.unidadBase,
         activo: true,
-        costoCompra: null,
+        costoCompraVigente: null,
+        llevaStock: false,
         receta: null,
       };
       const receta = construir(RecetaBuilder.paraIntermedio(nuevo), datos.receta, catalogo);

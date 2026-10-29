@@ -230,9 +230,9 @@ export const pedidoRepository: PedidoRepository = {
       if (consumos.length > 0) {
         const costos = await tx.componenteInventario.findMany({
           where: { id: { in: [...totales.keys()] } },
-          select: { id: true, costoCompra: true },
+          select: { id: true, costoCompraVigente: true },
         });
-        const costo = new Map(costos.map((c) => [c.id, c.costoCompra ?? 0]));
+        const costo = new Map(costos.map((c) => [c.id, c.costoCompraVigente ?? 0]));
         await tx.movimientoStock.createMany({
           data: consumos.map((c) => ({
             existenciaId: existencias.get(c.componenteId)!,

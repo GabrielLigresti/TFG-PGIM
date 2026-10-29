@@ -11,7 +11,8 @@ const carne: Componente = {
   tipo: 'INSUMO',
   unidadBase: 'GRAMO',
   activo: true,
-  costoCompra: 0.01,
+  costoCompraVigente: 0.01,
+  llevaStock: false,
   receta: null,
 };
 

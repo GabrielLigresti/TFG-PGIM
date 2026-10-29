@@ -9,8 +9,21 @@ import {
   type Componente,
 } from './receta';
 
-function insumo(id: string, unidadBase: Componente['unidadBase'], costoCompra: number): Componente {
-  return { id, nombre: id, tipo: 'INSUMO', unidadBase, activo: true, costoCompra, receta: null };
+function insumo(
+  id: string,
+  unidadBase: Componente['unidadBase'],
+  costoCompraVigente: number,
+): Componente {
+  return {
+    id,
+    nombre: id,
+    tipo: 'INSUMO',
+    unidadBase,
+    activo: true,
+    costoCompraVigente,
+    llevaStock: false,
+    receta: null,
+  };
 }
 
 function intermedio(id: string, unidadBase: Componente['unidadBase'] = 'GRAMO'): Componente {
@@ -20,7 +33,8 @@ function intermedio(id: string, unidadBase: Componente['unidadBase'] = 'GRAMO'):
     tipo: 'INTERMEDIO',
     unidadBase,
     activo: true,
-    costoCompra: null,
+    costoCompraVigente: null,
+    llevaStock: false,
     receta: null,
   };
 }

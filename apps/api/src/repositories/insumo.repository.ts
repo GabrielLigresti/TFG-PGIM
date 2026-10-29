@@ -20,7 +20,7 @@ function seleccion(sucursalId: string | null) {
     id: true,
     nombre: true,
     unidadBase: true,
-    costoCompra: true,
+    costoCompraVigente: true,
     activo: true,
     // Stock de la sucursal de trabajo (una existencia por insumo y sucursal).
     existencias: {
@@ -37,7 +37,7 @@ function aInsumo({ existencias, ...fila }: Fila): Insumo {
   return {
     ...fila,
     unidadBase: fila.unidadBase as Insumo['unidadBase'],
-    costoCompra: fila.costoCompra === null ? null : Number(fila.costoCompra),
+    costoCompraVigente: fila.costoCompraVigente === null ? null : Number(fila.costoCompraVigente),
     stock: Number(existencias[0]?.cantidadActual ?? 0),
   };
 }
@@ -80,7 +80,7 @@ export const insumoRepository: InsumoRepository = {
         tipo: 'INSUMO',
         nombre: datos.nombre,
         unidadBase: datos.unidadBase,
-        costoCompra: datos.costoCompra,
+        costoCompraVigente: datos.costoCompraVigente,
       },
       select: seleccion(null),
     });
@@ -93,7 +93,7 @@ export const insumoRepository: InsumoRepository = {
       data: {
         nombre: datos.nombre,
         unidadBase: datos.unidadBase,
-        costoCompra: datos.costoCompra,
+        costoCompraVigente: datos.costoCompraVigente,
         ...(datos.activo !== undefined && { activo: datos.activo }),
       },
       select: seleccion(null),
