@@ -111,7 +111,7 @@ describe('producción por tandas', () => {
     expect(salsa.costoCompraVigente).toBeNull();
   });
 
-  it('un consumo con usada 0 no genera movimiento', async () => {
+  it('un componente de la receta que no se usó se guarda con cantidad 0 y su teórica', async () => {
     const id = await produccionRepository.registrarTanda(
       ctx,
       tandaBase({
@@ -123,6 +123,28 @@ describe('producción por tandas', () => {
     );
 
     expect(await existencia(e.quesoId)).toBe(100);
+    const mov = await prisma.movimientoStock.findFirstOrThrow({
+      where: { tandaId: id, tipo: 'CONSUMO_PRODUCCION', existencia: { componenteId: e.quesoId } },
+    });
+    expect(Number(mov.cantidad)).toBe(0);
+    expect(Number(mov.cantidadTeorica)).toBe(-50);
+    const fila = await produccionRepository.buscarTanda(e.restauranteId, e.sucursalId, id);
+    expect(fila!.consumos).toContainEqual(
+      expect.objectContaining({ componenteId: e.quesoId, usada: 0, teorica: 50 }),
+    );
+  });
+
+  it('un consumo con usada y teórica en 0 no se guarda', async () => {
+    const id = await produccionRepository.registrarTanda(
+      ctx,
+      tandaBase({
+        consumos: [
+          { componenteId: e.harinaId, teorica: 600, usada: 700, costoUnitario: 2 },
+          { componenteId: e.quesoId, teorica: 0, usada: 0, costoUnitario: 1 },
+        ],
+      }),
+    );
+
     expect(await prisma.movimientoStock.count({ where: { tandaId: id } })).toBe(2);
   });
 

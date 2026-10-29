@@ -13,8 +13,9 @@ export interface TandaARegistrar {
   esperada: number;
   obtenida: number;
   observacion: string | null;
-  // Un consumo con `usada` 0 (componente de la receta que no se usó) no genera
-  // movimiento.
+  // Un consumo con `usada` 0 y `teorica` > 0 (componente de la receta que no se
+  // usó) se guarda igual, con cantidad 0, para que el desvío lo siga contando.
+  // Los que tienen las dos en 0 no se guardan.
   consumos: ConsumoTanda[];
   costoUnitarioTanda: number;
 }
@@ -129,10 +130,23 @@ export const produccionRepository: ProduccionRepository = {
       // Ordenados por componente, para que dos transacciones nunca se bloqueen
       // en orden cruzado. El UPDATE condicional nunca deja stock negativo.
       const usados = t.consumos
-        .filter((c) => redondear(c.usada) > 0)
+        .filter((c) => redondear(c.usada) > 0 || redondear(c.teorica) > 0)
         .sort((a, b) => (a.componenteId < b.componenteId ? -1 : 1));
       const existenciaDe = new Map<string, string>();
       for (const c of usados) {
+        if (redondear(c.usada) === 0) {
+          // No se usó: sin cambio de stock, solo se asegura la fila.
+          const fila = await tx.existencia.upsert({
+            where: {
+              sucursalId_componenteId: { sucursalId: ctx.sucursalId, componenteId: c.componenteId },
+            },
+            create: { sucursalId: ctx.sucursalId, componenteId: c.componenteId },
+            update: {},
+            select: { id: true },
+          });
+          existenciaDe.set(c.componenteId, fila.id);
+          continue;
+        }
         const resta = redondear(c.usada).toFixed(3);
         const filas = await tx.$queryRaw<{ id: string }[]>`
           UPDATE existencia SET cantidad_actual = cantidad_actual - ${resta}::numeric

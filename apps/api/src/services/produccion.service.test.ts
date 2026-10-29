@@ -178,6 +178,26 @@ describe('produccionService.registrar', () => {
     expect(detalle.consumos[0]).toMatchObject({ diferencia: 0, diferenciaCosto: 0 });
   });
 
+  it('el desvío leído con detalle coincide con el de registrar si se quita un componente', async () => {
+    // Lo que el repo guardaría: el tomate quitado queda con usada 0 y su teórica.
+    const guardada = fila({
+      obtenida: 4500,
+      consumos: [{ ...fila().consumos[0]!, usada: 0 }],
+    });
+    const { service } = servicio(undefined, {
+      buscarTanda: jest.fn().mockResolvedValue(guardada),
+    });
+
+    const alRegistrar = await service.registrar(ctx, {
+      ...input,
+      consumos: [{ componenteId: 'sal', cantidad: 100, unidad: 'GRAMO' }],
+    });
+    const leido = await service.detalle('r', 's', 't1');
+
+    expect(alRegistrar.desvio.faltanteRendimiento).toBeCloseTo(1200);
+    expect(leido.desvio.faltanteRendimiento).toBe(alRegistrar.desvio.faltanteRendimiento);
+  });
+
   it('rechaza un intermedio sin stock, inactivo o sin receta', async () => {
     for (const malo of [
       { ...salsa, llevaStock: false },
