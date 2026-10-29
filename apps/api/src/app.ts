@@ -8,6 +8,7 @@ import { comensalRouter } from './routes/comensal';
 import { fidelizacionRouter } from './routes/fidelizacion';
 import { healthRouter } from './routes/health';
 import { insumosRouter } from './routes/insumos';
+import { stockRouter } from './routes/stock';
 import { mesaComensalRouter } from './routes/mesa-comensal';
 import { mesasRouter } from './routes/mesas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
@@ -88,6 +89,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/roles`, rolesRouter);
   app.use(`${API_PREFIX}/personal`, personalRouter);
   app.use(`${API_PREFIX}/insumos`, insumosRouter);
+  app.use(`${API_PREFIX}/stock`, stockRouter);
   app.use(`${API_PREFIX}/recetas`, recetasRouter);
   app.use(`${API_PREFIX}/categorias`, categoriasRouter);
   app.use(`${API_PREFIX}/platos`, platosRouter);
