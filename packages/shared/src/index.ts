@@ -8,6 +8,7 @@ export * from './sucursal';
 export * from './rol';
 export * from './personal';
 export * from './inventario';
+export * from './stock';
 export * from './menu';
 export * from './comensal';
 export * from './salon';
