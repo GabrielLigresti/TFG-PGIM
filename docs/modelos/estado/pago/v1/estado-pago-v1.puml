@@ -43,6 +43,9 @@ note right of PENDIENTE
   Un intento rechazado no cierra el pago:
   Checkout Pro permite reintentar con otro
   medio hasta que vence (15 min).
+  Modo binario: Mercado Pago resuelve cada
+  intento al instante como aprobado o
+  rechazado, sin dejarlo en revisión.
   Un cobro aprobado que llega sobre un pago
   ya resuelto queda registrado para
   conciliar a mano.
