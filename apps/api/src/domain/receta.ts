@@ -46,11 +46,24 @@ export function cantidadBruta(linea: LineaReceta): number {
   return neta / (1 - linea.porcentajeMerma / 100);
 }
 
+// Un componente tiene stock propio si es un insumo o un intermedio que se
+// produce por tandas.
+export function tieneStock(componente: Componente): boolean {
+  return componente.tipo === 'INSUMO' || componente.llevaStock;
+}
+
 // Insumo: su costo de compra. Intermedio: costo de su receta ÷ rendimiento.
-export function costoUnitario(componente: Componente): number {
+export function costoTeorico(componente: Componente): number {
   if (componente.tipo === 'INSUMO') return componente.costoCompraVigente ?? 0;
   const { receta } = componente;
   return receta ? costoTotal(receta) / receta.rendimiento : 0;
+}
+
+// Con stock: el último costo registrado (compra o tanda), o el teórico si
+// todavía no hay ninguno. Sin stock: siempre el teórico de su receta.
+export function costoUnitario(componente: Componente): number {
+  if (tieneStock(componente)) return componente.costoCompraVigente ?? costoTeorico(componente);
+  return costoTeorico(componente);
 }
 
 export function costoLinea(linea: LineaReceta): number {
@@ -62,15 +75,16 @@ export function costoTotal(receta: Receta): number {
 }
 
 // Insumos que consume `cantidad` de la receta (porciones de un plato o
-// unidades base de un intermedio), en cantidad bruta y unidad base. Los
-// intermedios no tienen stock propio: se explotan hasta sus insumos.
+// unidades base de un intermedio), en cantidad bruta y unidad base. Se
+// detiene en todo componente con stock (insumo o intermedio con stock); los
+// intermedios sin stock se explotan hasta llegar a uno que lo tenga.
 export function insumosNecesarios(receta: Receta, cantidad: number): Map<string, number> {
   const total = new Map<string, number>();
   const factor = cantidad / receta.rendimiento;
   for (const linea of receta.lineas) {
     const bruta = cantidadBruta(linea) * factor;
     const { componente } = linea;
-    if (componente.tipo === 'INSUMO') {
+    if (tieneStock(componente)) {
       total.set(componente.id, (total.get(componente.id) ?? 0) + bruta);
     } else if (componente.receta) {
       for (const [id, valor] of insumosNecesarios(componente.receta, bruta)) {

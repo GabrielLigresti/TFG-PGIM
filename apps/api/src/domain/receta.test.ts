@@ -6,6 +6,7 @@ import {
   costoTotal,
   costoUnitario,
   insumosNecesarios,
+  tieneStock,
   type Componente,
 } from './receta';
 
@@ -237,5 +238,72 @@ describe('insumosNecesarios', () => {
       instrucciones: null,
     };
     expect(insumosNecesarios(receta, 1).size).toBe(0);
+  });
+});
+
+describe('componentes con stock', () => {
+  const tomate = insumo('tomate', 'GRAMO', 0.002);
+  const cebolla = insumo('cebolla', 'GRAMO', 0.001);
+  const linea = (componente: Componente, cantidad: number) => ({
+    componente,
+    cantidad,
+    unidad: 'GRAMO' as const,
+    porcentajeMerma: 0,
+  });
+  const receta = (lineas: ReturnType<typeof linea>[], rendimiento = 1) => ({
+    lineas,
+    rendimiento,
+    instrucciones: null,
+  });
+
+  // Aderezo sin stock: 100 g de cebolla rinden 100 g.
+  const aderezo = intermedio('aderezo');
+  aderezo.receta = receta([linea(cebolla, 100)], 100);
+  // Salsa con stock: 1000 g de tomate y 100 g de aderezo rinden 1000 g.
+  const salsa = intermedio('salsa');
+  salsa.llevaStock = true;
+  salsa.receta = receta([linea(tomate, 1000), linea(aderezo, 100)], 1000);
+  // Base sin stock que contiene la salsa y cebolla.
+  const base = intermedio('base');
+  base.receta = receta([linea(salsa, 300), linea(cebolla, 50)], 1);
+
+  it('tieneStock: insumos e intermedios con la marca', () => {
+    expect(tieneStock(tomate)).toBe(true);
+    expect(tieneStock(salsa)).toBe(true);
+    expect(tieneStock(aderezo)).toBe(false);
+  });
+
+  it('se detiene en un intermedio con stock', () => {
+    const plato = receta([linea(salsa, 200)]);
+    expect(insumosNecesarios(plato, 1)).toEqual(new Map([[salsa.id, 200]]));
+  });
+
+  it('explota un intermedio sin stock y se detiene en la salsa que contiene', () => {
+    const plato = receta([linea(base, 1)]);
+    const res = insumosNecesarios(plato, 2);
+    expect([...res.keys()].sort()).toEqual([cebolla.id, salsa.id].sort());
+    expect(res.get(salsa.id)).toBeCloseTo(600);
+    expect(res.get(cebolla.id)).toBeCloseTo(100);
+  });
+
+  it('un intermedio con stock que contiene otro sin stock: la tanda consume los insumos del de adentro', () => {
+    const res = insumosNecesarios(salsa.receta!, 500);
+    expect([...res.keys()].sort()).toEqual([cebolla.id, tomate.id].sort());
+    expect(res.get(tomate.id)).toBeCloseTo(500);
+    expect(res.get(cebolla.id)).toBeCloseTo(50);
+  });
+
+  it('costoUnitario con stock usa el costo vigente; sin él, el teórico', () => {
+    // Teórico: (1000 × 0,002 + 100 × 0,001) ÷ 1000 = 0,0021 (el aderezo cuesta 0,001 por g).
+    salsa.costoCompraVigente = 0.003;
+    expect(costoUnitario(salsa)).toBe(0.003);
+    salsa.costoCompraVigente = null;
+    expect(costoUnitario(salsa)).toBeCloseTo(0.0021);
+  });
+
+  it('costoUnitario sin stock es el teórico aunque tenga costo vigente', () => {
+    aderezo.costoCompraVigente = 9;
+    expect(costoUnitario(aderezo)).toBeCloseTo(0.001);
+    aderezo.costoCompraVigente = null;
   });
 });
