@@ -12,6 +12,7 @@ import {
   RecetaInvalidaError,
   cantidadBruta,
   costoLinea,
+  costoTeorico,
   costoTotal,
   costoUnitario,
   type Componente,
@@ -74,6 +75,8 @@ function verificarPermiso(permisos: readonly CodigoPermiso[], existe: boolean) {
   }
 }
 
+const nombresDe = (filas: { sucursal: string }[]) => filas.map((f) => f.sucursal).join(', ');
+
 export function createRecetaService(repo: RecetaRepository) {
   async function obtenerIntermedio(restauranteId: string, id: string) {
     const catalogo = await repo.cargarCatalogo(restauranteId);
@@ -95,6 +98,7 @@ export function createRecetaService(repo: RecetaRepository) {
     id: c.id,
     nombre: c.nombre,
     unidadBase: c.unidadBase,
+    llevaStock: c.llevaStock,
   });
 
   const service = {
@@ -124,6 +128,7 @@ export function createRecetaService(repo: RecetaRepository) {
             activo: c.activo,
             tieneReceta: c.receta !== null,
             costoUnitario: costoUnitario(c),
+            llevaStock: c.llevaStock,
           })),
       };
     },
@@ -146,7 +151,7 @@ export function createRecetaService(repo: RecetaRepository) {
       const plato = await obtenerPlato(restauranteId, itemId);
       const catalogo = plato.receta ? await repo.cargarCatalogo(restauranteId) : new Map();
       return detalle(
-        { tipo: 'PLATO', id: plato.id, nombre: plato.nombre, unidadBase: null },
+        { tipo: 'PLATO', id: plato.id, nombre: plato.nombre, unidadBase: null, llevaStock: false },
         plato.receta && armarReceta(plato.receta, catalogo),
       );
     },
@@ -224,7 +229,39 @@ export function createRecetaService(repo: RecetaRepository) {
           `${intermedio.nombre} se usa en las recetas de ${usos.join(', ')}: sacalo de esas recetas antes de darlo de baja`,
         );
       }
+      const conStock = await repo.existenciasConStock(restauranteId, id);
+      if (conStock.length > 0) {
+        throw new AppError(
+          409,
+          `Ajustá a cero el stock de ${intermedio.nombre} en ${nombresDe(conStock)} antes de darlo de baja`,
+        );
+      }
       await repo.desactivarIntermedio(restauranteId, id);
+    },
+
+    // Los pedidos en curso no bloquean el cambio: cancelar revierte los movimientos guardados.
+    async cambiarLlevaStock(restauranteId: string, id: string, llevaStock: boolean) {
+      const { intermedio } = await obtenerIntermedio(restauranteId, id);
+      if (intermedio.llevaStock === llevaStock) return;
+      if (llevaStock) {
+        if (!intermedio.activo) throw new AppError(409, 'El producto intermedio está dado de baja');
+        if (!intermedio.receta) {
+          throw new AppError(
+            409,
+            `Cargá la receta de ${intermedio.nombre} antes de activar el stock`,
+          );
+        }
+        await repo.cambiarLlevaStock(restauranteId, id, true, costoTeorico(intermedio));
+        return;
+      }
+      const conStock = await repo.existenciasConStock(restauranteId, id);
+      if (conStock.length > 0) {
+        throw new AppError(
+          409,
+          `Ajustá a cero el stock de ${intermedio.nombre} en ${nombresDe(conStock)} antes de desactivarlo`,
+        );
+      }
+      await repo.cambiarLlevaStock(restauranteId, id, false, null);
     },
   };
   return service;
