@@ -306,9 +306,24 @@ describe('pagoService.continuar', () => {
     const { servicio, repo } = armar();
     repo.pendienteDelComensal.mockResolvedValue({
       ...pendiente,
+      creadoEn: new Date('2026-11-10T11:44:00Z'),
+    });
+    await expect(servicio.continuar('c', 'p1')).rejects.toMatchObject({
+      status: 409,
+      message: 'El pago venció. En unos minutos vas a poder pagar de nuevo.',
+    });
+  });
+
+  it('pasado el margen, un pago que sigue pendiente está en revisión en Mercado Pago', async () => {
+    const { servicio, repo } = armar();
+    repo.pendienteDelComensal.mockResolvedValue({
+      ...pendiente,
       creadoEn: new Date('2026-11-10T11:40:00Z'),
     });
-    await expect(servicio.continuar('c', 'p1')).rejects.toMatchObject({ status: 409 });
+    await expect(servicio.continuar('c', 'p1')).rejects.toMatchObject({
+      status: 409,
+      message: 'Mercado Pago todavía está revisando el pago. Consultá con el personal.',
+    });
   });
 
   it('un pago que no está pendiente o es de otro comensal responde 404', async () => {

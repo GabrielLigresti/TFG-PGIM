@@ -54,6 +54,7 @@ describe('pasarela de Mercado Pago', () => {
       auto_return: 'approved',
       expires: true,
       expiration_date_to: '2026-11-10T15:15:00.000Z',
+      binary_mode: true,
     });
   });
 

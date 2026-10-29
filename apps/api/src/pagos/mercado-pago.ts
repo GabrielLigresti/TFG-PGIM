@@ -73,6 +73,10 @@ export function crearPasarelaMercadoPago(config: ConfigMercadoPago): PasarelaPag
         expires: true,
         expiration_date_to: pago.venceEn.toISOString(),
         payment_methods: { excluded_payment_types: EXCLUIDOS.map((id) => ({ id })) },
+        // Modo binario: cada intento se aprueba o se rechaza al instante, sin
+        // quedar en revisión. El pago se resuelve mientras el comensal está en
+        // la mesa; si se rechaza, reintenta con otro medio.
+        binary_mode: true,
       });
       return { tipo: 'REDIRECCION', urlPago: preferencia.init_point };
     },

@@ -187,7 +187,14 @@ export function createPagoService(
       if (!pago) throw new AppError(404, 'El pago no existe o ya se resolvió');
       const venceEn = vencimientoDe(pago.creadoEn);
       if (ahora() >= venceEn) {
-        throw new AppError(409, 'El pago venció. En unos minutos vas a poder pagar de nuevo.');
+        // Pasado el margen sigue PENDIENTE solo si Mercado Pago lo está revisando.
+        const enRevision = ahora().getTime() >= venceEn.getTime() + MARGEN_VENCIMIENTO_MIN * 60_000;
+        throw new AppError(
+          409,
+          enRevision
+            ? 'Mercado Pago todavía está revisando el pago. Consultá con el personal.'
+            : 'El pago venció. En unos minutos vas a poder pagar de nuevo.',
+        );
       }
       const guardada = urls.get(pagoId);
       if (guardada) return { pagoId, urlPago: guardada };
