@@ -297,6 +297,90 @@ describe('pedidoRepository.cambiarEstado', () => {
   });
 });
 
+// La masa (intermedio de la pizza) pasa a llevar stock, con costo 0,5 por gramo
+// y, si se pide, esa cantidad de existencia en la sucursal.
+async function masaConStock(cantidad: number | null) {
+  await prisma.componenteInventario.update({
+    where: { id: e.masaId },
+    data: { llevaStock: true, costoCompraVigente: 0.5 },
+  });
+  if (cantidad !== null) {
+    await prisma.existencia.create({
+      data: { sucursalId: e.sucursalId, componenteId: e.masaId, cantidadActual: cantidad },
+    });
+  }
+}
+
+// Con la masa con stock, la explosión se detiene en ella: la pizza consume
+// 100 g de masa y 50 g de queso, y nada de harina.
+function pizzasConMasaConStock(cantidad: number): LineaAConfirmar {
+  return {
+    ...pizzas(cantidad),
+    insumos: new Map([
+      [e.masaId, 100 * cantidad],
+      [e.quesoId, 50 * cantidad],
+    ]),
+  };
+}
+
+describe('pedidoRepository con intermedios que llevan stock', () => {
+  it('descuenta la masa y el queso, y no la harina', async () => {
+    await masaConStock(400);
+    await pedidoRepository.confirmar(cuenta, [pizzasConMasaConStock(2)]);
+
+    expect(await stock(e.masaId)).toBe(200);
+    expect(await stock(e.quesoId)).toBe(0);
+    expect(await stock(e.harinaId)).toBe(1000);
+  });
+
+  it('sin fila de existencia de la masa rechaza el pedido y no deja rastros', async () => {
+    await masaConStock(null);
+    await expect(
+      pedidoRepository.confirmar(cuenta, [pizzasConMasaConStock(1)]),
+    ).rejects.toMatchObject({
+      componenteId: e.masaId,
+      itemMenuId: e.pizzaId,
+    });
+
+    expect(await prisma.pedido.count()).toBe(0);
+    expect(await prisma.movimientoStock.count()).toBe(0);
+    expect(await stock(e.quesoId)).toBe(100);
+  });
+
+  it('el consumo de la masa usa su costo vigente', async () => {
+    await masaConStock(400);
+    await pedidoRepository.confirmar(cuenta, [pizzasConMasaConStock(1)]);
+
+    const movimiento = await prisma.movimientoStock.findFirstOrThrow({
+      where: { existencia: { componenteId: e.masaId } },
+    });
+    expect(movimiento.tipo).toBe('CONSUMO_PEDIDO');
+    expect(Number(movimiento.cantidad)).toBe(-100);
+    expect(Number(movimiento.costoUnitario)).toBe(0.5);
+  });
+
+  it('si la marca cambia con el pedido en curso, cancelar devuelve la harina y no toca la masa', async () => {
+    const pedido = await pedidoRepository.confirmar(cuenta, [pizzas(1)]);
+    expect(await stock(e.harinaId)).toBe(950);
+
+    await masaConStock(null);
+    const cancelado = await pedidoRepository.cancelar(
+      e.restauranteId,
+      e.sucursalId,
+      pedido.id,
+      'x',
+    );
+
+    expect(cancelado).toBe(true);
+    expect(await stock(e.harinaId)).toBe(1000);
+    expect(await stock(e.quesoId)).toBe(100);
+    expect(await prisma.existencia.count({ where: { componenteId: e.masaId } })).toBe(0);
+    expect(
+      await prisma.movimientoStock.count({ where: { existencia: { componenteId: e.masaId } } }),
+    ).toBe(0);
+  });
+});
+
 describe('pedidoRepository.cola', () => {
   it('trae los pedidos activos de la sucursal por orden de llegada', async () => {
     const primero = await pedidoRepository.confirmar(cuenta, [agua()]);
