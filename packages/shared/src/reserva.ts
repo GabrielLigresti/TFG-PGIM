@@ -80,6 +80,7 @@ export const EVENTOS_SOCKET = {
   pedidoNuevo: 'pedido:nuevo',
   pedidoCambio: 'pedido:cambio',
   mesaCambio: 'mesa:cambio',
+  pagoResultado: 'pago:resultado',
   alertaNueva: 'alerta:nueva',
 } as const;
 
@@ -113,6 +114,8 @@ export interface ReservaPanel {
   activable: boolean;
   // ACTIVA: se puede cerrar la mesa (CU-18).
   cerrable: boolean;
+  // ACTIVA con un pago esperando el resultado de Mercado Pago: no se cierra.
+  pagoEnCurso: boolean;
   // PENDIENTE y todavía dentro de la tolerancia: el staff la puede cancelar.
   cancelable: boolean;
 }

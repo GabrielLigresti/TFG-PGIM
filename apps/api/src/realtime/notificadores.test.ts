@@ -108,6 +108,55 @@ describe('notificadores', () => {
     expect(emit).toHaveBeenCalledWith('mesa:cambio', { cuentaMesaId: 'CM' });
   });
 
+  it('el resultado de un pago va solo al titular, con los puntos y lo desbloqueado', () => {
+    const { io, emit } = ioFalso();
+    const bus = crearBusEventos();
+    registrarNotificadores(io as never, bus);
+
+    bus.publicar({
+      tipo: 'PAGO_APROBADO',
+      pagoId: 'P',
+      cuentaMesaId: 'M',
+      sucursalId: 'S',
+      comensalId: 'C',
+      puntosSumados: 180,
+      desbloqueados: ['Postre de regalo'],
+    });
+
+    expect(io.to).toHaveBeenCalledWith('comensal:C');
+    expect(io.to).not.toHaveBeenCalledWith('sucursal:S');
+    expect(emit).toHaveBeenCalledWith('pago:resultado', {
+      pagoId: 'P',
+      cuentaMesaId: 'M',
+      estado: 'APROBADO',
+      puntosSumados: 180,
+      desbloqueados: ['Postre de regalo'],
+    });
+    expect(emit).toHaveBeenCalledWith('mesa:cambio', { cuentaMesaId: 'M' });
+  });
+
+  it('un pago rechazado avisa al titular sin puntos', () => {
+    const { io, emit } = ioFalso();
+    const bus = crearBusEventos();
+    registrarNotificadores(io as never, bus);
+
+    bus.publicar({
+      tipo: 'PAGO_RECHAZADO',
+      pagoId: 'P',
+      cuentaMesaId: 'M',
+      sucursalId: 'S',
+      comensalId: 'C',
+    });
+
+    expect(emit).toHaveBeenCalledWith('pago:resultado', {
+      pagoId: 'P',
+      cuentaMesaId: 'M',
+      estado: 'RECHAZADO',
+      puntosSumados: 0,
+      desbloqueados: [],
+    });
+  });
+
   it('la función devuelta deja de notificar', () => {
     const { io, emit } = ioFalso();
     const bus = crearBusEventos();

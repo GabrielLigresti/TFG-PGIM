@@ -1,15 +1,35 @@
 import { env } from '../config/env';
+import { crearPasarelaMercadoPago } from './mercado-pago';
 
-// Pasarela de pago intercambiable. En el Hito 4 la cuenta se paga con una
-// pasarela simulada, que aprueba al instante y solo se habilita en desarrollo;
-// Mercado Pago la reemplaza con la misma interfaz.
+// Pasarela de pago intercambiable. Mercado Pago (Checkout Pro) redirige al
+// comensal y avisa el resultado por el webhook; la simulada aprueba al instante
+// y queda como respaldo de la demo. Las dos terminan en la misma aprobación.
 
-export type ResultadoCobro =
-  { estado: 'APROBADO'; referenciaExterna: string } | { estado: 'RECHAZADO' };
+export type MetodoPago = 'TARJETA' | 'BILLETERA_VIRTUAL';
+
+// El medio (tarjeta o dinero en cuenta) lo elige el comensal en Mercado Pago.
+export interface CobroAIniciar {
+  id: string;
+  monto: number;
+  descripcion: string;
+  // Hasta cuándo se puede pagar (15 minutos desde que se creó el pago).
+  venceEn: Date;
+}
+
+export type InicioCobro =
+  | { tipo: 'REDIRECCION'; urlPago: string }
+  | { tipo: 'APROBADO_AL_INSTANTE'; referenciaExterna: string; metodo: MetodoPago };
+
+// Lo que informa la pasarela sobre todos los intentos de un pago.
+export type ConsultaCobro =
+  | { estado: 'APROBADO'; referenciaExterna: string; metodo: MetodoPago }
+  | { estado: 'EN_PROCESO' }
+  | { estado: 'SIN_APROBAR' };
 
 export interface PasarelaPago {
   readonly habilitada: boolean;
-  cobrar(pago: { id: string; monto: number }): Promise<ResultadoCobro>;
+  iniciarCobro(pago: CobroAIniciar): Promise<InicioCobro>;
+  consultarPago(pagoId: string): Promise<ConsultaCobro>;
 }
 
 export const PREFIJO_PAGO_SIMULADO = 'SIM-';
@@ -17,11 +37,33 @@ export const PREFIJO_PAGO_SIMULADO = 'SIM-';
 export function crearPasarelaSimulada(habilitada: boolean): PasarelaPago {
   return {
     habilitada,
-    async cobrar(pago) {
+    async iniciarCobro(pago) {
       if (!habilitada) throw new Error('La pasarela simulada no está habilitada');
-      return { estado: 'APROBADO', referenciaExterna: `${PREFIJO_PAGO_SIMULADO}${pago.id}` };
+      return {
+        tipo: 'APROBADO_AL_INSTANTE',
+        referenciaExterna: `${PREFIJO_PAGO_SIMULADO}${pago.id}`,
+        metodo: 'TARJETA',
+      };
+    },
+    // Aprueba al instante, así que nunca deja un pago pendiente que consultar.
+    async consultarPago() {
+      return { estado: 'SIN_APROBAR' };
     },
   };
 }
 
-export const pasarela = crearPasarelaSimulada(env.NODE_ENV !== 'production' || env.PAGO_SIMULADO);
+// Mercado Pago, si está configurado completo (sin la clave del webhook no se
+// podría verificar ninguna notificación); si no, la simulada (fuera de
+// producción o con PAGO_SIMULADO=true).
+export const configMercadoPago =
+  env.MP_ACCESS_TOKEN && env.MP_WEBHOOK_SECRET && env.PUBLIC_URL
+    ? {
+        accessToken: env.MP_ACCESS_TOKEN,
+        webhookSecret: env.MP_WEBHOOK_SECRET,
+        publicUrl: env.PUBLIC_URL,
+      }
+    : null;
+
+export const pasarela: PasarelaPago = configMercadoPago
+  ? crearPasarelaMercadoPago(configMercadoPago)
+  : crearPasarelaSimulada(env.NODE_ENV !== 'production' || env.PAGO_SIMULADO);

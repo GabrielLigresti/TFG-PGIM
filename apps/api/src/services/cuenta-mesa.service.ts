@@ -1,20 +1,20 @@
 import type { MiMesa } from '@pgim/shared';
-import { busEventos, type BusEventos } from '../domain/eventos';
-import { AppError } from '../lib/errors';
 import { pasarela as pasarelaPorDefecto, type PasarelaPago } from '../pagos/pasarela';
 import {
   cuentaMesaRepository,
   type CuentaMesaRepository,
   type FilaMesa,
 } from '../repositories/cuenta-mesa.repository';
+import { pagoService } from './pago.service';
 
 const centavos = (valor: number) => Math.round(valor * 100) / 100;
 
-// "Mi mesa" del comensal y el pago de la cuenta (pago simulado en el Hito 4).
+// "Mi mesa" del comensal: pedidos, saldo y el pago en curso, si hay uno. El
+// pago en sí está en pago.service.
 export function createCuentaMesaService(
   repo: CuentaMesaRepository,
-  pasarela: PasarelaPago,
-  bus: BusEventos,
+  pasarela: Pick<PasarelaPago, 'habilitada'>,
+  urlDePago: (pagoId: string) => string | null,
 ) {
   function aMiMesa(fila: FilaMesa): MiMesa {
     const total = centavos(
@@ -28,15 +28,13 @@ export function createCuentaMesaService(
       pedidos: fila.pedidos,
       total,
       pagado: fila.pagado,
-      saldo: centavos(total - fila.pagado),
+      descuentos: fila.descuentos,
+      saldo: centavos(total - fila.pagado - fila.descuentos),
       pagoHabilitado: pasarela.habilitada,
+      pagoEnCurso: fila.pagoPendienteId
+        ? { pagoId: fila.pagoPendienteId, urlPago: urlDePago(fila.pagoPendienteId) }
+        : null,
     };
-  }
-
-  async function mesaDelComensal(comensalId: string, cuentaMesaId: string) {
-    const fila = await repo.buscarDelComensal(comensalId, cuentaMesaId);
-    if (!fila) throw new AppError(404, 'La mesa no existe');
-    return fila;
   }
 
   return {
@@ -44,30 +42,11 @@ export function createCuentaMesaService(
       const fila = await repo.mesaAbiertaDelComensal(comensalId, sucursalId);
       return fila && aMiMesa(fila);
     },
-
-    // Siempre por el saldo completo; se puede seguir pidiendo después.
-    async pagar(comensalId: string, cuentaMesaId: string): Promise<MiMesa> {
-      const fila = await mesaDelComensal(comensalId, cuentaMesaId);
-      if (fila.estado !== 'ABIERTA') throw new AppError(409, 'La mesa ya está cerrada');
-      const { saldo } = aMiMesa(fila);
-      if (saldo <= 0) throw new AppError(409, 'La mesa no tiene saldo para pagar');
-      if (!pasarela.habilitada) throw new AppError(503, 'El pago de prueba no está habilitado');
-
-      // El repositorio vuelve a controlar estado y saldo con la cuenta bloqueada.
-      const estado = await repo.registrarPago(cuentaMesaId, comensalId, (pago) =>
-        pasarela.cobrar(pago),
-      );
-      if (estado === 'CERRADA') throw new AppError(409, 'La mesa ya está cerrada');
-      if (estado === 'SIN_SALDO') throw new AppError(409, 'La mesa no tiene saldo para pagar');
-      if (estado !== 'APROBADO') throw new AppError(402, 'No se pudo hacer el pago');
-      bus.publicar({ tipo: 'PAGO_APROBADO', cuentaMesaId, comensalId });
-      return aMiMesa(await mesaDelComensal(comensalId, cuentaMesaId));
-    },
   };
 }
 
 export const cuentaMesaService = createCuentaMesaService(
   cuentaMesaRepository,
   pasarelaPorDefecto,
-  busEventos,
+  (pagoId) => pagoService.urlDePago(pagoId),
 );

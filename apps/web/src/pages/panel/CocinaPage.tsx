@@ -65,14 +65,14 @@ const esDeLaCola = (estado: EstadoPedido): estado is EstadoCola =>
 
 export function CocinaPage() {
   const { sesion, tienePermiso } = useSesion();
-  const { avisar } = useAvisos();
+  const { avisar, quitar: quitarAviso } = useAvisos();
   const recurso = useRecurso<PedidoCola[]>('/pedidos/cola');
   const [pedidos, setPedidos] = useState<PedidoCola[]>([]);
   // Avances esperando que venza el "Deshacer": se envían a la API recién después.
   const [pendientes, setPendientes] = useState<Record<string, EstadoPedido>>({});
   // Por pedido: el timer del "Deshacer" y el estado que se vio al tocar el botón.
   const timers = useRef(
-    new Map<string, { timer: ReturnType<typeof setTimeout>; desde: EstadoCola }>(),
+    new Map<string, { timer: ReturnType<typeof setTimeout>; desde: EstadoCola; aviso?: number }>(),
   );
   const [resaltados, setResaltados] = useState<Set<string>>(new Set());
   const ahora = useAhora(15_000);
@@ -87,8 +87,10 @@ export function CocinaPage() {
   useEffect(() => {
     const pendientesAlSalir = timers.current;
     return () => {
-      for (const [id, { timer, desde }] of pendientesAlSalir) {
+      for (const [id, { timer, desde, aviso }] of pendientesAlSalir) {
         clearTimeout(timer);
+        // El "Deshacer" ya no aplica fuera de la cola.
+        if (aviso !== undefined) quitarAviso(aviso);
         void api(`/pedidos/${id}/avanzar`, { method: 'POST', body: { desde } }).catch(() => {});
       }
       pendientesAlSalir.clear();
@@ -166,13 +168,15 @@ export function CocinaPage() {
         : paso.hacia === 'ENTREGADO'
           ? `Mesa ${pedido.mesa.numero}: pedido entregado`
           : `Mesa ${pedido.mesa.numero}: pedido en preparación`;
-    avisar(texto, {
+    const aviso = avisar(texto, {
       duracionMs: DESHACER_MS,
       deshacer: () => {
         clearTimeout(timers.current.get(pedido.id)?.timer);
         quitarPendiente(pedido.id);
       },
     });
+    const pendiente = timers.current.get(pedido.id);
+    if (pendiente) pendiente.aviso = aviso;
   }
 
   async function cancelar(pedido: PedidoCola, motivo: string): Promise<boolean> {

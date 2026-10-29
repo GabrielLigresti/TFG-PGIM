@@ -12,12 +12,15 @@ import { PanelPage } from './pages/PanelPage';
 import { RegistroPage } from './pages/RegistroPage';
 import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
+import { MisPuntosPage } from './pages/comensal/MisPuntosPage';
 import { MiMesaPage } from './pages/comensal/MiMesaPage';
 import { MisReservasPage } from './pages/comensal/MisReservasPage';
 import { PedidoPage } from './pages/comensal/PedidoPage';
 import { PlatoPage } from './pages/comensal/PlatoPage';
 import { ReservarPage } from './pages/comensal/ReservarPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
+import { BeneficiosPage } from './pages/panel/BeneficiosPage';
+import { ProgramaPuntosPage } from './pages/panel/ProgramaPuntosPage';
 import { AlertasPage } from './pages/panel/AlertasPage';
 import { CocinaPage } from './pages/panel/CocinaPage';
 import { InsumosPage } from './pages/panel/InsumosPage';
@@ -82,6 +85,14 @@ export default function App() {
                     path="sucursales/:id/salon"
                     element={conPermiso('sucursal.ver', <SalonPage />)}
                   />
+                  <Route
+                    path="programa-puntos"
+                    element={conPermiso('beneficio.ver', <ProgramaPuntosPage />)}
+                  />
+                  <Route
+                    path="beneficios"
+                    element={conPermiso('beneficio.ver', <BeneficiosPage />)}
+                  />
                   <Route path="roles" element={conPermiso('rol.ver', <RolesPage />)} />
                   <Route path="personal" element={conPermiso('personal.ver', <PersonalPage />)} />
                   <Route path="insumos" element={conPermiso('insumo.ver', <InsumosPage />)} />
@@ -100,6 +111,7 @@ export default function App() {
                 <Route path="/s/:sucursalId/pedido" element={paraComensal(<PedidoPage />)} />
                 <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
                 <Route path="/mesa" element={paraComensal(<MiMesaPage />)} />
+                <Route path="/puntos" element={paraComensal(<MisPuntosPage />)} />
                 <Route path="*" element={<Navigate to="/login" replace />} />
               </Routes>
             </ProveedorConfirmacion>

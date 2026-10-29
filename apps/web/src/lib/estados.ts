@@ -5,13 +5,15 @@ import {
   Circle,
   Clock,
   Flame,
+  Ban,
+  CalendarClock,
   Pencil,
   Receipt,
   TriangleAlert,
   X,
   type LucideIcon,
 } from 'lucide-react';
-import type { EstadoPedido, EstadoReserva } from '@pgim/shared';
+import type { EstadoBeneficio, EstadoPago, EstadoPedido, EstadoReserva } from '@pgim/shared';
 
 // Única fuente de etiqueta, tono e ícono de cada estado. Ninguna pantalla
 // elige colores de estado por su cuenta.
@@ -25,9 +27,6 @@ export interface InfoEstado {
   tono: Tono;
   icono: LucideIcon;
 }
-
-// Hasta que estos enums lleguen a @pgim/shared con sus hitos.
-type EstadoPagoUI = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO';
 
 export const ESTADOS = {
   reserva: {
@@ -45,10 +44,10 @@ export const ESTADOS = {
     CANCELADO: { etiqueta: 'Cancelado', tono: 'bad', icono: X },
   } satisfies Record<EstadoPedido, InfoEstado>,
   pago: {
-    PENDIENTE: { etiqueta: 'Pendiente', tono: 'neutro', icono: Clock },
-    APROBADO: { etiqueta: 'Aprobado', tono: 'ok', icono: Check },
-    RECHAZADO: { etiqueta: 'Rechazado', tono: 'bad', icono: X },
-  } satisfies Record<EstadoPagoUI, InfoEstado>,
+    PENDIENTE: { etiqueta: 'Pago en curso', tono: 'warn', icono: Clock },
+    APROBADO: { etiqueta: 'Pagado', tono: 'ok', icono: Check },
+    RECHAZADO: { etiqueta: 'No aprobado', tono: 'bad', icono: X },
+  } satisfies Record<EstadoPago, InfoEstado>,
   cuenta: {
     ABIERTA: { etiqueta: 'Abierta', tono: 'acento', icono: Receipt },
     CERRADA: { etiqueta: 'Cerrada', tono: 'neutro', icono: Check },
@@ -57,6 +56,12 @@ export const ESTADOS = {
     BORRADOR: { etiqueta: 'Borrador', tono: 'neutro', icono: Pencil },
     CONFIRMADA: { etiqueta: 'Confirmada', tono: 'ok', icono: Check },
   } satisfies Record<'BORRADOR' | 'CONFIRMADA', InfoEstado>,
+  beneficio: {
+    PROGRAMADO: { etiqueta: 'Programado', tono: 'neutro', icono: CalendarClock },
+    VIGENTE: { etiqueta: 'Vigente', tono: 'acento', icono: Check },
+    TERMINADO: { etiqueta: 'Terminado', tono: 'neutro', icono: Clock },
+    BAJA: { etiqueta: 'Dado de baja', tono: 'neutro', icono: Ban },
+  } satisfies Record<EstadoBeneficio, InfoEstado>,
   verificacion: {
     OK: { etiqueta: 'OK', tono: 'ok', icono: Check },
     EN_RIESGO: { etiqueta: 'En riesgo', tono: 'warn', icono: TriangleAlert },

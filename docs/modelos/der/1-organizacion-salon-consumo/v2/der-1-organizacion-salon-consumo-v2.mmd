@@ -20,6 +20,7 @@ erDiagram
     RESERVA ||--o| CUENTA_MESA : abre
     CUENTA_MESA ||--o{ PEDIDO : agrupa
     SUCURSAL ||--o{ PEDIDO : prepara
+    SUCURSAL ||--o{ COMPROBANTE : numera
     PEDIDO ||--|{ LINEA_PEDIDO : contiene
     CUENTA_MESA ||--o{ PAGO : recibe
     COMENSAL ||--o{ PAGO : efectua
@@ -156,7 +157,7 @@ erDiagram
         uuid cuenta_mesa_id FK
         uuid comensal_id FK "titular de la reserva"
         numeric monto "monto final, con los descuentos aplicados"
-        MetodoPago metodo "TARJETA | BILLETERA_VIRTUAL"
+        MetodoPago metodo "TARJETA | BILLETERA_VIRTUAL; null hasta APROBADO: lo informa Mercado Pago (y en un pago de $0)"
         EstadoPago estado "PENDIENTE | APROBADO | RECHAZADO (State)"
         varchar referencia_externa UK "id de Mercado Pago; null hasta la notificacion"
         timestamptz fecha
@@ -164,7 +165,8 @@ erDiagram
     COMPROBANTE {
         uuid id PK
         uuid pago_id FK, UK
-        varchar numero UK "correlativo"
+        uuid sucursal_id FK "redundante, como en PEDIDO"
+        varchar numero "UK con sucursal_id; correlativo por sucursal"
         timestamptz fecha_emision
         numeric total
     }

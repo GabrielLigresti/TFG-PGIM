@@ -37,6 +37,7 @@ erDiagram
         uuid restaurante_id FK
         varchar nombre "UK con restaurante_id"
         bool requiere_receta
+        bool admite_observaciones "default true; false: sus platos no llevan aclaracion"
     }
     ITEM_MENU {
         uuid id PK

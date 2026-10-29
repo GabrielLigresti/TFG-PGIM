@@ -29,7 +29,16 @@ export function PlatoPage() {
 
   function agregar(unidades: number, nota: string) {
     if (!plato) return;
-    carrito.agregar({ id: plato.id, nombre: plato.nombre, precio: plato.precio }, unidades, nota);
+    carrito.agregar(
+      {
+        id: plato.id,
+        nombre: plato.nombre,
+        precio: plato.precio,
+        admiteObservaciones: plato.admiteObservaciones,
+      },
+      unidades,
+      plato.admiteObservaciones ? nota : '',
+    );
   }
 
   function agregarDesdeFicha() {
@@ -93,14 +102,16 @@ export function PlatoPage() {
                 <span className="text-sm font-medium text-text">Cantidad</span>
                 <SelectorCantidad valor={cantidad} onChange={setCantidad} nombre={plato.nombre} />
               </div>
-              <Campo etiqueta="Observaciones" ayuda="Por ejemplo: sin cebolla, bien cocida.">
-                <input
-                  value={observaciones}
-                  maxLength={200}
-                  onChange={(e) => setObservaciones(e.target.value)}
-                  className={`${claseInput} text-base`}
-                />
-              </Campo>
+              {plato.admiteObservaciones && (
+                <Campo etiqueta="Observaciones" ayuda="Por ejemplo: sin cebolla, bien cocida.">
+                  <input
+                    value={observaciones}
+                    maxLength={200}
+                    onChange={(e) => setObservaciones(e.target.value)}
+                    className={`${claseInput} text-base`}
+                  />
+                </Campo>
+              )}
             </section>
           )}
         </article>

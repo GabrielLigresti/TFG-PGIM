@@ -59,27 +59,27 @@ PGC --> V : cuenta con beneficios
 deactivate PGC
 V --> C : Muestra consumos, saldo pendiente\ny beneficios aplicables
 
-C -> V : Elige el monto (total o parcial)\ny los beneficios
-V -> PGC : calcularMonto(monto, beneficios)
+C -> V : Elige un beneficio (opcional)
+V -> PGC : calcularMonto(beneficio)
 activate PGC
-note over B #D5E8D4 : por cada beneficio elegido
-PGC -> B : calcularDescuento(monto)
+note right of PGC : Siempre por el saldo total. Un beneficio por\ncuenta de mesa (no acumulables). Si cubre todo\nel saldo, el pago de $0 se aprueba sin Mercado Pago
+PGC -> B : calcularDescuento(saldo)
 activate B
 B --> PGC : descuento
 deactivate B
-PGC --> V : descuentos y monto final
+PGC --> V : descuento y monto final
 deactivate PGC
 V --> C : Muestra el monto final
 
-C -> V : Confirma y elige el medio de pago
-V -> PGC : pagar(cuentaId, monto, beneficios, medio)
+C -> V : Confirma el pago
+V -> PGC : pagar(cuentaId, beneficio)
 activate PGC
 note over P, B : Transacción única: pago PENDIENTE,\nbeneficios aplicados y reserva de stock
-PGC -> P : crear(cuenta, comensal, monto, medio)
+PGC -> P : crear(cuenta, comensal, monto)
 activate P
 P --> PGC : pago creado (PagoPendiente)
 deactivate P
-note over BA #D5E8D4 : por cada beneficio elegido
+note over BA #D5E8D4 : si eligió un beneficio
 PGC -> BA : crear(pago, beneficio, montoDescontado)
 activate BA
 BA --> PGC : beneficio aplicado
@@ -90,10 +90,10 @@ B --> PGC : unidad reservada
 deactivate B
 note right of B : consumirStock() descuenta solo si queda stock.\nE4. Sin stock al confirmar (otro comensal\nreservó la última unidad): se revierte la\ntransacción, no queda pago ni reserva, y se\nvuelve a mostrar la cuenta con los beneficios\ndisponibles
 note over PGC, MP : Después del commit
-PGC -> MP : cobrar(monto, medio)
+PGC -> MP : cobrar(monto)
+note right of MP : El comensal elige en Mercado Pago\nla tarjeta o el dinero en cuenta; el medio\nse registra al aprobarse el pago.\nModo binario: cada intento se resuelve al\ninstante como aprobado o rechazado
 activate MP
 MP --> PGC : cobro iniciado
-note right of V : B. Guardar el medio de pago: se crea\nMedioPagoGuardado solo con el token que\nentrega Mercado Pago
 PGC --> V : pago en proceso
 deactivate PGC
 V --> C : Informa que el pago está en proceso
@@ -105,7 +105,7 @@ PGC -> P : aprobar()
 activate P
 P --> PGC : APROBADO
 deactivate P
-note right of P : E2. Pago rechazado: Pago.rechazar() y\nBeneficio.devolverStock() por cada beneficio\naplicado, en la misma transacción; se informa al comensal y puede\nreintentar con un pago nuevo.\nE3. Notificación duplicada: la referencia externa\nya procesada se ignora (no acredita dos veces)
+note right of P : E2. Sin cobro aprobado: un intento rechazado no cierra\nel pago (Checkout Pro deja reintentar). A los 15 min, si\nMercado Pago no informa un cobro aprobado ni en proceso,\nla tarea de vencimiento hace Pago.rechazar() y\nBeneficio.devolverStock() en la misma transacción; se\ninforma al comensal y puede reintentar con un pago nuevo.\nE3. Notificación duplicada: la referencia externa\nya procesada se ignora (no acredita dos veces)
 
 note over CF, CO : Paso 9: transacción única
 PGC -> CF : acreditar(pago)

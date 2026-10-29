@@ -6,6 +6,8 @@
 ' Menor (05/10, c): consultas por asociación usadas en las secuencias (obtenerRol, obtenerSucursales, obtenerPermisos, obtenerRoles, obtenerReceta, obtenerModeloRA) y Permiso.listarPorModulo() (static, CU-02).
 ' Menor (20/10): validación del DER antes de la primera migración (Sucursal.activa, columna estado enumerada).
 ' Menor (26/10): beneficios con duración y relanzamiento (stockInicial, relanzar, devolverStock, stock reservado con el pago PENDIENTE); programa de puntos permanente, 0..1 y sin activo; sin GrupoBeneficios.habilitado.
+' Menor (28/10): Categoria.admiteObservaciones (aclaraciones solo en las categorías que las admiten).
+' Menor (28/10): Pago.metodo opcional; lo informa Mercado Pago al aprobarse (el comensal elige el medio en Mercado Pago).
 ' PNG a 105 dpi (antes 110 y 125) para no superar 25 MP (límite de imágenes de Google Docs). Para imprimir o hacer zoom, usar el PDF/SVG vectorial.
 top to bottom direction
 skinparam dpi 105
@@ -170,7 +172,7 @@ package "2. Salón, reservas, consumo y pago" as P2 {
   }
   class Pago {
     -monto : Decimal
-    -metodo : MetodoPago
+    -metodo : MetodoPago [0..1]
     -estado : EstadoPago
     -fecha : DateTime
     -referenciaExterna : String
@@ -298,6 +300,7 @@ package "3. Menú, recetas e inventario" as P3 {
   class Categoria {
     -nombre : String
     -requiereReceta : Boolean
+    -admiteObservaciones : Boolean
   }
   class ModeloRA {
     -urlModelo : String

@@ -13,9 +13,11 @@ interface AvisoActivo extends OpcionesAviso {
   texto: string;
 }
 
-const Contexto = createContext<{ avisar(texto: string, opciones?: OpcionesAviso): void } | null>(
-  null,
-);
+const Contexto = createContext<{
+  // Devuelve el id del aviso, para poder quitarlo antes de tiempo.
+  avisar(texto: string, opciones?: OpcionesAviso): number;
+  quitar(id: number): void;
+} | null>(null);
 
 export function ProveedorAvisos({ children }: { children: ReactNode }) {
   const [avisos, setAvisos] = useState<AvisoActivo[]>([]);
@@ -30,11 +32,12 @@ export function ProveedorAvisos({ children }: { children: ReactNode }) {
       const id = siguiente.current++;
       setAvisos((lista) => [...lista, { id, texto, ...opciones }]);
       setTimeout(() => quitar(id), opciones.duracionMs ?? 5000);
+      return id;
     },
     [quitar],
   );
 
-  const valor = useMemo(() => ({ avisar }), [avisar]);
+  const valor = useMemo(() => ({ avisar, quitar }), [avisar, quitar]);
 
   return (
     <Contexto value={valor}>

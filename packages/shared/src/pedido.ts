@@ -85,8 +85,13 @@ export interface MiMesa {
   pedidos: PedidoComensal[];
   total: number;
   pagado: number;
+  // Lo que cubrieron los beneficios de pagos aprobados.
+  descuentos: number;
   saldo: number;
   pagoHabilitado: boolean;
+  // Pago esperando el resultado de Mercado Pago; urlPago null si ya no se
+  // puede retomar (vence solo).
+  pagoEnCurso: { pagoId: string; urlPago: string | null } | null;
 }
 
 // Detalle del 409 cuando no alcanza el stock de un plato.
@@ -99,6 +104,10 @@ export interface FaltaStock {
 export interface BloqueoCierre {
   pedidosSinEntregar?: number;
   saldoPendiente?: number;
+  // Un pago esperando el resultado de Mercado Pago (vence a los 15 minutos).
+  pagoEnCurso?: true;
+  // Vencido, pero Mercado Pago lo sigue revisando: se cierra con confirmación.
+  pagoEnRevision?: true;
 }
 
 export interface CambioPedido {

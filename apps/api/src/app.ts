@@ -5,17 +5,20 @@ import { API_PREFIX } from '@pgim/shared';
 import { alertasRouter } from './routes/alertas';
 import { authRouter } from './routes/auth';
 import { comensalRouter } from './routes/comensal';
+import { fidelizacionRouter } from './routes/fidelizacion';
 import { healthRouter } from './routes/health';
 import { insumosRouter } from './routes/insumos';
 import { mesaComensalRouter } from './routes/mesa-comensal';
 import { mesasRouter } from './routes/mesas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
+import { pagosWebhookRouter } from './routes/pagos-webhook';
 import { pedidosRouter } from './routes/pedidos';
 import { personalRouter } from './routes/personal';
 import { recetasRouter } from './routes/recetas';
 import { reservasComensalRouter, reservasPanelRouter } from './routes/reservas';
 import { rolesRouter } from './routes/roles';
 import { sucursalesRouter } from './routes/sucursales';
+import { CARPETA_FOTOS, TIPO_FOTO } from './lib/archivos-foto';
 import { CARPETA_MODELOS } from './lib/archivos-modelo';
 import { autenticar, soloTipo } from './middleware/auth';
 import { errorHandler, notFoundHandler } from './middleware/error-handler';
@@ -57,13 +60,31 @@ export function createApp() {
     }),
   );
 
+  // Fotos de platos subidas, con el mismo cuidado que los modelos.
+  app.use(
+    `${API_PREFIX}/uploads/fotos`,
+    express.static(CARPETA_FOTOS, {
+      index: false,
+      redirect: false,
+      dotfiles: 'deny',
+      immutable: true,
+      maxAge: '1y',
+      setHeaders(res, ruta) {
+        res.setHeader('X-Content-Type-Options', 'nosniff');
+        res.setHeader('Content-Type', TIPO_FOTO[path.extname(ruta)] ?? 'application/octet-stream');
+      },
+    }),
+  );
+
   app.use(`${API_PREFIX}/health`, healthRouter);
   app.use(`${API_PREFIX}/auth`, authRouter);
   app.use(`${API_PREFIX}/sucursales/:sucursalId/mesas`, mesasRouter);
   app.use(`${API_PREFIX}/sucursales`, sucursalesRouter);
   app.use(`${API_PREFIX}/reservas`, reservasPanelRouter);
+  app.use(`${API_PREFIX}/pagos/webhook`, pagosWebhookRouter);
   app.use(`${API_PREFIX}/pedidos`, pedidosRouter);
   app.use(`${API_PREFIX}/alertas`, alertasRouter);
+  app.use(`${API_PREFIX}/fidelizacion`, fidelizacionRouter);
   app.use(`${API_PREFIX}/roles`, rolesRouter);
   app.use(`${API_PREFIX}/personal`, personalRouter);
   app.use(`${API_PREFIX}/insumos`, insumosRouter);

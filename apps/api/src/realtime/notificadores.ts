@@ -5,6 +5,7 @@ import {
   salaPersonal,
   salaSucursal,
   type CambioMesa,
+  type ResultadoPago,
   type CambioReserva,
   type CambioSalon,
 } from '@pgim/shared';
@@ -39,6 +40,20 @@ export function registrarNotificadores(io: Pick<Server, 'to'>, bus: BusEventos):
         io.to(salaComensal(evento.comensalId)).emit(EVENTOS_SOCKET.pedidoCambio, evento.cambio);
         break;
       case 'PAGO_APROBADO':
+      case 'PAGO_RECHAZADO': {
+        const aprobado = evento.tipo === 'PAGO_APROBADO';
+        const resultado: ResultadoPago = {
+          pagoId: evento.pagoId,
+          cuentaMesaId: evento.cuentaMesaId,
+          estado: aprobado ? 'APROBADO' : 'RECHAZADO',
+          puntosSumados: aprobado ? evento.puntosSumados : 0,
+          desbloqueados: aprobado ? evento.desbloqueados : [],
+        };
+        io.to(salaComensal(evento.comensalId)).emit(EVENTOS_SOCKET.pagoResultado, resultado);
+        const cambio: CambioMesa = { cuentaMesaId: evento.cuentaMesaId };
+        io.to(salaComensal(evento.comensalId)).emit(EVENTOS_SOCKET.mesaCambio, cambio);
+        break;
+      }
       case 'CUENTA_MESA_CERRADA': {
         const cambio: CambioMesa = { cuentaMesaId: evento.cuentaMesaId };
         io.to(salaComensal(evento.comensalId)).emit(EVENTOS_SOCKET.mesaCambio, cambio);

@@ -20,6 +20,8 @@ export interface PlatoMenu {
   precio: number;
   fotoUrl: string | null;
   categoria: Referencia;
+  // false: el comensal no puede agregarle una aclaración.
+  admiteObservaciones: boolean;
   modeloRa: ModeloRa | null;
   // false si a algún insumo no le alcanza para una porción en esta sucursal.
   hayStock: boolean;

@@ -92,6 +92,7 @@ export function createReservaService(
       limiteLlegada: limiteDeLlegada(ctx).toISOString(),
       activable: fila.estado === 'PENDIENTE' && puedeActivarse(ctx),
       cerrable: fila.estado === 'ACTIVA',
+      pagoEnCurso: fila.estado === 'ACTIVA' && fila.pagoEnCurso,
       cancelable: fila.estado === 'PENDIENTE' && ctx.ahora <= limiteDeLlegada(ctx),
     };
   }
@@ -276,7 +277,14 @@ export function createReservaService(
         toleranciaNoShowMin: fila.toleranciaNoShowMin,
         ahora: ahora(),
       });
-      if (!(await repo.activar(restauranteId, sucursalId, id, fila.estado, hacia))) {
+      const activacion = await repo.activar(restauranteId, sucursalId, id, fila.estado, hacia);
+      if (activacion === 'OTRA_MESA_ABIERTA') {
+        throw new AppError(
+          409,
+          'El comensal tiene otra mesa abierta. Cerrala antes de activar esta.',
+        );
+      }
+      if (activacion === 'CAMBIO') {
         throw new AppError(409, 'La reserva cambió de estado; recargá la pantalla');
       }
       publicar('RESERVA_ACTIVADA', fila, hacia);
@@ -299,10 +307,14 @@ export function createReservaService(
         throw new AppError(409, 'La reserva cambió de estado; recargá la pantalla');
       }
       if (cierre.resultado === 'BLOQUEADA') {
-        const { pedidosSinEntregar, saldoPendiente } = cierre.bloqueo;
+        const { pedidosSinEntregar, saldoPendiente, pagoEnCurso, pagoEnRevision } = cierre.bloqueo;
         const mensaje = pedidosSinEntregar
           ? `Hay ${pedidosSinEntregar} ${pedidosSinEntregar === 1 ? 'pedido' : 'pedidos'} sin entregar. Esperá a que se entreguen antes de cerrar la mesa.`
-          : `Queda un saldo de ${formatoPesos(saldoPendiente ?? 0)} sin pagar.`;
+          : pagoEnCurso
+            ? 'Hay un pago en curso. Esperá a que se confirme o venza (unos 15 minutos).'
+            : pagoEnRevision
+              ? 'Mercado Pago todavía está revisando un pago de esta mesa.'
+              : `Queda un saldo de ${formatoPesos(saldoPendiente ?? 0)} sin pagar.`;
         throw new AppError(409, mensaje, cierre.bloqueo);
       }
       publicar('RESERVA_FINALIZADA', fila, hacia);

@@ -18,7 +18,12 @@ function plato(id: string, cambios: Partial<PlatoDelMenu> = {}): PlatoDelMenu {
     fotoUrl: null,
     disponible: true,
     activo: true,
-    categoria: { id: 'principales', nombre: 'Principales', requiereReceta: true },
+    categoria: {
+      id: 'principales',
+      nombre: 'Principales',
+      requiereReceta: true,
+      admiteObservaciones: true,
+    },
     tieneReceta: true,
     receta: null,
     insumoReventaId: null,
@@ -27,7 +32,12 @@ function plato(id: string, cambios: Partial<PlatoDelMenu> = {}): PlatoDelMenu {
   };
 }
 
-const postres = { id: 'postres', nombre: 'Postres', requiereReceta: false };
+const postres = {
+  id: 'postres',
+  nombre: 'Postres',
+  requiereReceta: false,
+  admiteObservaciones: true,
+};
 
 function sucursal(
   cambios: Partial<NonNullable<SucursalConMenu['menuActivo']>> = {},

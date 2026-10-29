@@ -37,7 +37,23 @@ export type EventoDominio =
       sucursalId: string;
       comensalId: string;
     }
-  | { tipo: 'PAGO_APROBADO'; cuentaMesaId: string; comensalId: string }
+  | {
+      tipo: 'PAGO_APROBADO';
+      pagoId: string;
+      cuentaMesaId: string;
+      sucursalId: string;
+      comensalId: string;
+      puntosSumados: number;
+      // Nombres de las recompensas que este pago dejó listas para usar.
+      desbloqueados: string[];
+    }
+  | {
+      tipo: 'PAGO_RECHAZADO';
+      pagoId: string;
+      cuentaMesaId: string;
+      sucursalId: string;
+      comensalId: string;
+    }
   | { tipo: 'CUENTA_MESA_CERRADA'; cuentaMesaId: string; restauranteId: string; comensalId: string }
   // Secuencia de CU-04, 5a y 5b: las guarda GeneradorAlertas.
   | { tipo: 'STOCK_INSUFICIENTE'; sucursalId: string; componenteId: string; itemMenuId: string }

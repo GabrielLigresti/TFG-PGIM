@@ -116,6 +116,25 @@ const archivoModelo = express.raw({
   limit: `${LIMITE_MODELO_MB}mb`,
 });
 
+// Foto del plato desde la computadora, hasta 5 MB.
+const archivoFoto = express.raw({ type: 'application/octet-stream', limit: '5mb' });
+
+platosRouter.put(
+  '/:id/foto',
+  requierePermiso('menu.editar'),
+  validarParams(idParamSchema),
+  archivoFoto,
+  async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      res.status(400).json({ error: 'Falta la foto' });
+      return;
+    }
+    res.json(
+      await menuService.subirFoto(req.tenant!.restauranteId, req.params.id as string, req.body),
+    );
+  },
+);
+
 const modeloParamsSchema = idParamSchema.extend({ formato: z.enum(['glb', 'usdz']) });
 
 const modeloQuerySchema = z.object({

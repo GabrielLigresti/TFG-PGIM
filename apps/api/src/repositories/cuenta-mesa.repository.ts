@@ -1,7 +1,6 @@
 import type { PedidoComensal, Referencia } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
-import type { ResultadoCobro } from '../pagos/pasarela';
 
 // "Mi mesa": la cuenta de mesa del comensal con sus pedidos y lo pagado.
 export interface FilaMesa {
@@ -14,25 +13,18 @@ export interface FilaMesa {
   abiertaEn: Date;
   pedidos: PedidoComensal[];
   pagado: number;
+  // Descuentos de los beneficios de pagos aprobados: también cubren el saldo.
+  descuentos: number;
+  // El pago PENDIENTE de la mesa, si hay uno (nunca hay dos).
+  pagoPendienteId: string | null;
 }
-
-export type ResultadoPago = 'APROBADO' | 'RECHAZADO' | 'SIN_SALDO' | 'CERRADA';
 
 export interface CuentaMesaRepository {
   // La cuenta ABIERTA del comensal en esa sucursal o, sin sucursal, en cualquiera.
   mesaAbiertaDelComensal(comensalId: string, sucursalId?: string): Promise<FilaMesa | null>;
   // Solo la cuenta cuya reserva es del comensal, abierta o cerrada.
   buscarDelComensal(comensalId: string, cuentaMesaId: string): Promise<FilaMesa | null>;
-  // Con la cuenta bloqueada (un cierre no entra en el medio): recalcula el
-  // saldo, crea el pago PENDIENTE por ese monto, lo cobra con `cobrar` y lo
-  // deja APROBADO o RECHAZADO, todo en una transacción. Si `cobrar` falla, no
-  // queda ningún pago.
-  registrarPago(
-    cuentaMesaId: string,
-    comensalId: string,
-    cobrar: (pago: { id: string; monto: number }) => Promise<ResultadoCobro>,
-  ): Promise<ResultadoPago>;
-  // RegistroVisitas: si el titular pagó algo, alta de la cuenta de fidelidad
+  // RegistroVisitas: si el titular tiene un pago aprobado, alta de la cuenta de fidelidad
   // (si no tenía) y una visita por cuenta de mesa. true si la visita es nueva.
   registrarVisita(
     cuentaMesaId: string,
@@ -71,7 +63,15 @@ const seleccionMesa = {
     },
     orderBy: { numero: 'asc' },
   },
-  pagos: { where: { estado: 'APROBADO' }, select: { monto: true } },
+  pagos: {
+    where: { estado: { not: 'RECHAZADO' } },
+    select: {
+      id: true,
+      estado: true,
+      monto: true,
+      beneficiosAplicados: { select: { montoDescontado: true } },
+    },
+  },
 } satisfies Prisma.CuentaMesaSelect;
 
 type Fila = Prisma.CuentaMesaGetPayload<{ select: typeof seleccionMesa }>;
@@ -80,6 +80,7 @@ const centavos = (valor: number) => Math.round(valor * 100) / 100;
 
 function aFilaMesa(fila: Fila): FilaMesa {
   const { reserva } = fila;
+  const aprobados = fila.pagos.filter((p) => p.estado === 'APROBADO');
   return {
     cuentaMesaId: fila.id,
     estado: fila.estado,
@@ -105,18 +106,25 @@ function aFilaMesa(fila: Fila): FilaMesa {
         lineas,
       };
     }),
-    pagado: centavos(fila.pagos.reduce((t, p) => t + Number(p.monto), 0)),
+    pagado: centavos(aprobados.reduce((t, p) => t + Number(p.monto), 0)),
+    descuentos: centavos(
+      aprobados
+        .flatMap((p) => p.beneficiosAplicados)
+        .reduce((t, b) => t + Number(b.montoDescontado), 0),
+    ),
+    pagoPendienteId: fila.pagos.find((p) => p.estado === 'PENDIENTE')?.id ?? null,
   };
 }
 
-// Total de los pedidos no cancelados y lo pagado (pagos aprobados), para el
+// Total de los pedidos no cancelados, lo pagado y lo descontado por beneficios
+// (pagos aprobados); saldo = total − pagado − descuentos. Para el
 // cierre de mesa dentro de su transacción.
 export async function totalesDeCuenta(
   tx: Prisma.TransactionClient,
   cuentaMesaId: string,
-): Promise<{ total: number; pagado: number; pedidosActivos: number }> {
+): Promise<{ total: number; pagado: number; descuentos: number; pedidosActivos: number }> {
   const [fila] = await tx.$queryRaw<
-    { total: string | null; pagado: string | null; activos: bigint }[]
+    { total: string | null; pagado: string | null; descuentos: string | null; activos: bigint }[]
   >`
     SELECT
       (SELECT SUM(lp.cantidad * lp.precio_unitario) FROM linea_pedido lp
@@ -124,12 +132,16 @@ export async function totalesDeCuenta(
          WHERE p.cuenta_mesa_id = ${cuentaMesaId}::uuid AND p.estado <> 'CANCELADO') AS total,
       (SELECT SUM(monto) FROM pago
          WHERE cuenta_mesa_id = ${cuentaMesaId}::uuid AND estado = 'APROBADO') AS pagado,
+      (SELECT SUM(ba.monto_descontado) FROM beneficio_aplicado ba
+         JOIN pago p ON p.id = ba.pago_id
+         WHERE p.cuenta_mesa_id = ${cuentaMesaId}::uuid AND p.estado = 'APROBADO') AS descuentos,
       (SELECT COUNT(*) FROM pedido
          WHERE cuenta_mesa_id = ${cuentaMesaId}::uuid
            AND estado IN ('CONFIRMADO', 'EN_PREPARACION', 'LISTO')) AS activos`;
   return {
     total: Number(fila?.total ?? 0),
     pagado: Number(fila?.pagado ?? 0),
+    descuentos: Number(fila?.descuentos ?? 0),
     pedidosActivos: Number(fila?.activos ?? 0),
   };
 }
@@ -152,45 +164,13 @@ export const cuentaMesaRepository: CuentaMesaRepository = {
     return fila && aFilaMesa(fila);
   },
 
-  registrarPago(cuentaMesaId, comensalId, cobrar) {
-    return prisma.$transaction(
-      async (tx): Promise<ResultadoPago> => {
-        const abierta = await tx.$queryRaw<{ id: string }[]>`
-          SELECT c.id FROM cuenta_mesa c JOIN reserva r ON r.id = c.reserva_id
-          WHERE c.id = ${cuentaMesaId}::uuid AND r.comensal_id = ${comensalId}::uuid
-            AND c.estado = 'ABIERTA'
-          FOR UPDATE OF c`;
-        if (abierta.length === 0) return 'CERRADA';
-
-        const { total, pagado } = await totalesDeCuenta(tx, cuentaMesaId);
-        const saldo = centavos(total - pagado);
-        if (saldo <= 0) return 'SIN_SALDO';
-
-        const pago = await tx.pago.create({
-          data: { cuentaMesaId, comensalId, monto: saldo, metodo: 'TARJETA' },
-          select: { id: true },
-        });
-        const resultado = await cobrar({ id: pago.id, monto: saldo });
-        await tx.pago.update({
-          where: { id: pago.id },
-          data:
-            resultado.estado === 'APROBADO'
-              ? { estado: 'APROBADO', referenciaExterna: resultado.referenciaExterna }
-              : { estado: 'RECHAZADO' },
-        });
-        return resultado.estado;
-      },
-      { timeout: 15_000 },
-    );
-  },
-
   registrarVisita(cuentaMesaId, restauranteId, comensalId) {
     return prisma.$transaction(async (tx) => {
-      const pagado = await tx.pago.aggregate({
+      // Un pago aprobado alcanza, aunque sea de $0 porque lo cubrió un beneficio.
+      const aprobados = await tx.pago.count({
         where: { cuentaMesaId, comensalId, estado: 'APROBADO' },
-        _sum: { monto: true },
       });
-      if (!(Number(pagado._sum.monto ?? 0) > 0)) return false;
+      if (aprobados === 0) return false;
 
       const cuenta = await tx.cuentaFidelidad.upsert({
         where: { comensalId_restauranteId: { comensalId, restauranteId } },

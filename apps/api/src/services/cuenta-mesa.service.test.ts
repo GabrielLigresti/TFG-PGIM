@@ -1,5 +1,4 @@
 import type { PedidoComensal } from '@pgim/shared';
-import { crearBusEventos, type EventoDominio } from '../domain/eventos';
 import { crearPasarelaSimulada } from '../pagos/pasarela';
 import type { CuentaMesaRepository, FilaMesa } from '../repositories/cuenta-mesa.repository';
 import { createCuentaMesaService } from './cuenta-mesa.service';
@@ -19,6 +18,8 @@ function mesa(cambios: Partial<FilaMesa> = {}): FilaMesa {
     abiertaEn: new Date('2026-10-30T22:55:00.000Z'),
     pedidos: [pedido('a', 1000, 'ENTREGADO'), pedido('b', 500, 'CANCELADO')],
     pagado: 0,
+    descuentos: 0,
+    pagoPendienteId: null,
     ...cambios,
   };
 }
@@ -27,16 +28,12 @@ function armar(fila: FilaMesa | null, habilitada = true) {
   const repo: jest.Mocked<CuentaMesaRepository> = {
     mesaAbiertaDelComensal: jest.fn().mockResolvedValue(fila),
     buscarDelComensal: jest.fn().mockResolvedValue(fila),
-    registrarPago: jest.fn(
-      async (_c, _co, cobrar) => (await cobrar({ id: 'pago', monto: 600 })).estado,
-    ),
     registrarVisita: jest.fn(),
   };
-  const bus = crearBusEventos();
-  const eventos: EventoDominio[] = [];
-  bus.suscribir((e) => eventos.push(e));
-  const servicio = createCuentaMesaService(repo, crearPasarelaSimulada(habilitada), bus);
-  return { repo, eventos, servicio };
+  const servicio = createCuentaMesaService(repo, crearPasarelaSimulada(habilitada), (id) =>
+    id === 'p-curso' ? 'https://mp/pagar' : null,
+  );
+  return { repo, servicio };
 }
 
 describe('cuentaMesaService.miMesa', () => {
@@ -63,56 +60,17 @@ describe('cuentaMesaService.miMesa', () => {
   });
 });
 
-describe('cuentaMesaService.pagar', () => {
-  it('una mesa de otro comensal responde 404', async () => {
-    await expect(armar(null).servicio.pagar('C', 'cuenta')).rejects.toMatchObject({ status: 404 });
-  });
-
-  it('una mesa cerrada responde 409', async () => {
-    await expect(
-      armar(mesa({ estado: 'CERRADA' })).servicio.pagar('C', 'cuenta'),
-    ).rejects.toMatchObject({ status: 409 });
-  });
-
-  it('sin saldo responde 409', async () => {
-    await expect(armar(mesa({ pagado: 1000 })).servicio.pagar('C', 'cuenta')).rejects.toMatchObject(
-      { status: 409, message: 'La mesa no tiene saldo para pagar' },
-    );
-  });
-
-  it('con la pasarela deshabilitada responde 503', async () => {
-    await expect(armar(mesa(), false).servicio.pagar('C', 'cuenta')).rejects.toMatchObject({
-      status: 503,
-      message: 'El pago de prueba no está habilitado',
+describe('cuentaMesaService.miMesa con un pago en curso', () => {
+  it('ofrece retomar el pago con su link de Mercado Pago', async () => {
+    const { servicio } = armar(mesa({ pagoPendienteId: 'p-curso' }));
+    expect((await servicio.miMesa('C'))!.pagoEnCurso).toEqual({
+      pagoId: 'p-curso',
+      urlPago: 'https://mp/pagar',
     });
   });
 
-  it('cobra el saldo completo y avisa PAGO_APROBADO', async () => {
-    const { servicio, repo, eventos } = armar(mesa({ pagado: 400 }));
-    repo.buscarDelComensal
-      .mockResolvedValueOnce(mesa({ pagado: 400 }))
-      .mockResolvedValueOnce(mesa({ pagado: 1000 }));
-
-    const resultado = await servicio.pagar('C', 'cuenta');
-
-    expect(repo.registrarPago).toHaveBeenCalledWith('cuenta', 'C', expect.any(Function));
-    expect(resultado.saldo).toBe(0);
-    expect(eventos).toContainEqual({
-      tipo: 'PAGO_APROBADO',
-      cuentaMesaId: 'cuenta',
-      comensalId: 'C',
-    });
-  });
-
-  it('si la mesa se cerró mientras tanto responde 409', async () => {
-    const { servicio, repo } = armar(mesa());
-    repo.registrarPago.mockResolvedValue('CERRADA');
-    await expect(servicio.pagar('C', 'cuenta')).rejects.toMatchObject({ status: 409 });
-  });
-
-  it('si la pasarela rechaza responde 402', async () => {
-    const { servicio, repo } = armar(mesa());
-    repo.registrarPago.mockResolvedValue('RECHAZADO');
-    await expect(servicio.pagar('C', 'cuenta')).rejects.toMatchObject({ status: 402 });
+  it('sin pago en curso, null', async () => {
+    const { servicio } = armar(mesa());
+    expect((await servicio.miMesa('C'))!.pagoEnCurso).toBeNull();
   });
 });

@@ -36,7 +36,10 @@ export function MenuSucursalPage() {
   );
 
   function agregar(p: PlatoMenu) {
-    carrito.agregar({ id: p.id, nombre: p.nombre, precio: p.precio }, 1);
+    carrito.agregar(
+      { id: p.id, nombre: p.nombre, precio: p.precio, admiteObservaciones: p.admiteObservaciones },
+      1,
+    );
   }
 
   const categorias = datos?.menu?.categorias ?? [];

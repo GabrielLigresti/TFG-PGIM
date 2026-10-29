@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import type { Categoria, CategoriaInput, Insumo, Plato, PlatoInput } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
@@ -15,6 +15,7 @@ import {
   claseInput,
   propsDecimal,
 } from '../../components/ui';
+import { ApiError, subirArchivo } from '../../lib/api';
 import { aNumero, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
@@ -22,6 +23,8 @@ import { ModeloRaModal } from './ModeloRaModal';
 import { useConfirmar } from '../../components/Confirmacion';
 
 // CU-16: platos (con su modelo RA) y categorías. Los menús van en su propia pantalla.
+const LIMITE_FOTO_MB = 5;
+
 export function PlatosPage() {
   const { tienePermiso } = useSesion();
   const platos = useRecurso<Plato[]>('/platos');
@@ -261,7 +264,29 @@ function FormularioPlato({
   const [activo, setActivo] = useState(plato?.activo ?? true);
   const [insumoReventaId, setInsumoReventaId] = useState(plato?.reventa?.id ?? '');
   const { enviar, enviando, error } = useGuardar();
+  const [subiendoFoto, setSubiendoFoto] = useState(false);
+  const [errorFoto, setErrorFoto] = useState<string | null>(null);
   const { tienePermiso } = useSesion();
+
+  async function subirFoto(e: ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = '';
+    if (!archivo || !plato) return;
+    setErrorFoto(null);
+    if (archivo.size > LIMITE_FOTO_MB * 1024 * 1024) {
+      setErrorFoto(`La foto puede pesar hasta ${LIMITE_FOTO_MB} MB`);
+      return;
+    }
+    setSubiendoFoto(true);
+    try {
+      const actualizado = await subirArchivo<Plato>(`/platos/${plato.id}/foto`, archivo);
+      setFotoUrl(actualizado.fotoUrl ?? '');
+    } catch (err) {
+      setErrorFoto(err instanceof ApiError ? err.message : 'No se pudo subir la foto');
+    } finally {
+      setSubiendoFoto(false);
+    }
+  }
   // Solo se revenden insumos que se cuentan por unidades (botellas, latas…).
   const insumos = useRecurso<Insumo[]>(tienePermiso('insumo.ver') ? '/insumos' : null);
   const porUnidad = insumos.datos?.filter(
@@ -334,7 +359,14 @@ function FormularioPlato({
             className={claseInput}
           />
         </Campo>
-        <Campo etiqueta="Foto" ayuda="Opcional. Pegá el enlace de una imagen (https://…).">
+        <Campo
+          etiqueta="Foto"
+          ayuda={
+            plato
+              ? 'Opcional. Subí una imagen JPG, PNG o WEBP de hasta 5 MB, o pegá un enlace (https://…).'
+              : 'Opcional. Pegá el enlace de una imagen (https://…). Para subirla desde la computadora, guardá el plato y editalo.'
+          }
+        >
           <input
             type="text"
             value={fotoUrl}
@@ -342,6 +374,28 @@ function FormularioPlato({
             className={claseInput}
           />
         </Campo>
+        {plato && (
+          <div className="flex flex-wrap items-center gap-3">
+            {fotoUrl && (
+              <img
+                src={fotoUrl}
+                alt={`Foto de ${nombre}`}
+                className="size-16 rounded-control border border-line object-cover"
+              />
+            )}
+            <label className="inline-flex min-h-11 cursor-pointer items-center rounded-control border border-line-strong bg-surface px-3 text-sm font-medium text-text hover:bg-panel has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-accent/20 sm:min-h-9">
+              {subiendoFoto ? 'Subiendo…' : 'Subir foto'}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                disabled={subiendoFoto}
+                onChange={subirFoto}
+                className="sr-only"
+              />
+            </label>
+            <Aviso>{errorFoto}</Aviso>
+          </div>
+        )}
         {porUnidad && (
           <Campo
             etiqueta="Se vende como viene"
@@ -391,11 +445,14 @@ function FormularioCategoria({
 }) {
   const [nombre, setNombre] = useState(categoria?.nombre ?? '');
   const [requiereReceta, setRequiereReceta] = useState(categoria?.requiereReceta ?? false);
+  const [admiteObservaciones, setAdmiteObservaciones] = useState(
+    categoria?.admiteObservaciones ?? true,
+  );
   const { enviar, enviando, error } = useGuardar();
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const datos: CategoriaInput = { nombre, requiereReceta };
+    const datos: CategoriaInput = { nombre, requiereReceta, admiteObservaciones };
     const respuesta = categoria
       ? await enviar(`/categorias/${categoria.id}`, 'PUT', datos)
       : await enviar('/categorias', 'POST', datos);
@@ -420,6 +477,11 @@ function FormularioCategoria({
           etiqueta="Sus platos requieren receta"
           checked={requiereReceta}
           onChange={setRequiereReceta}
+        />
+        <Casilla
+          etiqueta="El cliente puede agregar una aclaración (por ejemplo, «sin cebolla»)"
+          checked={admiteObservaciones}
+          onChange={setAdmiteObservaciones}
         />
         <Aviso>{error}</Aviso>
         <Acciones onCerrar={onCerrar} enviando={enviando} />

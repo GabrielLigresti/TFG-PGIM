@@ -7,6 +7,8 @@ export const categoriaInputSchema = z.object({
   nombre: nombreSchema,
   // Los platos de estas categorías necesitan receta para el menú activo.
   requiereReceta: z.boolean(),
+  // false: sus platos no llevan aclaración (por ejemplo, las bebidas).
+  admiteObservaciones: z.boolean().default(true),
 });
 
 export type CategoriaInput = z.infer<typeof categoriaInputSchema>;
@@ -15,6 +17,7 @@ export interface Categoria {
   id: string;
   nombre: string;
   requiereReceta: boolean;
+  admiteObservaciones: boolean;
   cantidadPlatos: number;
 }
 

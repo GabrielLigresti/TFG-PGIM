@@ -26,7 +26,9 @@ function platoVisible(id: string, precio: number, insumos: Map<string, number> |
       descripcion: null,
       precio,
       fotoUrl: null,
-      categoria: { id: 'c', nombre: 'Principales' },
+      categoria:
+        id === 'agua' ? { id: 'b', nombre: 'Bebidas' } : { id: 'c', nombre: 'Principales' },
+      admiteObservaciones: id !== 'agua',
       modeloRa: null,
       hayStock: true,
     },
@@ -96,6 +98,29 @@ describe('pedidoService.confirmar', () => {
       servicio.confirmar('C', { cuentaMesaId: 'cuenta', lineas: [linea('otro')] }),
     ).rejects.toMatchObject({ status: 400 });
     expect(menuVisible).toHaveBeenCalledWith('centro');
+  });
+
+  it('una aclaración en un plato de una categoría que no las admite responde 400', async () => {
+    const { servicio, repo } = armar();
+    await expect(
+      servicio.confirmar('C', {
+        cuentaMesaId: 'cuenta',
+        lineas: [{ itemMenuId: 'agua', cantidad: 1, observaciones: 'Con hielo' }],
+      }),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'Los platos de Bebidas no llevan aclaraciones',
+    });
+    expect(repo.confirmar).not.toHaveBeenCalled();
+  });
+
+  it('una aclaración en un plato que las admite se guarda', async () => {
+    const { servicio, repo } = armar();
+    await servicio.confirmar('C', {
+      cuentaMesaId: 'cuenta',
+      lineas: [{ itemMenuId: 'pizza', cantidad: 1, observaciones: 'Sin cebolla' }],
+    });
+    expect(repo.confirmar.mock.calls[0]![1][0]).toMatchObject({ observaciones: 'Sin cebolla' });
   });
 
   it('copia el precio del menú y escala los insumos por la cantidad', async () => {

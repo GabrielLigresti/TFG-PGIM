@@ -56,6 +56,7 @@ function filaPanel(cambios: Partial<FilaReservaPanel> = {}): FilaReservaPanel {
     ...fila({ inicio: new Date(A_LAS_20) }),
     comensalNombre: 'Carlos',
     comensalTelefono: null,
+    pagoEnCurso: false,
     ...cambios,
   };
 }
@@ -72,7 +73,7 @@ function repoFalso(cambios: Partial<ReservaRepository> = {}): jest.Mocked<Reserv
     cambiarEstado: jest.fn().mockResolvedValue(true),
     listarDelDia: jest.fn().mockResolvedValue([filaPanel()]),
     buscarEnSucursal: jest.fn().mockResolvedValue(filaPanel()),
-    activar: jest.fn().mockResolvedValue(true),
+    activar: jest.fn().mockResolvedValue('ACTIVADA'),
     cerrar: jest
       .fn()
       .mockResolvedValue({ resultado: 'CERRADA', cuentaMesaId: 'CM', comensalId: C }),
@@ -376,13 +377,44 @@ describe('activación (CU-12)', () => {
 
   it('si otro la activó antes responde 409', async () => {
     const { service, bus } = servicio(
-      repoFalso({ activar: jest.fn().mockResolvedValue(false) }),
+      repoFalso({ activar: jest.fn().mockResolvedValue('CAMBIO') }),
       undefined,
       DENTRO,
     );
 
     await expect(service.activar(R, S, 'R')).rejects.toMatchObject({ status: 409 });
     expect(bus.publicar).not.toHaveBeenCalled();
+  });
+
+  it('si el comensal tiene otra mesa abierta responde 409 y no avisa', async () => {
+    const { service, bus } = servicio(
+      repoFalso({ activar: jest.fn().mockResolvedValue('OTRA_MESA_ABIERTA') }),
+      undefined,
+      DENTRO,
+    );
+
+    await expect(service.activar(R, S, 'R')).rejects.toMatchObject({
+      status: 409,
+      message: 'El comensal tiene otra mesa abierta. Cerrala antes de activar esta.',
+    });
+    expect(bus.publicar).not.toHaveBeenCalled();
+  });
+
+  it('marca el pago en curso solo en una mesa activa', async () => {
+    const repo = repoFalso({
+      listarDelDia: jest
+        .fn()
+        .mockResolvedValue([
+          filaPanel({ id: 'activa', estado: 'ACTIVA', pagoEnCurso: true }),
+          filaPanel({ id: 'cerrada', estado: 'FINALIZADA', pagoEnCurso: true }),
+        ]),
+    });
+    const { service } = servicio(repo, undefined, DENTRO);
+    const lista = await service.delDia(R, S, '2026-10-30');
+    expect(lista.map((r) => [r.id, r.pagoEnCurso])).toEqual([
+      ['activa', true],
+      ['cerrada', false],
+    ]);
   });
 
   it('activable refleja la ventana en el listado del día', async () => {

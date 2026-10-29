@@ -63,6 +63,7 @@ function aPlatoMenu(
     precio,
     fotoUrl,
     categoria: { id: categoria.id, nombre: categoria.nombre },
+    admiteObservaciones: categoria.admiteObservaciones,
     modeloRa,
     hayStock,
   };
