@@ -75,11 +75,11 @@ deactivate IM
 note right of IM : 5b. Plato sin receta: publica\nPLATO_SIN_RECETA en el bus y la línea\nse confirma sin descontar stock
 PC -> R : insumosNecesarios(cantidad)
 activate R
-R -> R : insumosNecesarios(cantidad)\n(recursivo por cada ProductoIntermedio,\ncantidad bruta)
-R --> PC : Map<Insumo, cantidad>
+R -> R : insumosNecesarios(cantidad)\n(recursivo por cada ProductoIntermedio sin stock;\nse detiene en insumos e intermedios con stock;\ncantidad bruta)
+R --> PC : Map<ComponenteInventario, cantidad>
 deactivate R
 
-note over E #D5E8D4 : por cada insumo requerido
+note over E #D5E8D4 : por cada componente con stock requerido
 PC -> E : alcanza(cantidad)
 activate E
 E --> PC : true
@@ -91,7 +91,7 @@ PC -> P : crear(cuenta, sucursal, líneas con precio copiado)
 activate P
 P --> PC : pedido creado (PedidoConfirmado)
 deactivate P
-note over E #D5E8D4 : por cada insumo requerido
+note over E #D5E8D4 : por cada componente con stock requerido
 PC -> E : descontar(cantidad)
 activate E
 E -> MS : crear(CONSUMO_PEDIDO, cantidad, lineaPedido)

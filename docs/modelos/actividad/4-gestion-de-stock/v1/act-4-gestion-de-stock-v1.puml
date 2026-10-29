@@ -33,11 +33,11 @@ if (¿Qué tarea realiza?) then (Configurar receta)
     endif
   repeat while (¿Agrega otra línea?) is (Sí) not (No)
   :Sistema: guarda la receta y calcula el costo;
-else (Registrar movimiento)
+elseif (¿Qué tarea realiza?) then (Registrar movimiento)
   :Elegir tipo: ingreso, merma o ajuste;
-  :Cargar insumo, cantidad, unidad y motivo
-  (la merma de un intermedio se carga
-  sobre sus insumos);
+  :Cargar el insumo o intermedio con stock,
+  cantidad, unidad y motivo (la merma,
+  con un motivo de la lista);
   if (¿La unidad es de la misma dimensión?) then (No)
     :Sistema: rechaza el movimiento;
     stop
@@ -50,6 +50,21 @@ else (Registrar movimiento)
   endif
   :Sistema: registra el movimiento con empleado
   y costo, y actualiza la existencia;
+else (Registrar producción)
+  :Elegir el intermedio con stock
+  y la cantidad a producir;
+  :Sistema: precarga los consumos teóricos
+  según la receta;
+  :Corregir lo usado y cargar
+  la cantidad obtenida;
+  if (¿Algún componente quedaría negativo?) then (Sí)
+    :Sistema: rechaza la tanda completa;
+    stop
+  else (No)
+  endif
+  :Sistema: descuenta lo usado, suma lo obtenido,
+  actualiza el costo del intermedio
+  y muestra el rendimiento y el desvío;
 endif
 stop
 @enduml
