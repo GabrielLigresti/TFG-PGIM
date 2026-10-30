@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { Check } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router';
 import {
   CONVERSION,
@@ -7,13 +8,22 @@ import {
   type ComponenteReceta,
   type ErrorReceta,
   type IntermedioAlta,
+  type LlevaStockInput,
   type RecetaDetalle,
   type RecetaInput,
   type UnidadBase,
   type UnidadMedida,
 } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
-import { Aviso, Boton, Campo, EstadoCarga, claseInput, propsDecimal } from '../../components/ui';
+import {
+  Aviso,
+  Boton,
+  Campo,
+  Casilla,
+  EstadoCarga,
+  claseInput,
+  propsDecimal,
+} from '../../components/ui';
 import { NOMBRE_UNIDAD, aNumero, formatoCantidad, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
@@ -90,6 +100,8 @@ function Editor({
   const [guardada, setGuardada] = useState(false);
   const guardar = useGuardar();
   const borrar = useGuardar();
+  const stock = useGuardar();
+  const [avisoStock, setAvisoStock] = useState<string | null>(null);
 
   const esNuevo = detalle === null;
   const puedeGuardar = tienePermiso(receta ? 'receta.editar' : 'receta.crear');
@@ -168,6 +180,22 @@ function Editor({
     }
   }
 
+  // El interruptor de stock se guarda solo, sin esperar al "Guardar receta".
+  async function cambiarLlevaStock(llevaStock: boolean) {
+    if (!detalle) return;
+    setAvisoStock(null);
+    const respuesta = await stock.enviar(
+      `/recetas/intermedio/${detalle.dueno.id}/lleva-stock`,
+      'PUT',
+      {
+        llevaStock,
+      } satisfies LlevaStockInput,
+    );
+    if (!respuesta) return;
+    setDetalle({ ...detalle, dueno: { ...detalle.dueno, llevaStock } });
+    setAvisoStock(llevaStock ? 'Ahora se produce por tandas' : 'Ya no lleva stock');
+  }
+
   const confirmar = useConfirmar();
 
   async function borrarReceta() {
@@ -224,6 +252,28 @@ function Editor({
               ))}
             </select>
           </Campo>
+        </div>
+      )}
+
+      {tipo === 'intermedio' && !esNuevo && (
+        <div className="space-y-2 rounded-panel border border-line bg-surface p-4">
+          <Casilla
+            etiqueta="Lleva stock (se produce por tandas)"
+            checked={detalle.dueno.llevaStock}
+            onChange={cambiarLlevaStock}
+            disabled={!tienePermiso('receta.editar') || stock.enviando}
+          />
+          <p className="text-sm text-meta">
+            Se registra en Stock › Producción, y los pedidos descuentan la preparación en lugar de
+            sus insumos.
+          </p>
+          <Aviso>{stock.error}</Aviso>
+          {avisoStock && !stock.error && (
+            <p role="status" className="flex items-center gap-1.5 text-xs text-ok">
+              <Check aria-hidden className="size-3.5" />
+              {avisoStock}
+            </p>
+          )}
         </div>
       )}
 
