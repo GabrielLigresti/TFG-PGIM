@@ -42,7 +42,12 @@ interface FilaConsumo {
 
 const COLUMNAS = 'sm:grid-cols-[minmax(0,1.5fr)_8rem_10rem_minmax(0,12rem)_3rem]';
 
-const textoNumero = (n: number) => String(Math.round(n * 1000) / 1000).replace('.', ',');
+// Lo usado se precarga redondeado: sin decimales en g y ml, con dos en unidades.
+const textoUsado = (n: number, unidad: UnidadBase) => {
+  const decimales = unidad === 'UNIDAD' ? 2 : 0;
+  const factor = 10 ** decimales;
+  return String(Math.round(n * factor) / factor).replace('.', ',');
+};
 
 export function FormTanda({
   preparaciones,
@@ -109,7 +114,7 @@ export function FormTanda({
           unidadBase: c.componente.unidadBase,
           teorica: c.teorica,
           existencia: c.existencia,
-          usada: textoNumero(c.teorica),
+          usada: textoUsado(c.teorica, c.componente.unidadBase),
         })),
       );
     } catch (e) {
@@ -203,7 +208,9 @@ export function FormTanda({
   if (registrada) {
     return (
       <div className="space-y-4">
-        <Aviso tono="ok">Tanda registrada</Aviso>
+        <Aviso tono="ok">
+          Tanda registrada. Si te equivocaste, corregilo con un ajuste de cada componente.
+        </Aviso>
         <DetalleTanda tanda={registrada} unidadBase={preparacion?.unidadBase} />
         <div className="flex flex-wrap gap-2">
           <Boton variante="secundario" densidad="tactil" onClick={otra}>

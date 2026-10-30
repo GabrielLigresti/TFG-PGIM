@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowLeftRight } from 'lucide-react';
+import { ArrowLeftRight, ChevronRight } from 'lucide-react';
 import {
   ETIQUETA_MOTIVO_MERMA,
   ETIQUETA_TIPO_MOVIMIENTO,
@@ -59,9 +59,10 @@ export function MovimientosTab() {
         <button
           type="button"
           onClick={() => setTandaAbierta(m.tandaId)}
-          className="text-sm font-medium text-accent-ink underline underline-offset-2"
+          className="inline-flex items-center gap-0.5 text-sm font-medium text-accent-ink underline underline-offset-2"
         >
           Ver la tanda
+          <ChevronRight aria-hidden className="size-4" />
         </button>
       )}
     </span>

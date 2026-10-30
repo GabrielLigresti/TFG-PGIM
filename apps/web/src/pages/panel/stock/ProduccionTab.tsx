@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { ChefHat } from 'lucide-react';
+import { ChefHat, ChevronRight } from 'lucide-react';
 import type { ComponenteStock, Pagina, TandaResumen } from '@pgim/shared';
 import { useSesion } from '../../../auth/SesionProvider';
 import { Lista } from '../../../components/Lista';
@@ -94,6 +94,39 @@ export function ProduccionTab({ accionesEncabezado }: { accionesEncabezado: HTML
             clave={(t) => t.id}
             onSeleccionar={(t) => setAbierta(t.id)}
             etiquetaSeleccion={(t) => `Ver la tanda de ${t.intermedio.nombre}`}
+            tarjeta={(t) => {
+              const unidad = unidadDe(t.intermedio.id);
+              return (
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 font-semibold text-ink [overflow-wrap:anywhere]">
+                      {t.intermedio.nombre}
+                    </span>
+                    <span className="whitespace-nowrap tabular-nums text-text">
+                      Pérdida {formatoPesos(t.desvio.total)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="tabular-nums text-text">
+                        Rindió {formatoRendimiento(t.desvio)}
+                      </span>
+                      <Estado entidad="tanda" valor={marcaTanda(t.desvio)} />
+                    </span>
+                    <ChevronRight aria-hidden className="size-5 shrink-0 text-meta" />
+                  </div>
+                  <p className="text-xs text-meta">
+                    {[
+                      formatoDiaYHora(t.fecha),
+                      t.empleado,
+                      `${formatoCantidadLegible(t.obtenida, unidad)} de ${formatoCantidadLegible(t.esperada, unidad)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </div>
+              );
+            }}
             vacio={
               <Vacio
                 icono={ChefHat}
@@ -139,7 +172,12 @@ export function ProduccionTab({ accionesEncabezado }: { accionesEncabezado: HTML
               },
               {
                 titulo: 'Estado',
-                valor: (t) => <Estado entidad="tanda" valor={marcaTanda(t.desvio)} />,
+                valor: (t) => (
+                  <span className="flex items-center justify-between gap-2">
+                    <Estado entidad="tanda" valor={marcaTanda(t.desvio)} />
+                    <ChevronRight aria-hidden className="size-4 shrink-0 text-meta" />
+                  </span>
+                ),
               },
             ]}
           />
