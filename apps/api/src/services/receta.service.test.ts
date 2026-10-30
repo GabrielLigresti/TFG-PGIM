@@ -58,11 +58,11 @@ function repoFalso(conReceta: boolean): jest.Mocked<RecetaRepository> {
     guardarRecetaIntermedio: jest.fn(),
     crearIntermedio: jest.fn(),
     borrarRecetaPlato: jest.fn(),
-    desactivarIntermedio: jest.fn().mockResolvedValue([]),
+    desactivarIntermedio: jest.fn().mockResolvedValue({ ok: true }),
     existeNombre: jest.fn().mockResolvedValue(false),
     usosDeComponente: jest.fn().mockResolvedValue([]),
     activarLlevaStock: jest.fn(),
-    desactivarLlevaStock: jest.fn().mockResolvedValue([]),
+    desactivarLlevaStock: jest.fn().mockResolvedValue({ ok: true }),
   };
 }
 
@@ -129,15 +129,31 @@ describe('recetaService', () => {
   it('no da de baja un intermedio con existencia en alguna sucursal', async () => {
     const repo = repoFalso(false);
     repo.cargarCatalogo.mockResolvedValue(new Map([[SALSA, salsa()]]));
-    repo.desactivarIntermedio.mockResolvedValue([
-      { sucursal: 'Centro', cantidad: 2 },
-      { sucursal: 'Palermo', cantidad: 1 },
-    ]);
+    repo.desactivarIntermedio.mockResolvedValue({
+      ok: false,
+      motivo: 'EXISTENCIAS',
+      sucursales: [
+        { sucursal: 'Centro', cantidad: 2 },
+        { sucursal: 'Palermo', cantidad: 1 },
+      ],
+    });
 
     await expect(createRecetaService(repo).desactivarIntermedio(R, SALSA)).rejects.toMatchObject({
       status: 409,
       message:
         'Ajustá a cero el stock de Salsa de tomate base en Centro, Palermo antes de darlo de baja',
+    });
+  });
+
+  it('no da de baja un intermedio con pedidos confirmados', async () => {
+    const repo = repoFalso(false);
+    repo.cargarCatalogo.mockResolvedValue(new Map([[SALSA, salsa()]]));
+    repo.desactivarIntermedio.mockResolvedValue({ ok: false, motivo: 'PEDIDOS_CONFIRMADOS' });
+
+    await expect(createRecetaService(repo).desactivarIntermedio(R, SALSA)).rejects.toMatchObject({
+      status: 409,
+      message:
+        'Hay pedidos confirmados con Salsa de tomate base: esperá a que se preparen o se cancelen',
     });
   });
 
@@ -182,11 +198,26 @@ describe('recetaService', () => {
 
     it('no desactiva con existencia en una sucursal', async () => {
       const { repo, service } = conSalsa({ llevaStock: true });
-      repo.desactivarLlevaStock.mockResolvedValue([{ sucursal: 'Centro', cantidad: 3 }]);
+      repo.desactivarLlevaStock.mockResolvedValue({
+        ok: false,
+        motivo: 'EXISTENCIAS',
+        sucursales: [{ sucursal: 'Centro', cantidad: 3 }],
+      });
 
       await expect(service.cambiarLlevaStock(R, SALSA, false)).rejects.toMatchObject({
         status: 409,
         message: 'Ajustá a cero el stock de Salsa de tomate base en Centro antes de desactivarlo',
+      });
+    });
+
+    it('no desactiva con pedidos confirmados', async () => {
+      const { repo, service } = conSalsa({ llevaStock: true });
+      repo.desactivarLlevaStock.mockResolvedValue({ ok: false, motivo: 'PEDIDOS_CONFIRMADOS' });
+
+      await expect(service.cambiarLlevaStock(R, SALSA, false)).rejects.toMatchObject({
+        status: 409,
+        message:
+          'Hay pedidos confirmados con Salsa de tomate base: esperá a que se preparen o se cancelen',
       });
     });
 

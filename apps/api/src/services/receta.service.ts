@@ -24,6 +24,7 @@ import {
   recetaRepository,
   type Catalogo,
   type RecetaRepository,
+  type ResultadoSalidaDeStock,
 } from '../repositories/receta.repository';
 
 function detalle(dueno: RecetaDetalle['dueno'], receta: Receta | null): RecetaDetalle {
@@ -76,6 +77,23 @@ function verificarPermiso(permisos: readonly CodigoPermiso[], existe: boolean) {
 }
 
 const nombresDe = (filas: { sucursal: string }[]) => filas.map((f) => f.sucursal).join(', ');
+
+function errorDeSalida(
+  nombre: string,
+  resultado: Exclude<ResultadoSalidaDeStock, { ok: true }>,
+  accion: string,
+) {
+  if (resultado.motivo === 'PEDIDOS_CONFIRMADOS') {
+    return new AppError(
+      409,
+      `Hay pedidos confirmados con ${nombre}: esperá a que se preparen o se cancelen`,
+    );
+  }
+  return new AppError(
+    409,
+    `Ajustá a cero el stock de ${nombre} en ${nombresDe(resultado.sucursales)} antes de ${accion}`,
+  );
+}
 
 export function createRecetaService(repo: RecetaRepository) {
   async function obtenerIntermedio(restauranteId: string, id: string) {
@@ -229,12 +247,9 @@ export function createRecetaService(repo: RecetaRepository) {
           `${intermedio.nombre} se usa en las recetas de ${usos.join(', ')}: sacalo de esas recetas antes de darlo de baja`,
         );
       }
-      const conStock = await repo.desactivarIntermedio(restauranteId, id);
-      if (conStock.length > 0) {
-        throw new AppError(
-          409,
-          `Ajustá a cero el stock de ${intermedio.nombre} en ${nombresDe(conStock)} antes de darlo de baja`,
-        );
+      const resultado = await repo.desactivarIntermedio(restauranteId, id);
+      if (!resultado.ok) {
+        throw errorDeSalida(intermedio.nombre, resultado, 'darlo de baja');
       }
     },
 
@@ -253,12 +268,9 @@ export function createRecetaService(repo: RecetaRepository) {
         await repo.activarLlevaStock(restauranteId, id, costoTeorico(intermedio));
         return;
       }
-      const conStock = await repo.desactivarLlevaStock(restauranteId, id);
-      if (conStock.length > 0) {
-        throw new AppError(
-          409,
-          `Ajustá a cero el stock de ${intermedio.nombre} en ${nombresDe(conStock)} antes de desactivarlo`,
-        );
+      const resultado = await repo.desactivarLlevaStock(restauranteId, id);
+      if (!resultado.ok) {
+        throw errorDeSalida(intermedio.nombre, resultado, 'desactivarlo');
       }
     },
   };

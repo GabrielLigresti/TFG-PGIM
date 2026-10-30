@@ -27,6 +27,12 @@ export interface PlatoConReceta {
 
 export type ExistenciaEnSucursal = { sucursal: string; cantidad: number };
 
+// Resultado de salir del stock: si no es ok, no se escribió nada.
+export type ResultadoSalidaDeStock =
+  | { ok: true }
+  | { ok: false; motivo: 'EXISTENCIAS'; sucursales: ExistenciaEnSucursal[] }
+  | { ok: false; motivo: 'PEDIDOS_CONFIRMADOS' };
+
 export type Catalogo = Map<string, Componente>;
 
 export interface RecetaRepository {
@@ -43,14 +49,15 @@ export interface RecetaRepository {
     receta: Receta,
   ): Promise<string>;
   borrarRecetaPlato(restauranteId: string, itemId: string): Promise<void>;
-  // Igual que desactivarLlevaStock: si hay existencia devuelve dónde y no da de baja.
-  desactivarIntermedio(restauranteId: string, id: string): Promise<ExistenciaEnSucursal[]>;
+  // Igual que desactivarLlevaStock: si hay existencia o pedidos confirmados, no da de baja.
+  desactivarIntermedio(restauranteId: string, id: string): Promise<ResultadoSalidaDeStock>;
   existeNombre(restauranteId: string, nombre: string): Promise<boolean>;
   usosDeComponente(restauranteId: string, id: string): Promise<string[]>;
   activarLlevaStock(restauranteId: string, id: string, costoVigente: number): Promise<void>;
-  // Con las sucursales bloqueadas, si el intermedio tiene existencia mayor a 0 devuelve
-  // dónde (sin escribir); si no, apaga la marca y limpia el costo vigente.
-  desactivarLlevaStock(restauranteId: string, id: string): Promise<ExistenciaEnSucursal[]>;
+  // Con las sucursales bloqueadas, si hay pedidos confirmados que descontaron el intermedio
+  // o existencia mayor a 0 devuelve el motivo (sin escribir); si no, apaga la marca y
+  // limpia el costo vigente.
+  desactivarLlevaStock(restauranteId: string, id: string): Promise<ResultadoSalidaDeStock>;
 }
 
 export const seleccionReceta = {
@@ -139,7 +146,7 @@ async function sinExistencias(
   restauranteId: string,
   id: string,
   datos: Prisma.ComponenteInventarioUpdateInput,
-): Promise<ExistenciaEnSucursal[]> {
+): Promise<ResultadoSalidaDeStock> {
   return prisma.$transaction(async (tx) => {
     const sucursales = await tx.sucursal.findMany({
       where: { restauranteId },
@@ -147,6 +154,26 @@ async function sinExistencias(
       orderBy: { id: 'asc' },
     });
     for (const s of sucursales) await bloquearStockDeSucursal(tx, s.id);
+    // Un pedido confirmado que descontó el intermedio puede cancelarse y devolverlo: con la
+    // marca apagada o dado de baja, esa devolución dejaría stock huérfano.
+    const pedidoConfirmado = await tx.pedido.findFirst({
+      where: {
+        estado: 'CONFIRMADO',
+        sucursal: { restauranteId },
+        lineas: {
+          some: {
+            movimientosStock: {
+              some: {
+                tipo: 'CONSUMO_PEDIDO',
+                existencia: { componenteId: id, componente: { restauranteId } },
+              },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+    if (pedidoConfirmado) return { ok: false, motivo: 'PEDIDOS_CONFIRMADOS' };
     const filas = await tx.existencia.findMany({
       where: {
         componenteId: id,
@@ -158,16 +185,20 @@ async function sinExistencias(
       orderBy: { sucursal: { nombre: 'asc' } },
     });
     if (filas.length > 0) {
-      return filas.map((f) => ({
-        sucursal: f.sucursal.nombre,
-        cantidad: Number(f.cantidadActual),
-      }));
+      return {
+        ok: false,
+        motivo: 'EXISTENCIAS',
+        sucursales: filas.map((f) => ({
+          sucursal: f.sucursal.nombre,
+          cantidad: Number(f.cantidadActual),
+        })),
+      };
     }
     await tx.componenteInventario.update({
       where: { id, restauranteId, tipo: 'INTERMEDIO' },
       data: datos,
     });
-    return [];
+    return { ok: true };
   });
 }
 
