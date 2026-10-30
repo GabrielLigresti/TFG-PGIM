@@ -1,4 +1,4 @@
-import { ETIQUETA_UNIDAD, type UnidadMedida } from '@pgim/shared';
+import { ETIQUETA_UNIDAD, type UnidadBase, type UnidadMedida } from '@pgim/shared';
 
 const pesos = new Intl.NumberFormat('es-AR', {
   style: 'currency',
@@ -16,6 +16,19 @@ export const formatoPesos = (valor: number) => pesos.format(valor);
 
 export const formatoCantidad = (valor: number, unidad?: UnidadMedida) =>
   unidad ? `${numero.format(valor)} ${ETIQUETA_UNIDAD[unidad]}` : numero.format(valor);
+
+const decimales2 = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 2 });
+const enteros = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
+
+// Cantidad en unidad base para leer: kg o l desde 1000 g o ml, con hasta 2 decimales.
+export function formatoCantidadLegible(cantidad: number, unidadBase?: UnidadBase): string {
+  if (unidadBase === 'UNIDAD' || unidadBase === undefined)
+    return formatoCantidad(cantidad, unidadBase);
+  if (Math.abs(cantidad) >= 1000) {
+    return `${decimales2.format(cantidad / 1000)} ${unidadBase === 'GRAMO' ? 'kg' : 'l'}`;
+  }
+  return `${enteros.format(cantidad)} ${unidadBase === 'GRAMO' ? 'g' : 'ml'}`;
+}
 
 // Los inputs numéricos se manejan como texto; vacío o inválido es NaN y lo
 // rechaza la validación de la API con su mensaje.

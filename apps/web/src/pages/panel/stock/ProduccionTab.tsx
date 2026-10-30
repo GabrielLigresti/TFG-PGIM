@@ -4,7 +4,7 @@ import type { ComponenteStock, Pagina, TandaDetalle, TandaResumen } from '@pgim/
 import { useSesion } from '../../../auth/SesionProvider';
 import { Lista } from '../../../components/Lista';
 import { Boton, EstadoCarga, Estado, Modal, Vacio, claseInput } from '../../../components/ui';
-import { formatoCantidad, formatoDiaYHora, formatoPesos } from '../../../lib/formato';
+import { formatoCantidadLegible, formatoDiaYHora, formatoPesos } from '../../../lib/formato';
 import { useRecurso } from '../../../lib/useRecurso';
 import { DetalleTanda } from './DetalleTanda';
 import { FormTanda } from './FormTanda';
@@ -50,6 +50,10 @@ export function ProduccionTab() {
   const registrar = puedeRegistrar && (
     <Boton onClick={() => setRegistrando(true)}>Registrar tanda</Boton>
   );
+  const filtrada = intermedioId !== '';
+  const nombreFiltro = preparaciones.find((x) => x.id === intermedioId)?.nombre;
+  // Con la lista vacía y sin filtro, el único botón principal es el del aviso vacío.
+  const sinTandas = !filtrada && tandas.datos?.total === 0;
   const ultimaPagina = tandas.datos
     ? Math.max(1, Math.ceil(tandas.datos.total / tandas.datos.porPagina))
     : 1;
@@ -73,7 +77,7 @@ export function ProduccionTab() {
             </option>
           ))}
         </select>
-        {registrar}
+        {!sinTandas && registrar}
       </div>
 
       <EstadoCarga cargando={tandas.cargando && !tandas.datos} error={tandas.error} />
@@ -87,13 +91,17 @@ export function ProduccionTab() {
             vacio={
               <Vacio
                 icono={ChefHat}
-                titulo="Todavía no se registró ninguna tanda"
+                titulo={
+                  filtrada
+                    ? `No hay tandas de ${nombreFiltro ?? 'esta preparación'}`
+                    : 'Todavía no se registró ninguna tanda'
+                }
                 texto={
-                  puedeRegistrar
+                  puedeRegistrar && !filtrada
                     ? 'Cuando prepares una tanda, registrala acá para descontar los insumos y sumar lo obtenido.'
                     : undefined
                 }
-                accion={registrar || undefined}
+                accion={filtrada ? undefined : registrar || undefined}
               />
             }
             columnas={[
@@ -105,12 +113,12 @@ export function ProduccionTab() {
               { titulo: 'Preparación', valor: (t) => t.intermedio.nombre },
               {
                 titulo: 'Esperado',
-                valor: (t) => formatoCantidad(t.esperada, unidadDe(t.intermedio.id)),
+                valor: (t) => formatoCantidadLegible(t.esperada, unidadDe(t.intermedio.id)),
                 className: 'tabular-nums',
               },
               {
                 titulo: 'Obtenido',
-                valor: (t) => formatoCantidad(t.obtenida, unidadDe(t.intermedio.id)),
+                valor: (t) => formatoCantidadLegible(t.obtenida, unidadDe(t.intermedio.id)),
                 className: 'tabular-nums',
               },
               {

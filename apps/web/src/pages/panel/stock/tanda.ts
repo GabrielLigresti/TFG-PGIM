@@ -1,5 +1,5 @@
 import type { DesvioTanda, UnidadBase } from '@pgim/shared';
-import { formatoCantidad } from '../../../lib/formato';
+import { formatoCantidadLegible } from '../../../lib/formato';
 
 // Un rendimiento menor a 95 % o una pérdida de $1 o más marca la tanda.
 const RENDIMIENTO_MINIMO = 95;
@@ -23,7 +23,7 @@ export function formatoRendimiento(desvio: DesvioTanda): string {
 // Diferencia con signo ("+600 g"); vacía si no hay diferencia.
 export function formatoDiferencia(valor: number, unidad: UnidadBase): string {
   if (Math.abs(valor) < 0.0005) return '';
-  return `${valor > 0 ? '+' : '−'}${formatoCantidad(Math.abs(valor), unidad)}`;
+  return `${valor > 0 ? '+' : '−'}${formatoCantidadLegible(Math.abs(valor), unidad)}`;
 }
 
 // El costo se guarda por unidad base; en pantalla va por kg, l o unidad.

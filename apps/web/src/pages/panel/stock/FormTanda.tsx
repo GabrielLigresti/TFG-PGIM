@@ -22,7 +22,7 @@ import {
   propsDecimal,
 } from '../../../components/ui';
 import { ApiError, api } from '../../../lib/api';
-import { aNumero, formatoCantidad } from '../../../lib/formato';
+import { aNumero, formatoCantidadLegible } from '../../../lib/formato';
 import { useGuardar } from '../../../lib/useGuardar';
 import { DetalleTanda } from './DetalleTanda';
 import { formatoDiferencia } from './tanda';
@@ -39,6 +39,8 @@ interface FilaConsumo {
   existencia: number;
   usada: string;
 }
+
+const COLUMNAS = 'sm:grid-cols-[minmax(0,1.5fr)_8rem_10rem_minmax(0,12rem)_3rem]';
 
 const textoNumero = (n: number) => String(Math.round(n * 1000) / 1000).replace('.', ',');
 
@@ -74,7 +76,9 @@ export function FormTanda({
   function elegirPreparacion(id: string) {
     setIntermedioId(id);
     const p = preparaciones.find((x) => x.id === id);
-    setUnidad(p ? (unidadesCompatibles(p.unidadBase)[0] ?? '') : '');
+    // Arranca en kg o l, la unidad con la que se lee una tanda.
+    const compatibles = p ? unidadesCompatibles(p.unidadBase) : [];
+    setUnidad(compatibles[compatibles.length - 1] ?? '');
     descartarPlan();
   }
 
@@ -296,59 +300,75 @@ export function FormTanda({
         <form onSubmit={registrar} className="space-y-5">
           <div>
             <h2 className="mb-2 text-lg font-semibold text-ink">Consumos</h2>
-            <ul className="divide-y divide-line overflow-hidden rounded-panel border border-line bg-surface">
-              {filas.map((f) => {
-                const usada = aNumero(f.usada);
-                const dif =
-                  f.teorica !== null && !Number.isNaN(usada)
-                    ? formatoDiferencia(usada - f.teorica, f.unidadBase)
-                    : '';
-                const noAlcanza = usada > f.existencia;
-                return (
-                  <li
-                    key={f.componenteId}
-                    className="grid gap-x-4 gap-y-2 p-3 sm:grid-cols-[minmax(0,1.5fr)_8rem_10rem_minmax(0,12rem)_auto] sm:items-center"
-                  >
-                    <span className="font-medium text-ink [overflow-wrap:anywhere]">
-                      {f.nombre}
-                    </span>
-                    <div className="flex items-baseline justify-between gap-2 text-sm sm:contents">
-                      <span className="tabular-nums text-text">
-                        <span className="text-meta sm:hidden">Receta </span>
-                        {f.teorica === null ? '—' : formatoCantidad(f.teorica, f.unidadBase)}
-                      </span>
-                      <span className="flex flex-wrap items-center gap-1.5 tabular-nums text-meta">
-                        <span className="sm:hidden">Hay </span>
-                        {formatoCantidad(f.existencia, f.unidadBase)}
-                        {noAlcanza && <Etiqueta tono="bad">No alcanza</Etiqueta>}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          {...propsDecimal}
-                          aria-label={`Usado de ${f.nombre}`}
-                          value={f.usada}
-                          onChange={(e) => cambiarUsada(f.componenteId, e.target.value)}
-                          className={claseTactil}
-                        />
-                        <span className="text-sm text-meta">{ETIQUETA_UNIDAD[f.unidadBase]}</span>
-                      </div>
-                      {dif && <p className="mt-1 text-xs tabular-nums text-meta">{dif}</p>}
-                    </div>
-                    <Boton
-                      variante="fantasma"
-                      densidad="tactil"
-                      aria-label={`Quitar ${f.nombre}`}
-                      onClick={() => quitar(f.componenteId)}
-                      className="sm:col-start-5 sm:row-start-1"
+            <div className="overflow-hidden rounded-panel border border-line bg-surface">
+              <div
+                aria-hidden
+                className={`hidden gap-x-4 border-b border-line px-3 py-1.5 text-xs text-meta sm:grid ${COLUMNAS}`}
+              >
+                <span>Componente</span>
+                <span>Receta</span>
+                <span>Hay</span>
+                <span>Usado</span>
+                <span />
+              </div>
+              <ul className="divide-y divide-line">
+                {filas.map((f) => {
+                  const usada = aNumero(f.usada);
+                  const dif =
+                    f.teorica !== null && !Number.isNaN(usada)
+                      ? formatoDiferencia(usada - f.teorica, f.unidadBase)
+                      : '';
+                  const noAlcanza = usada > f.existencia;
+                  return (
+                    <li
+                      key={f.componenteId}
+                      className={`grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 gap-y-2 p-3 sm:items-center ${COLUMNAS}`}
                     >
-                      <X aria-hidden className="size-5" />
-                    </Boton>
-                  </li>
-                );
-              })}
-            </ul>
+                      <span className="font-medium text-ink [overflow-wrap:anywhere]">
+                        {f.nombre}
+                      </span>
+                      <Boton
+                        variante="fantasma"
+                        densidad="tactil"
+                        aria-label={`Quitar ${f.nombre}`}
+                        onClick={() => quitar(f.componenteId)}
+                        className="-my-1 sm:col-start-5 sm:row-start-1 sm:my-0"
+                      >
+                        <X aria-hidden className="size-5" />
+                      </Boton>
+                      <div className="col-span-2 flex items-baseline justify-between gap-2 text-sm sm:contents">
+                        <span className="tabular-nums text-text">
+                          <span className="text-meta sm:hidden">Receta </span>
+                          {f.teorica === null
+                            ? '—'
+                            : formatoCantidadLegible(f.teorica, f.unidadBase)}
+                        </span>
+                        <span className="flex flex-wrap items-center gap-1.5 tabular-nums text-meta">
+                          <span className="sm:hidden">Hay </span>
+                          {formatoCantidadLegible(f.existencia, f.unidadBase)}
+                          {noAlcanza && <Etiqueta tono="bad">No alcanza</Etiqueta>}
+                        </span>
+                      </div>
+                      <div className="col-span-2 sm:col-span-1">
+                        <div className="flex items-center gap-2">
+                          <input
+                            {...propsDecimal}
+                            aria-label={`Usado de ${f.nombre}`}
+                            value={f.usada}
+                            onChange={(e) => cambiarUsada(f.componenteId, e.target.value)}
+                            className={claseTactil}
+                          />
+                          <span className="w-8 shrink-0 text-sm text-meta">
+                            {ETIQUETA_UNIDAD[f.unidadBase]}
+                          </span>
+                        </div>
+                        {dif && <p className="mt-1 text-xs tabular-nums text-meta">{dif}</p>}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
             {sumables.length > 0 && (
               <div className="mt-3 flex flex-wrap items-center gap-2">
                 <Plus aria-hidden className="size-4 text-accent-ink" />

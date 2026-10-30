@@ -1,6 +1,6 @@
 import type { TandaDetalle, UnidadBase } from '@pgim/shared';
 import { Estado, Kpi } from '../../../components/ui';
-import { formatoCantidad, formatoHora, formatoPesos } from '../../../lib/formato';
+import { formatoCantidadLegible, formatoHora, formatoPesos } from '../../../lib/formato';
 import {
   conPerdidaEnPesos,
   costoPorUnidad,
@@ -20,7 +20,7 @@ export function DetalleTanda({
 }) {
   const { desvio } = tanda;
   const costo = costoPorUnidad(tanda.costoUnitario, unidadBase);
-  const cantidad = (v: number) => formatoCantidad(v, unidadBase);
+  const cantidad = (v: number) => formatoCantidadLegible(v, unidadBase);
 
   return (
     <div className="space-y-4">
@@ -59,10 +59,10 @@ export function DetalleTanda({
             >
               <span className="font-medium text-ink">{c.componente.nombre}</span>
               <span className="tabular-nums text-meta">
-                Receta {formatoCantidad(c.teorica, c.componente.unidadBase)}
+                Receta {formatoCantidadLegible(c.teorica, c.componente.unidadBase)}
               </span>
               <span className="tabular-nums text-text">
-                Usado {formatoCantidad(c.usada, c.componente.unidadBase)}
+                Usado {formatoCantidadLegible(c.usada, c.componente.unidadBase)}
                 {dif && <span className="ml-1 text-meta">({dif})</span>}
               </span>
             </li>
