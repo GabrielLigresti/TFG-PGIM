@@ -21,6 +21,18 @@ import { VerTanda } from './VerTanda';
 
 const POR_UNIDAD: Record<UnidadBase, string> = { GRAMO: 'g', MILILITRO: 'ml', UNIDAD: 'unidad' };
 
+const celdaCantidad = (m: MovimientoStockFila) => (
+  <span className={`whitespace-nowrap tabular-nums ${m.cantidad < 0 ? 'text-meta' : 'text-ink'}`}>
+    {m.cantidad < 0 ? '−' : '+'}
+    {formatoCantidadLegible(Math.abs(m.cantidad), m.componente.unidadBase)}
+  </span>
+);
+
+const textoMotivo = (m: MovimientoStockFila) =>
+  [m.motivoMerma ? ETIQUETA_MOTIVO_MERMA[m.motivoMerma] : null, m.motivo]
+    .filter(Boolean)
+    .join(' · ');
+
 // Historial de entradas y salidas de stock de la sucursal de trabajo.
 export function MovimientosTab() {
   const { sesion } = useSesion();
@@ -39,6 +51,21 @@ export function MovimientosTab() {
   if (tipo) q.set('tipo', tipo);
   if (tipo === 'MERMA' && motivoMerma) q.set('motivoMerma', motivoMerma);
   const movimientos = useRecurso<Pagina<MovimientoStockFila>>(`/stock/movimientos?${q}`);
+
+  const celdaTipo = (m: MovimientoStockFila) => (
+    <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-1 md:justify-start">
+      <Etiqueta>{ETIQUETA_TIPO_MOVIMIENTO[m.tipo]}</Etiqueta>
+      {m.tandaId && (
+        <button
+          type="button"
+          onClick={() => setTandaAbierta(m.tandaId)}
+          className="text-sm font-medium text-accent-ink underline underline-offset-2"
+        >
+          Ver la tanda
+        </button>
+      )}
+    </span>
+  );
 
   const filtrado = componenteId !== '' || tipo !== '';
   const ultimaPagina = movimientos.datos
@@ -120,6 +147,30 @@ export function MovimientosTab() {
                 }
               />
             }
+            tarjeta={(m) => {
+              const motivo = textoMotivo(m);
+              return (
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 font-semibold text-ink [overflow-wrap:anywhere]">
+                      {m.componente.nombre}
+                    </span>
+                    {celdaCantidad(m)}
+                  </div>
+                  {celdaTipo(m)}
+                  <p className="text-xs text-meta">
+                    {[
+                      formatoDiaYHora(m.fecha),
+                      m.empleado,
+                      `${formatoPesos(m.costoUnitario)} por ${POR_UNIDAD[m.componente.unidadBase]}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                  {motivo && <p className="text-sm text-text">{motivo}</p>}
+                </div>
+              );
+            }}
             columnas={[
               {
                 titulo: 'Fecha',
@@ -129,29 +180,11 @@ export function MovimientosTab() {
               { titulo: 'Componente', valor: (m) => m.componente.nombre },
               {
                 titulo: 'Tipo',
-                valor: (m) => (
-                  <span className="inline-flex flex-wrap items-center justify-end gap-x-2 gap-y-1 md:justify-start">
-                    <Etiqueta>{ETIQUETA_TIPO_MOVIMIENTO[m.tipo]}</Etiqueta>
-                    {m.tandaId && (
-                      <button
-                        type="button"
-                        onClick={() => setTandaAbierta(m.tandaId)}
-                        className="text-sm font-medium text-accent-ink underline underline-offset-2"
-                      >
-                        Ver la tanda
-                      </button>
-                    )}
-                  </span>
-                ),
+                valor: celdaTipo,
               },
               {
                 titulo: 'Cantidad',
-                valor: (m) => (
-                  <span className={m.cantidad < 0 ? 'text-meta' : 'text-ink'}>
-                    {m.cantidad < 0 ? '−' : '+'}
-                    {formatoCantidadLegible(Math.abs(m.cantidad), m.componente.unidadBase)}
-                  </span>
-                ),
+                valor: celdaCantidad,
                 className: 'whitespace-nowrap tabular-nums',
               },
               {
@@ -162,10 +195,7 @@ export function MovimientosTab() {
               },
               {
                 titulo: 'Motivo',
-                valor: (m) =>
-                  [m.motivoMerma ? ETIQUETA_MOTIVO_MERMA[m.motivoMerma] : null, m.motivo]
-                    .filter(Boolean)
-                    .join(' · ') || '—',
+                valor: (m) => textoMotivo(m) || '—',
               },
               { titulo: 'Registró', valor: (m) => m.empleado ?? '—' },
             ]}

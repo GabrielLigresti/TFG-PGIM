@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useSesion } from '../../auth/SesionProvider';
 import { EncabezadoPagina, Segmentado } from '../../components/ui';
@@ -17,6 +18,8 @@ const PESTAÑAS: { valor: Pestaña; texto: string }[] = [
 export function StockPage() {
   const { sesion } = useSesion();
   const [params, setParams] = useSearchParams();
+  // Las pestañas ponen su acción principal a la derecha de las secciones.
+  const [acciones, setAcciones] = useState<HTMLDivElement | null>(null);
   const pedida = params.get('pestaña');
   const activa = PESTAÑAS.find((p) => p.valor === pedida)?.valor ?? PESTAÑAS[0]!.valor;
 
@@ -26,8 +29,8 @@ export function StockPage() {
         titulo="Stock"
         descripcion={sesion?.sucursalActiva?.nombre ?? 'Sucursal de trabajo'}
       />
-      {PESTAÑAS.length > 1 && (
-        <div className="mb-4 max-sm:[&>div]:flex max-sm:[&>div]:w-full max-sm:[&_button]:flex-1">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="max-sm:w-full max-sm:[&>div]:flex max-sm:[&>div]:w-full max-sm:[&_button]:flex-1">
           <Segmentado<Pestaña>
             etiqueta="Secciones de stock"
             valor={activa}
@@ -35,9 +38,10 @@ export function StockPage() {
             opciones={PESTAÑAS}
           />
         </div>
-      )}
-      {activa === 'existencias' && <ExistenciasTab />}
-      {activa === 'produccion' && <ProduccionTab />}
+        <div ref={setAcciones} className="max-sm:w-full empty:hidden" />
+      </div>
+      {activa === 'existencias' && <ExistenciasTab accionesEncabezado={acciones} />}
+      {activa === 'produccion' && <ProduccionTab accionesEncabezado={acciones} />}
       {activa === 'movimientos' && <MovimientosTab />}
     </section>
   );

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { createPortal } from 'react-dom';
 import {
   UNIDADES_BASE,
   type ComponenteStock,
@@ -34,7 +35,7 @@ const COSTO_POR: Record<UnidadBase, string> = {
 const POR_UNIDAD: Record<UnidadBase, string> = { GRAMO: 'g', MILILITRO: 'ml', UNIDAD: 'unidad' };
 
 // Insumos y preparaciones con stock en la sucursal de trabajo, con el ABM del catálogo.
-export function ExistenciasTab() {
+export function ExistenciasTab({ accionesEncabezado }: { accionesEncabezado: HTMLElement | null }) {
   const { sesion, tienePermiso } = useSesion();
   // La ruta incluye la sucursal para recargar el stock al cambiarla.
   const sucursal = sesion?.sucursalActiva;
@@ -76,14 +77,16 @@ export function ExistenciasTab() {
 
   return (
     <div className="space-y-3">
-      {tienePermiso('insumo.crear') && (
-        <div className="flex justify-end">
-          <Boton onClick={() => setEditando('nuevo')}>Nuevo insumo</Boton>
-        </div>
-      )}
+      {accionesEncabezado &&
+        tienePermiso('insumo.crear') &&
+        createPortal(
+          <Boton className="max-sm:w-full" onClick={() => setEditando('nuevo')}>
+            Nuevo insumo
+          </Boton>,
+          accionesEncabezado,
+        )}
       <EstadoCarga cargando={stock.cargando && !stock.datos} error={stock.error} />
       <Aviso tono="ok">{aviso}</Aviso>
-      <Aviso>{baja.error}</Aviso>
       {stock.datos && (
         <Lista
           filas={stock.datos}
@@ -117,7 +120,7 @@ export function ExistenciasTab() {
           acciones={(c) => {
             const insumo = c.tipo === 'INSUMO' ? insumoDe(c.id) : undefined;
             return (
-              <span className="inline-flex flex-wrap justify-end gap-x-2 gap-y-2">
+              <span className="inline-flex flex-wrap justify-end gap-2">
                 {puedeRegistrar && c.activo && (
                   <>
                     {c.tipo === 'INSUMO' && (
@@ -147,11 +150,6 @@ export function ExistenciasTab() {
                     Editar
                   </Boton>
                 )}
-                {insumo && tienePermiso('insumo.eliminar') && insumo.activo && (
-                  <Boton variante="peligro" onClick={() => darDeBaja(insumo)}>
-                    Dar de baja
-                  </Boton>
-                )}
               </span>
             );
           }}
@@ -163,6 +161,12 @@ export function ExistenciasTab() {
           insumo={editando === 'nuevo' ? null : editando}
           onCerrar={() => setEditando(null)}
           onGuardado={guardado}
+          onDarDeBaja={
+            editando !== 'nuevo' && editando.activo && tienePermiso('insumo.eliminar')
+              ? () => darDeBaja(editando)
+              : undefined
+          }
+          errorBaja={baja.error}
         />
       )}
       {movimiento && (
@@ -185,10 +189,14 @@ function FormularioInsumo({
   insumo,
   onCerrar,
   onGuardado,
+  onDarDeBaja,
+  errorBaja,
 }: {
   insumo: Insumo | null;
   onCerrar(): void;
   onGuardado(): void;
+  onDarDeBaja?(): void;
+  errorBaja?: string | null;
 }) {
   const [nombre, setNombre] = useState(insumo?.nombre ?? '');
   const [unidadBase, setUnidadBase] = useState<UnidadBase>(insumo?.unidadBase ?? 'GRAMO');
@@ -247,14 +255,23 @@ function FormularioInsumo({
         </Campo>
         {insumo && <Casilla etiqueta="Insumo activo" checked={activo} onChange={setActivo} />}
 
-        <Aviso>{error}</Aviso>
-        <div className="flex justify-end gap-2">
-          <Boton variante="secundario" onClick={onCerrar}>
-            Cancelar
-          </Boton>
-          <Boton type="submit" disabled={enviando}>
-            {enviando ? 'Guardando…' : 'Guardar'}
-          </Boton>
+        <Aviso>{error ?? errorBaja}</Aviso>
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            {onDarDeBaja && (
+              <Boton variante="peligro" onClick={onDarDeBaja}>
+                Dar de baja
+              </Boton>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Boton variante="secundario" onClick={onCerrar}>
+              Cancelar
+            </Boton>
+            <Boton type="submit" disabled={enviando}>
+              {enviando ? 'Guardando…' : 'Guardar'}
+            </Boton>
+          </div>
         </div>
       </form>
     </Modal>

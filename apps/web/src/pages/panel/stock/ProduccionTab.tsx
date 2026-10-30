@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChefHat } from 'lucide-react';
 import type { ComponenteStock, Pagina, TandaResumen } from '@pgim/shared';
 import { useSesion } from '../../../auth/SesionProvider';
@@ -11,7 +12,7 @@ import { formatoRendimiento, marcaTanda } from './tanda';
 import { VerTanda } from './VerTanda';
 
 // Preparaciones que se producen por tandas: historial y registro de una nueva.
-export function ProduccionTab() {
+export function ProduccionTab({ accionesEncabezado }: { accionesEncabezado: HTMLElement | null }) {
   const { sesion, tienePermiso } = useSesion();
   const puedeRegistrar = tienePermiso('stock.registrar');
   const sucursal = sesion?.sucursalActiva?.id ?? '';
@@ -57,6 +58,15 @@ export function ProduccionTab() {
 
   return (
     <div className="space-y-3">
+      {accionesEncabezado &&
+        !sinTandas &&
+        puedeRegistrar &&
+        createPortal(
+          <Boton className="max-sm:w-full" onClick={() => setRegistrando(true)}>
+            Registrar tanda
+          </Boton>,
+          accionesEncabezado,
+        )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <select
           aria-label="Preparación"
@@ -74,7 +84,6 @@ export function ProduccionTab() {
             </option>
           ))}
         </select>
-        {!sinTandas && registrar}
       </div>
 
       <EstadoCarga cargando={tandas.cargando && !tandas.datos} error={tandas.error} />
