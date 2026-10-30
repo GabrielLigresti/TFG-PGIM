@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { ChefHat } from 'lucide-react';
-import type { ComponenteStock, Pagina, TandaDetalle, TandaResumen } from '@pgim/shared';
+import type { ComponenteStock, Pagina, TandaResumen } from '@pgim/shared';
 import { useSesion } from '../../../auth/SesionProvider';
 import { Lista } from '../../../components/Lista';
-import { Boton, EstadoCarga, Estado, Modal, Vacio, claseInput } from '../../../components/ui';
+import { Boton, EstadoCarga, Estado, Vacio, claseInput } from '../../../components/ui';
 import { formatoCantidadLegible, formatoDiaYHora, formatoPesos } from '../../../lib/formato';
 import { useRecurso } from '../../../lib/useRecurso';
-import { DetalleTanda } from './DetalleTanda';
 import { FormTanda } from './FormTanda';
 import { formatoRendimiento, marcaTanda } from './tanda';
+import { VerTanda } from './VerTanda';
 
 // Preparaciones que se producen por tandas: historial y registro de una nueva.
 export function ProduccionTab() {
@@ -25,9 +25,6 @@ export function ProduccionTab() {
   const q = new URLSearchParams({ pagina: String(pagina), sucursal });
   if (intermedioId) q.set('intermedioId', intermedioId);
   const tandas = useRecurso<Pagina<TandaResumen>>(`/stock/produccion?${q}`);
-  const detalle = useRecurso<TandaDetalle>(
-    abierta ? `/stock/produccion/${abierta}?sucursal=${sucursal}` : null,
-  );
 
   const componentes = (stock.datos ?? []).filter((c) => c.activo);
   const preparaciones = componentes.filter((c) => c.tipo === 'INTERMEDIO');
@@ -162,15 +159,12 @@ export function ProduccionTab() {
       )}
 
       {abierta && (
-        <Modal titulo="Detalle de la tanda" onCerrar={() => setAbierta(null)} ancho="max-w-2xl">
-          <EstadoCarga cargando={detalle.cargando && !detalle.datos} error={detalle.error} />
-          {detalle.datos && detalle.datos.id === abierta && (
-            <DetalleTanda
-              tanda={detalle.datos}
-              unidadBase={unidadDe(detalle.datos.intermedio.id)}
-            />
-          )}
-        </Modal>
+        <VerTanda
+          id={abierta}
+          sucursal={sucursal}
+          componentes={stock.datos ?? []}
+          onCerrar={() => setAbierta(null)}
+        />
       )}
     </div>
   );

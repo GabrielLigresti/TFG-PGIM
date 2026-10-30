@@ -23,7 +23,6 @@ import { BeneficiosPage } from './pages/panel/BeneficiosPage';
 import { ProgramaPuntosPage } from './pages/panel/ProgramaPuntosPage';
 import { AlertasPage } from './pages/panel/AlertasPage';
 import { CocinaPage } from './pages/panel/CocinaPage';
-import { InsumosPage } from './pages/panel/InsumosPage';
 import { MenusPage } from './pages/panel/MenusPage';
 import { PersonalPage } from './pages/panel/PersonalPage';
 import { PlatosPage } from './pages/panel/PlatosPage';
@@ -105,7 +104,7 @@ export default function App() {
                   />
                   <Route path="roles" element={conPermiso('rol.ver', <RolesPage />)} />
                   <Route path="personal" element={conPermiso('personal.ver', <PersonalPage />)} />
-                  <Route path="insumos" element={conPermiso('insumo.ver', <InsumosPage />)} />
+                  <Route path="insumos" element={<Navigate to="/panel/stock" replace />} />
                   <Route
                     path="stock"
                     element={conAlgunPermiso(['insumo.ver', 'stock.registrar'], <StockPage />)}

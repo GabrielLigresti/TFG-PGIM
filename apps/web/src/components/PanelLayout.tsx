@@ -11,7 +11,6 @@ import {
   LogOut,
   MapPin,
   Menu,
-  Package,
   ScrollText,
   Shield,
   Users,
@@ -85,14 +84,6 @@ export const SECCIONES: SeccionPanel[] = [
     permisos: ['insumo.ver', 'stock.registrar'],
     grupo: 'Stock',
     icono: Boxes,
-  },
-  {
-    ruta: 'insumos',
-    titulo: 'Insumos',
-    descripcion: 'Insumos, costos y stock',
-    permisos: ['insumo.ver'],
-    grupo: 'Stock',
-    icono: Package,
   },
   {
     ruta: 'alertas',

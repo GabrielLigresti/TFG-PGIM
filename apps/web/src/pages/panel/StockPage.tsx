@@ -1,13 +1,17 @@
 import { useSearchParams } from 'react-router';
 import { useSesion } from '../../auth/SesionProvider';
 import { EncabezadoPagina, Segmentado } from '../../components/ui';
+import { ExistenciasTab } from './stock/ExistenciasTab';
+import { MovimientosTab } from './stock/MovimientosTab';
 import { ProduccionTab } from './stock/ProduccionTab';
 
-type Pestaña = 'produccion';
+type Pestaña = 'existencias' | 'produccion' | 'movimientos';
 
 // La pestaña activa vive en la URL para que "Volver" y la recarga la conserven.
 const PESTAÑAS: { valor: Pestaña; texto: string }[] = [
+  { valor: 'existencias', texto: 'Existencias' },
   { valor: 'produccion', texto: 'Producción' },
+  { valor: 'movimientos', texto: 'Movimientos' },
 ];
 
 export function StockPage() {
@@ -23,7 +27,7 @@ export function StockPage() {
         descripcion={sesion?.sucursalActiva?.nombre ?? 'Sucursal de trabajo'}
       />
       {PESTAÑAS.length > 1 && (
-        <div className="mb-4">
+        <div className="mb-4 max-sm:[&>div]:flex max-sm:[&>div]:w-full max-sm:[&_button]:flex-1">
           <Segmentado<Pestaña>
             etiqueta="Secciones de stock"
             valor={activa}
@@ -32,7 +36,9 @@ export function StockPage() {
           />
         </div>
       )}
+      {activa === 'existencias' && <ExistenciasTab />}
       {activa === 'produccion' && <ProduccionTab />}
+      {activa === 'movimientos' && <MovimientosTab />}
     </section>
   );
 }
