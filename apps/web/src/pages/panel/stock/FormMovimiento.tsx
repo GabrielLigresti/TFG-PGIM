@@ -55,6 +55,7 @@ export function FormMovimiento({
   const etiquetaUnidad = ETIQUETA_UNIDAD[unidad];
   const contada = aNumero(cantidad);
   const diferencia = Number.isNaN(contada) ? null : contada * factor - componente.existencia;
+  const quedaria = Number.isNaN(contada) ? null : componente.existencia - contada * factor;
   const textoDiferencia =
     diferencia === null ? '' : formatoDiferencia(diferencia, componente.unidadBase);
 
@@ -80,11 +81,13 @@ export function FormMovimiento({
     const queda = formatoCantidadLegible(r.datos.existencia, componente.unidadBase);
     const nombre = componente.nombre;
     onRegistrado(
-      tipo === 'MERMA'
-        ? `Merma de ${nombre} registrada. Quedan ${queda}`
-        : tipo === 'INGRESO'
-          ? `Ingreso de ${nombre} registrado. Ahora hay ${queda}`
-          : `Ajuste de ${nombre} registrado. Ahora hay ${queda}`,
+      `${
+        tipo === 'MERMA'
+          ? `Merma de ${nombre} registrada. Quedan ${queda}`
+          : tipo === 'INGRESO'
+            ? `Ingreso de ${nombre} registrado. Ahora hay ${queda}`
+            : `Ajuste de ${nombre} registrado. Ahora hay ${queda}`
+      }. Si te equivocaste, corregilo con un ajuste.`,
     );
   }
 
@@ -96,6 +99,14 @@ export function FormMovimiento({
   return (
     <Modal titulo={`${TITULO[tipo]} · ${componente.nombre}`} onCerrar={onCerrar}>
       <form onSubmit={onSubmit} className="space-y-3">
+        {tipo !== 'AJUSTE' && (
+          <p className="text-sm text-meta">
+            Hay{' '}
+            <span className="font-medium tabular-nums text-text">
+              {formatoCantidadLegible(componente.existencia, componente.unidadBase)}
+            </span>
+          </p>
+        )}
         {tipo === 'AJUSTE' && (
           <p className="text-sm text-meta">
             Hay registrado{' '}
@@ -129,6 +140,19 @@ export function FormMovimiento({
             </select>
           </Campo>
         </div>
+
+        {tipo === 'MERMA' && quedaria !== null && (
+          <p
+            className={`flex items-center gap-1.5 text-sm font-medium tabular-nums ${
+              quedaria < 0 ? 'text-bad' : 'text-text'
+            }`}
+          >
+            {quedaria < 0 && <TriangleAlert aria-hidden className="size-4 shrink-0" />}
+            {quedaria < 0
+              ? `Quedaría en negativo: ${formatoCantidadLegible(quedaria, componente.unidadBase)}`
+              : `Quedarían ${formatoCantidadLegible(quedaria, componente.unidadBase)}`}
+          </p>
+        )}
 
         {tipo === 'AJUSTE' && diferencia !== null && (
           <p
