@@ -13,7 +13,12 @@ import { CARPETA_MODELOS, borrarModelo, guardarModelo } from '../src/lib/archivo
 import { prisma } from '../src/lib/prisma';
 import { hashPassword } from '../src/lib/password';
 import type { Prisma } from '../src/generated/prisma/client';
-import { costoUnitario, insumosNecesarios } from '../src/domain/receta';
+import {
+  costoTeorico,
+  costoUnitario,
+  insumosNecesarios,
+  type Componente,
+} from '../src/domain/receta';
 import { produccionService } from '../src/services/produccion.service';
 import { recetaRepository } from '../src/repositories/receta.repository';
 import { stockRepository } from '../src/repositories/stock.repository';
@@ -372,6 +377,43 @@ async function seedComponente(
   return componente.id;
 }
 
+// Costo teórico por unidad base de una receta del seed, con los costos de compra del
+// catálogo de insumos: es el costo vigente inicial de un intermedio que lleva stock.
+function costoTeoricoDeSeed(nombre: string, unidadBase: UnidadBase, receta: RecetaSeed): number {
+  const insumo = (n: string): Componente => {
+    const datos = INSUMOS.find((i) => i.nombre === n)!;
+    return {
+      id: n,
+      nombre: n,
+      tipo: 'INSUMO',
+      unidadBase: datos.unidadBase,
+      activo: true,
+      costoCompraVigente: datos.costo,
+      llevaStock: false,
+      receta: null,
+    };
+  };
+  return costoTeorico({
+    id: nombre,
+    nombre,
+    tipo: 'INTERMEDIO',
+    unidadBase,
+    activo: true,
+    costoCompraVigente: null,
+    llevaStock: true,
+    receta: {
+      rendimiento: receta.rendimiento,
+      instrucciones: receta.instrucciones,
+      lineas: receta.lineas.map(([componente, cantidad, unidad, merma = 0]) => ({
+        componente: insumo(componente),
+        cantidad,
+        unidad,
+        porcentajeMerma: merma,
+      })),
+    },
+  });
+}
+
 async function seedMenuEInventario(
   tx: Prisma.TransactionClient,
   restauranteId: string,
@@ -429,7 +471,8 @@ async function seedMenuEInventario(
     nombre: 'Salsa criolla',
     tipo: 'INTERMEDIO',
     unidadBase: 'GRAMO',
-    costoCompraVigente: null,
+    // Con stock, el intermedio nunca queda sin costo: arranca en el teórico de su receta.
+    costoCompraVigente: redondearCosto(costoTeoricoDeSeed('Salsa criolla', 'GRAMO', SALSA_CRIOLLA)),
     llevaStock: true,
   });
   componentes.set('Salsa criolla', salsaId);
@@ -678,6 +721,7 @@ async function seedProduccionDemo(
         componenteId: id('Tomate'),
         cantidad: 2000,
         costoUnitario: costo,
+        observacion: null,
       });
       await fecharUltimoMovimiento(sucursalId, id('Tomate'), haceDias(dias, 9));
     }
