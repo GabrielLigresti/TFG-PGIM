@@ -11,6 +11,7 @@ describe('calcularDesvio', () => {
     expect(d.faltanteRendimiento).toBeCloseTo(900 * (12 / 5000));
     expect(d.usoDeMas).toBeCloseTo(600 * 0.002);
     expect(d.total).toBeCloseTo(d.faltanteRendimiento + d.usoDeMas);
+    expect(d.costoTeorico).toBeCloseTo(12);
   });
 
   it('rinde más y usa menos: desvío 0, no negativo', () => {

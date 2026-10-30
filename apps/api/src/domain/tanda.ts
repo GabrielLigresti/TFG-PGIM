@@ -31,6 +31,7 @@ export function calcularDesvio({ esperada, obtenida, consumos }: DatosTanda): De
     faltanteRendimiento,
     usoDeMas,
     total: faltanteRendimiento + usoDeMas,
+    costoTeorico,
   };
 }
 

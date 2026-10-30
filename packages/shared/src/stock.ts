@@ -174,6 +174,8 @@ export interface DesvioTanda {
   faltanteRendimiento: number;
   usoDeMas: number;
   total: number;
+  // Costo de lo que la receta pedía para lo esperado; la base del 5 % que marca la tanda.
+  costoTeorico: number;
 }
 
 export interface TandaResumen {
