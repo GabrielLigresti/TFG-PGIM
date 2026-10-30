@@ -1,15 +1,17 @@
 import type { DesvioTanda, UnidadBase } from '@pgim/shared';
 import { formatoCantidadLegible } from '../../../lib/formato';
 
-// Un rendimiento menor a 95 % o una pérdida de $1 o más marca la tanda.
+// Un rendimiento menor a 95 % o una pérdida de al menos el 5 % del costo teórico marca la tanda.
 const RENDIMIENTO_MINIMO = 95;
+const PERDIDA_MINIMA = 0.05;
 
 export const rendimientoPorcentaje = (desvio: DesvioTanda) => desvio.rendimientoReal * 100;
 
-export const conPerdidaEnPesos = (desvio: DesvioTanda) => Math.round(desvio.total) >= 1;
+export const conPerdidaSignificativa = (desvio: DesvioTanda) =>
+  desvio.total > 0 && desvio.total >= desvio.costoTeorico * PERDIDA_MINIMA;
 
 export const marcaTanda = (desvio: DesvioTanda): 'EN_RANGO' | 'CON_PERDIDA' =>
-  rendimientoPorcentaje(desvio) < RENDIMIENTO_MINIMO || conPerdidaEnPesos(desvio)
+  rendimientoPorcentaje(desvio) < RENDIMIENTO_MINIMO || conPerdidaSignificativa(desvio)
     ? 'CON_PERDIDA'
     : 'EN_RANGO';
 

@@ -2,7 +2,7 @@ import type { TandaDetalle, UnidadBase } from '@pgim/shared';
 import { Estado, Kpi } from '../../../components/ui';
 import { formatoCantidadLegible, formatoHora, formatoPesos } from '../../../lib/formato';
 import {
-  conPerdidaEnPesos,
+  conPerdidaSignificativa,
   costoPorUnidad,
   formatoDiferencia,
   formatoRendimiento,
@@ -44,7 +44,7 @@ export function DetalleTanda({
           etiqueta="Pérdida"
           valor={formatoPesos(desvio.total)}
           detalle={`por rendimiento ${formatoPesos(desvio.faltanteRendimiento)} · por uso de más ${formatoPesos(desvio.usoDeMas)}`}
-          tono={conPerdidaEnPesos(desvio) ? 'warn' : 'neutro'}
+          tono={conPerdidaSignificativa(desvio) ? 'warn' : 'neutro'}
         />
         <Kpi etiqueta={costo.etiqueta} valor={formatoPesos(costo.valor)} />
       </div>
