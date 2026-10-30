@@ -5,6 +5,7 @@ import {
   ExistenciaInsuficienteError,
   stockRepository,
 } from './stock.repository';
+import { recetaRepository } from './receta.repository';
 
 afterAll(() => prisma.$disconnect());
 
@@ -233,6 +234,38 @@ describe('movimientos manuales', () => {
     expect((rechazada as PromiseRejectedResult).reason).toBeInstanceOf(ExistenciaInsuficienteError);
     expect(await existencia(e.harinaId)).toBe(400);
     expect(await prisma.movimientoStock.count({ where: { tipo: 'MERMA' } })).toBe(1);
+  });
+
+  it('apagar el stock de una preparación y un ajuste positivo en paralelo nunca dejan marca apagada con existencia', async () => {
+    for (let i = 0; i < 5; i++) {
+      await prisma.movimientoStock.deleteMany({
+        where: { existencia: { componenteId: e.masaId } },
+      });
+      await prisma.existencia.deleteMany({ where: { componenteId: e.masaId } });
+      await prisma.componenteInventario.update({
+        where: { id: e.masaId },
+        data: { llevaStock: true, costoCompraVigente: 0.5 },
+      });
+      await prisma.existencia.create({
+        data: { sucursalId: e.sucursalId, componenteId: e.masaId, cantidadActual: 0 },
+      });
+
+      await Promise.allSettled([
+        recetaRepository.desactivarLlevaStock(e.restauranteId, e.masaId),
+        stockRepository.registrarMovimiento(ctx, {
+          tipo: 'AJUSTE',
+          componenteId: e.masaId,
+          cantidadContada: 5,
+          costoUnitario: 0.5,
+          motivo: 'conteo',
+        }),
+      ]);
+
+      const masa = await prisma.componenteInventario.findUniqueOrThrow({
+        where: { id: e.masaId },
+      });
+      expect(masa.llevaStock === false && (await existencia(e.masaId)) > 0).toBe(false);
+    }
   });
 
   it('listarMovimientos de otra sucursal no devuelve nada y la propia sí', async () => {
