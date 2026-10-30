@@ -41,7 +41,13 @@ export class AjusteSinDiferenciaError extends Error {
 
 // Cantidades y costos ya en unidad base y positivos.
 export type MovimientoARegistrar =
-  | { tipo: 'INGRESO'; componenteId: string; cantidad: number; costoUnitario: number }
+  | {
+      tipo: 'INGRESO';
+      componenteId: string;
+      cantidad: number;
+      costoUnitario: number;
+      observacion: string | null;
+    }
   | {
       tipo: 'MERMA';
       componenteId: string;
@@ -166,6 +172,7 @@ export const stockRepository: StockRepository = {
           where: { id: mov.componenteId, restauranteId: ctx.restauranteId },
           data: { costoCompraVigente: mov.costoUnitario },
         });
+        datos = { motivo: mov.observacion };
       } else if (mov.tipo === 'MERMA') {
         const resta = redondear(mov.cantidad).toFixed(3);
         const filas = await tx.$queryRaw<{ cantidad: string }[]>`

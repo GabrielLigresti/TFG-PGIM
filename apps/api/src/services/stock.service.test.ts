@@ -47,7 +47,26 @@ describe('stockService.registrar', () => {
       componenteId: 'c',
       cantidad: 2000,
       costoUnitario: 3,
+      observacion: null,
     });
+  });
+
+  it('guarda la observación del ingreso', async () => {
+    const { repo, service } = servicio(base);
+
+    await service.registrar(ctx, {
+      tipo: 'INGRESO',
+      componenteId: 'c',
+      cantidad: 1,
+      unidad: 'GRAMO',
+      costoUnitario: 1,
+      observacion: 'Compra del martes',
+    });
+
+    expect(repo.registrarMovimiento).toHaveBeenCalledWith(
+      ctx,
+      expect.objectContaining({ tipo: 'INGRESO', observacion: 'Compra del martes' }),
+    );
   });
 
   it('rechaza el ingreso de un intermedio', async () => {

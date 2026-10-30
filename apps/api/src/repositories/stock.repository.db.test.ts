@@ -114,6 +114,7 @@ describe('movimientos manuales', () => {
       componenteId: nuevo.id,
       cantidad: 500,
       costoUnitario: 3,
+      observacion: 'Compra del martes',
     });
 
     expect(res.existencia).toBe(500);
@@ -126,6 +127,7 @@ describe('movimientos manuales', () => {
     expect(Number(mov.cantidad)).toBe(500);
     expect(Number(mov.costoUnitario)).toBe(3);
     expect(mov.empleadoId).toBe(empleadoId);
+    expect(mov.motivo).toBe('Compra del martes');
   });
 
   it('una merma que dejaría negativo se rechaza y no deja movimientos', async () => {

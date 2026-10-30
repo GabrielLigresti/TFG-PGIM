@@ -60,6 +60,7 @@ export function createStockService(
           cantidad: input.cantidad * factor,
           // El costo se carga por la unidad elegida: se guarda por unidad base.
           costoUnitario: redondearCosto(input.costoUnitario / factor),
+          observacion: input.observacion || null,
         };
       case 'MERMA':
         return {
