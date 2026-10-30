@@ -24,7 +24,9 @@ export function formatoRendimiento(desvio: DesvioTanda): string {
 
 // Diferencia con signo ("+600 g"); vacía si no hay diferencia.
 export function formatoDiferencia(valor: number, unidad: UnidadBase): string {
-  if (Math.abs(valor) < 0.0005) return '';
+  // Lo usado se precarga redondeado: una diferencia menor a ese redondeo no es un cambio.
+  const minimo = unidad === 'UNIDAD' ? 0.005 : 0.5;
+  if (Math.abs(valor) < minimo) return '';
   return `${valor > 0 ? '+' : '−'}${formatoCantidadLegible(Math.abs(valor), unidad)}`;
 }
 
