@@ -11,7 +11,12 @@ const id = '6f1c1b5e-1c1e-4d0e-9a53-0d6a3d5f2a10';
 
 describe('esquemas de stock', () => {
   it('rechaza una merma sin motivo', () => {
-    const r = movimientoInputSchema.safeParse({ tipo: 'MERMA', componenteId: id, cantidad: 2, unidad: 'KILOGRAMO' });
+    const r = movimientoInputSchema.safeParse({
+      tipo: 'MERMA',
+      componenteId: id,
+      cantidad: 2,
+      unidad: 'KILOGRAMO',
+    });
     expect(r.success).toBe(false);
   });
 
