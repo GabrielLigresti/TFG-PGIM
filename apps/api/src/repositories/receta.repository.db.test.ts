@@ -159,6 +159,75 @@ describe('recetaRepository: salir del stock', () => {
       });
       expect(await masa()).toMatchObject({ llevaStock: false });
     });
+    it('con el pedido cancelado no bloquea', async () => {
+      const pedido = await pedidoConMasa();
+      expect(
+        await pedidoRepository.cancelar(e.restauranteId, e.sucursalId, pedido.id, 'Prueba'),
+      ).toBe(true);
+      // Cancelar devuelve la masa a la existencia: se la deja en cero.
+      await prisma.existencia.update({
+        where: { sucursalId_componenteId: { sucursalId: e.sucursalId, componenteId: e.masaId } },
+        data: { cantidadActual: 0 },
+      });
+
+      expect(await recetaRepository.desactivarLlevaStock(e.restauranteId, e.masaId)).toEqual({
+        ok: true,
+      });
+      expect(await masa()).toMatchObject({ llevaStock: false });
+    });
+
+    it('con un pedido confirmado en otra sucursal del restaurante sí bloquea', async () => {
+      await prisma.componenteInventario.update({
+        where: { id: e.masaId },
+        data: { llevaStock: true, costoCompraVigente: 0.5 },
+      });
+      const mesa = await prisma.mesa.create({
+        data: { sucursalId: palermoId, numero: 1, capacidad: 4, posX: 10, posY: 10 },
+      });
+      const inicio = new Date();
+      inicio.setUTCMinutes(0, 0, 0);
+      const reserva = await prisma.reserva.create({
+        data: {
+          sucursalId: palermoId,
+          mesaId: mesa.id,
+          comensalId: e.comensalId,
+          inicio,
+          cantidadPersonas: 2,
+          modoAsignacion: 'MANUAL',
+          estado: 'ACTIVA',
+          cuentaMesa: { create: {} },
+        },
+        include: { cuentaMesa: true },
+      });
+      await prisma.existencia.createMany({
+        data: [
+          { sucursalId: palermoId, componenteId: e.masaId, cantidadActual: 100 },
+          { sucursalId: palermoId, componenteId: e.quesoId, cantidadActual: 100 },
+        ],
+      });
+      const cuenta = (await pedidoRepository.buscarCuentaDelComensal(
+        e.comensalId,
+        reserva.cuentaMesa!.id,
+      ))!;
+      await pedidoRepository.confirmar(cuenta, [
+        {
+          itemMenuId: e.pizzaId,
+          cantidad: 1,
+          precioUnitario: 1000,
+          observaciones: null,
+          insumos: new Map([
+            [e.masaId, 100],
+            [e.quesoId, 50],
+          ]),
+        },
+      ]);
+
+      expect(await recetaRepository.desactivarLlevaStock(e.restauranteId, e.masaId)).toEqual({
+        ok: false,
+        motivo: 'PEDIDOS_CONFIRMADOS',
+      });
+      expect(await masa()).toMatchObject({ llevaStock: true });
+    });
   });
 
   it('no mira otros restaurantes', async () => {
