@@ -265,7 +265,8 @@ export function createRecetaService(repo: RecetaRepository) {
             `Cargá la receta de ${intermedio.nombre} antes de activar el stock`,
           );
         }
-        await repo.activarLlevaStock(restauranteId, id, costoTeorico(intermedio));
+        const activado = await repo.activarLlevaStock(restauranteId, id, costoTeorico(intermedio));
+        if (!activado) throw new AppError(409, 'El producto intermedio está dado de baja');
         return;
       }
       const resultado = await repo.desactivarLlevaStock(restauranteId, id);

@@ -86,6 +86,26 @@ describe('recetaRepository: salir del stock', () => {
     expect(await salsa()).toMatchObject({ activo: false });
   });
 
+  it('activarLlevaStock no activa un intermedio dado de baja', async () => {
+    await prisma.componenteInventario.update({
+      where: { id: salsaId },
+      data: { llevaStock: false, activo: false },
+    });
+
+    expect(await recetaRepository.activarLlevaStock(e.restauranteId, salsaId, 3)).toBe(false);
+    expect(await salsa()).toMatchObject({ llevaStock: false, activo: false });
+  });
+
+  it('activarLlevaStock activa un intermedio activo', async () => {
+    await prisma.componenteInventario.update({
+      where: { id: salsaId },
+      data: { llevaStock: false },
+    });
+
+    expect(await recetaRepository.activarLlevaStock(e.restauranteId, salsaId, 4)).toBe(true);
+    expect(await salsa()).toMatchObject({ llevaStock: true });
+  });
+
   describe('con un pedido que descontó la masa', () => {
     const masa = () => prisma.componenteInventario.findUniqueOrThrow({ where: { id: e.masaId } });
 

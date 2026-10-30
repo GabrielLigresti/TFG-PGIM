@@ -61,7 +61,7 @@ function repoFalso(conReceta: boolean): jest.Mocked<RecetaRepository> {
     desactivarIntermedio: jest.fn().mockResolvedValue({ ok: true }),
     existeNombre: jest.fn().mockResolvedValue(false),
     usosDeComponente: jest.fn().mockResolvedValue([]),
-    activarLlevaStock: jest.fn(),
+    activarLlevaStock: jest.fn().mockResolvedValue(true),
     desactivarLlevaStock: jest.fn().mockResolvedValue({ ok: true }),
   };
 }
@@ -185,6 +185,16 @@ describe('recetaService', () => {
         status: 409,
       });
       expect(repo.activarLlevaStock).not.toHaveBeenCalled();
+    });
+
+    it('si lo dieron de baja mientras tanto, activar responde 409', async () => {
+      const { repo, service } = conSalsa();
+      repo.activarLlevaStock.mockResolvedValue(false);
+
+      await expect(service.cambiarLlevaStock(R, SALSA, true)).rejects.toMatchObject({
+        status: 409,
+        message: 'El producto intermedio está dado de baja',
+      });
     });
 
     it('al activar guarda el costo teórico de la receta como costo vigente', async () => {

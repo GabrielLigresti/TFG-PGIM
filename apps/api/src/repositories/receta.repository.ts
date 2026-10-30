@@ -53,7 +53,8 @@ export interface RecetaRepository {
   desactivarIntermedio(restauranteId: string, id: string): Promise<ResultadoSalidaDeStock>;
   existeNombre(restauranteId: string, nombre: string): Promise<boolean>;
   usosDeComponente(restauranteId: string, id: string): Promise<string[]>;
-  activarLlevaStock(restauranteId: string, id: string, costoVigente: number): Promise<void>;
+  // false si no hay un intermedio activo con ese id (por ejemplo, lo dieron de baja en el medio).
+  activarLlevaStock(restauranteId: string, id: string, costoVigente: number): Promise<boolean>;
   // Con las sucursales bloqueadas, si hay pedidos confirmados que descontaron el intermedio
   // o existencia mayor a 0 devuelve el motivo (sin escribir); si no, apaga la marca y
   // limpia el costo vigente.
@@ -292,10 +293,11 @@ export const recetaRepository: RecetaRepository = {
   desactivarIntermedio: (restauranteId, id) => sinExistencias(restauranteId, id, { activo: false }),
 
   async activarLlevaStock(restauranteId, id, costoVigente) {
-    await prisma.componenteInventario.update({
-      where: { id, restauranteId, tipo: 'INTERMEDIO' },
+    const { count } = await prisma.componenteInventario.updateMany({
+      where: { id, restauranteId, tipo: 'INTERMEDIO', activo: true },
       data: { llevaStock: true, costoCompraVigente: costoVigente },
     });
+    return count > 0;
   },
 
   desactivarLlevaStock: (restauranteId, id) =>
