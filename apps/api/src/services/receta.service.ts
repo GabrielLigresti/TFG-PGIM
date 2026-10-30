@@ -12,6 +12,7 @@ import {
   RecetaInvalidaError,
   cantidadBruta,
   costoLinea,
+  costoTeorico,
   costoTotal,
   costoUnitario,
   type Componente,
@@ -23,6 +24,7 @@ import {
   recetaRepository,
   type Catalogo,
   type RecetaRepository,
+  type ResultadoSalidaDeStock,
 } from '../repositories/receta.repository';
 
 function detalle(dueno: RecetaDetalle['dueno'], receta: Receta | null): RecetaDetalle {
@@ -74,6 +76,25 @@ function verificarPermiso(permisos: readonly CodigoPermiso[], existe: boolean) {
   }
 }
 
+const nombresDe = (filas: { sucursal: string }[]) => filas.map((f) => f.sucursal).join(', ');
+
+function errorDeSalida(
+  nombre: string,
+  resultado: Exclude<ResultadoSalidaDeStock, { ok: true }>,
+  accion: string,
+) {
+  if (resultado.motivo === 'PEDIDOS_CONFIRMADOS') {
+    return new AppError(
+      409,
+      `Hay pedidos confirmados con ${nombre}: esperá a que se preparen o se cancelen`,
+    );
+  }
+  return new AppError(
+    409,
+    `Ajustá a cero el stock de ${nombre} en ${nombresDe(resultado.sucursales)} antes de ${accion}`,
+  );
+}
+
 export function createRecetaService(repo: RecetaRepository) {
   async function obtenerIntermedio(restauranteId: string, id: string) {
     const catalogo = await repo.cargarCatalogo(restauranteId);
@@ -95,6 +116,7 @@ export function createRecetaService(repo: RecetaRepository) {
     id: c.id,
     nombre: c.nombre,
     unidadBase: c.unidadBase,
+    llevaStock: c.llevaStock,
   });
 
   const service = {
@@ -124,6 +146,7 @@ export function createRecetaService(repo: RecetaRepository) {
             activo: c.activo,
             tieneReceta: c.receta !== null,
             costoUnitario: costoUnitario(c),
+            llevaStock: c.llevaStock,
           })),
       };
     },
@@ -146,7 +169,7 @@ export function createRecetaService(repo: RecetaRepository) {
       const plato = await obtenerPlato(restauranteId, itemId);
       const catalogo = plato.receta ? await repo.cargarCatalogo(restauranteId) : new Map();
       return detalle(
-        { tipo: 'PLATO', id: plato.id, nombre: plato.nombre, unidadBase: null },
+        { tipo: 'PLATO', id: plato.id, nombre: plato.nombre, unidadBase: null, llevaStock: false },
         plato.receta && armarReceta(plato.receta, catalogo),
       );
     },
@@ -200,7 +223,8 @@ export function createRecetaService(repo: RecetaRepository) {
         tipo: 'INTERMEDIO',
         unidadBase: datos.unidadBase,
         activo: true,
-        costoCompra: null,
+        costoCompraVigente: null,
+        llevaStock: false,
         receta: null,
       };
       const receta = construir(RecetaBuilder.paraIntermedio(nuevo), datos.receta, catalogo);
@@ -223,7 +247,32 @@ export function createRecetaService(repo: RecetaRepository) {
           `${intermedio.nombre} se usa en las recetas de ${usos.join(', ')}: sacalo de esas recetas antes de darlo de baja`,
         );
       }
-      await repo.desactivarIntermedio(restauranteId, id);
+      const resultado = await repo.desactivarIntermedio(restauranteId, id);
+      if (!resultado.ok) {
+        throw errorDeSalida(intermedio.nombre, resultado, 'darlo de baja');
+      }
+    },
+
+    // Los pedidos en curso no bloquean el cambio: cancelar revierte los movimientos guardados.
+    async cambiarLlevaStock(restauranteId: string, id: string, llevaStock: boolean) {
+      const { intermedio } = await obtenerIntermedio(restauranteId, id);
+      if (intermedio.llevaStock === llevaStock) return;
+      if (llevaStock) {
+        if (!intermedio.activo) throw new AppError(409, 'El producto intermedio está dado de baja');
+        if (!intermedio.receta) {
+          throw new AppError(
+            409,
+            `Cargá la receta de ${intermedio.nombre} antes de activar el stock`,
+          );
+        }
+        const activado = await repo.activarLlevaStock(restauranteId, id, costoTeorico(intermedio));
+        if (!activado) throw new AppError(409, 'El producto intermedio está dado de baja');
+        return;
+      }
+      const resultado = await repo.desactivarLlevaStock(restauranteId, id);
+      if (!resultado.ok) {
+        throw errorDeSalida(intermedio.nombre, resultado, 'desactivarlo');
+      }
     },
   };
   return service;

@@ -62,6 +62,10 @@ export const ESTADOS = {
     TERMINADO: { etiqueta: 'Terminado', tono: 'neutro', icono: Clock },
     BAJA: { etiqueta: 'Dado de baja', tono: 'neutro', icono: Ban },
   } satisfies Record<EstadoBeneficio, InfoEstado>,
+  tanda: {
+    EN_RANGO: { etiqueta: 'En rango', tono: 'ok', icono: Check },
+    CON_PERDIDA: { etiqueta: 'Con pérdida', tono: 'warn', icono: TriangleAlert },
+  } satisfies Record<'EN_RANGO' | 'CON_PERDIDA', InfoEstado>,
   verificacion: {
     OK: { etiqueta: 'OK', tono: 'ok', icono: Check },
     EN_RIESGO: { etiqueta: 'En riesgo', tono: 'warn', icono: TriangleAlert },

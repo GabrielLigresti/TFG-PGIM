@@ -13,6 +13,15 @@ import { CARPETA_MODELOS, borrarModelo, guardarModelo } from '../src/lib/archivo
 import { prisma } from '../src/lib/prisma';
 import { hashPassword } from '../src/lib/password';
 import type { Prisma } from '../src/generated/prisma/client';
+import {
+  costoTeorico,
+  costoUnitario,
+  insumosNecesarios,
+  type Componente,
+} from '../src/domain/receta';
+import { produccionService } from '../src/services/produccion.service';
+import { recetaRepository } from '../src/repositories/receta.repository';
+import { stockRepository } from '../src/repositories/stock.repository';
 import type { UnidadBase, UnidadMedida } from '@pgim/shared';
 
 const PASSWORD_DEMO = 'demo1234';
@@ -163,6 +172,19 @@ const SALSA_CRIOLLA: RecetaSeed = {
   ],
 };
 
+// Intermedio sin stock: se explota hasta sus insumos en cada pedido.
+const CHIMICHURRI: RecetaSeed = {
+  rendimiento: 300,
+  instrucciones: 'Picar todo fino y dejar reposar en el aceite y el vinagre.',
+  lineas: [
+    ['Aceite de oliva', 100, 'MILILITRO'],
+    ['Vinagre', 50, 'MILILITRO'],
+    ['Cebolla', 100, 'GRAMO', 10],
+    ['Morrón', 50, 'GRAMO', 15],
+    ['Sal', 5, 'GRAMO'],
+  ],
+};
+
 // Las fotos están en apps/web/public/fotos-demo (licencias en su LICENCIA.md).
 // "Milanesa con puré" queda sin receta a propósito: es un principal y la
 // categoría la exige, así que la pantalla de platos lo marca.
@@ -188,6 +210,7 @@ const PLATOS: {
       lineas: [
         ['Queso provolone', 200, 'GRAMO'],
         ['Aceite de oliva', 10, 'MILILITRO'],
+        ['Chimichurri', 20, 'GRAMO'],
       ],
     },
   },
@@ -335,25 +358,66 @@ async function seedComponente(
     nombre: string;
     tipo: 'INSUMO' | 'INTERMEDIO';
     unidadBase: UnidadBase;
-    costoCompra: number | null;
+    costoCompraVigente: number | null;
+    llevaStock?: boolean;
   },
 ): Promise<string> {
   const existente = await tx.componenteInventario.findFirst({
     where: { restauranteId, nombre: datos.nombre },
   });
+  // El costo vigente lo mueven los ingresos y las tandas: al volver a correr
+  // el seed no se pisa.
+  const { costoCompraVigente: _costo, ...sinCosto } = datos;
   const componente = existente
     ? await tx.componenteInventario.update({
         where: { id: existente.id },
-        data: { ...datos, activo: true },
+        data: { ...sinCosto, activo: true },
       })
     : await tx.componenteInventario.create({ data: { restauranteId, ...datos } });
   return componente.id;
 }
 
+// Costo teórico por unidad base de una receta del seed, con los costos de compra del
+// catálogo de insumos: es el costo vigente inicial de un intermedio que lleva stock.
+function costoTeoricoDeSeed(nombre: string, unidadBase: UnidadBase, receta: RecetaSeed): number {
+  const insumo = (n: string): Componente => {
+    const datos = INSUMOS.find((i) => i.nombre === n)!;
+    return {
+      id: n,
+      nombre: n,
+      tipo: 'INSUMO',
+      unidadBase: datos.unidadBase,
+      activo: true,
+      costoCompraVigente: datos.costo,
+      llevaStock: false,
+      receta: null,
+    };
+  };
+  return costoTeorico({
+    id: nombre,
+    nombre,
+    tipo: 'INTERMEDIO',
+    unidadBase,
+    activo: true,
+    costoCompraVigente: null,
+    llevaStock: true,
+    receta: {
+      rendimiento: receta.rendimiento,
+      instrucciones: receta.instrucciones,
+      lineas: receta.lineas.map(([componente, cantidad, unidad, merma = 0]) => ({
+        componente: insumo(componente),
+        cantidad,
+        unidad,
+        porcentajeMerma: merma,
+      })),
+    },
+  });
+}
+
 async function seedMenuEInventario(
   tx: Prisma.TransactionClient,
   restauranteId: string,
-  centroId: string,
+  sucursalIds: string[],
   adminId: string,
 ): Promise<string[]> {
   const categoriaIds = new Map<NombreCategoria, string>();
@@ -372,19 +436,21 @@ async function seedMenuEInventario(
       nombre: insumo.nombre,
       tipo: 'INSUMO',
       unidadBase: insumo.unidadBase,
-      costoCompra: insumo.costo,
+      costoCompraVigente: insumo.costo,
     });
     componentes.set(insumo.nombre, id);
 
     // El stock es la suma de los movimientos: la existencia nace con un
-    // INGRESO. Solo se crea una vez, así que volver a correr el seed no duplica.
-    const existencia = await tx.existencia.findUnique({
-      where: { sucursalId_componenteId: { sucursalId: centroId, componenteId: id } },
-    });
-    if (!existencia) {
+    // INGRESO. Solo se crea una vez por sucursal, así que volver a correr el
+    // seed no duplica.
+    for (const sucursalId of sucursalIds) {
+      const existencia = await tx.existencia.findUnique({
+        where: { sucursalId_componenteId: { sucursalId, componenteId: id } },
+      });
+      if (existencia) continue;
       await tx.existencia.create({
         data: {
-          sucursalId: centroId,
+          sucursalId,
           componenteId: id,
           cantidadActual: insumo.stock,
           movimientos: {
@@ -405,10 +471,21 @@ async function seedMenuEInventario(
     nombre: 'Salsa criolla',
     tipo: 'INTERMEDIO',
     unidadBase: 'GRAMO',
-    costoCompra: null,
+    // Con stock, el intermedio nunca queda sin costo: arranca en el teórico de su receta.
+    costoCompraVigente: redondearCosto(costoTeoricoDeSeed('Salsa criolla', 'GRAMO', SALSA_CRIOLLA)),
+    llevaStock: true,
   });
   componentes.set('Salsa criolla', salsaId);
   await seedReceta(tx, { productoIntermedioId: salsaId }, SALSA_CRIOLLA, componentes);
+
+  const chimichurriId = await seedComponente(tx, restauranteId, {
+    nombre: 'Chimichurri',
+    tipo: 'INTERMEDIO',
+    unidadBase: 'GRAMO',
+    costoCompraVigente: null,
+  });
+  componentes.set('Chimichurri', chimichurriId);
+  await seedReceta(tx, { productoIntermedioId: chimichurriId }, CHIMICHURRI, componentes);
 
   const platoIds: string[] = [];
   for (const plato of PLATOS) {
@@ -581,10 +658,147 @@ async function seedModelosRa(restauranteId: string): Promise<void> {
   }
 }
 
+// Tandas, ingresos, mermas y un conteo de la demo, con fechas de los últimos 7
+// días. Va fuera de la transacción del seed porque usa el servicio y el
+// repositorio reales (cada uno abre la suya), y las filas que necesita ya
+// están confirmadas. Si la salsa ya tiene tandas en la sucursal, no se vuelve
+// a cargar nada.
+const COCINA_DE: Record<NombreSucursal, string> = {
+  Centro: 'cocina@demo.pgim.test',
+  Palermo: 'cocinero@demo.pgim.test',
+};
+
+const redondearCosto = (valor: number) => Math.round(valor * 10000) / 10000;
+const haceDias = (dias: number, hora = 11) => {
+  const f = new Date();
+  f.setDate(f.getDate() - dias);
+  f.setHours(hora, 0, 0, 0);
+  return f;
+};
+
+async function seedProduccionDemo(
+  restauranteId: string,
+  sucursalIds: Map<NombreSucursal, string>,
+): Promise<void> {
+  const filas = await prisma.componenteInventario.findMany({
+    where: {
+      restauranteId,
+      nombre: { in: ['Salsa criolla', 'Tomate', 'Papa', 'Huevo', 'Cebolla'] },
+    },
+    select: { id: true, nombre: true },
+  });
+  const id = (nombre: string) => filas.find((f) => f.nombre === nombre)!.id;
+  const salsaId = id('Salsa criolla');
+
+  // El repositorio estampa la hora actual: se corrige con la fecha de la demo.
+  const fecharUltimoMovimiento = async (sucursalId: string, componenteId: string, fecha: Date) => {
+    const mov = await prisma.movimientoStock.findFirstOrThrow({
+      where: { existencia: { sucursalId, componenteId } },
+      orderBy: { id: 'desc' },
+      select: { id: true },
+    });
+    await prisma.movimientoStock.update({ where: { id: mov.id }, data: { fecha } });
+  };
+
+  for (const [nombreSucursal, sucursalId] of sucursalIds) {
+    const yaCargada = await prisma.tandaProduccion.count({
+      where: { sucursalId, intermedioId: salsaId },
+    });
+    if (yaCargada > 0) continue;
+
+    const empleado = await prisma.usuario.findUniqueOrThrow({
+      where: { email: COCINA_DE[nombreSucursal] },
+    });
+    const ctx = { restauranteId, sucursalId, empleadoId: empleado.id };
+
+    // Dos compras de tomate a precio creciente: la segunda deja el costo vigente.
+    for (const [dias, costo] of [
+      [6, 2.7],
+      [2, 3.1],
+    ] as const) {
+      await stockRepository.registrarMovimiento(ctx, {
+        tipo: 'INGRESO',
+        componenteId: id('Tomate'),
+        cantidad: 2000,
+        costoUnitario: costo,
+        observacion: null,
+      });
+      await fecharUltimoMovimiento(sucursalId, id('Tomate'), haceDias(dias, 9));
+    }
+
+    // Tres tandas de 2 kg: dos normales y una que rinde menos con 10 % más de tomate.
+    const tandas = [
+      { dias: 6, obtenida: 1980, extraTomate: 1, observacion: undefined },
+      { dias: 4, obtenida: 2000, extraTomate: 1, observacion: undefined },
+      { dias: 2, obtenida: 1640, extraTomate: 1.1, observacion: 'Se pasó de cocción' },
+    ];
+    for (const t of tandas) {
+      const catalogo = await recetaRepository.cargarCatalogo(restauranteId);
+      const salsa = catalogo.get(salsaId)!;
+      const teoricas = insumosNecesarios(salsa.receta!, 2000);
+      const tanda = await produccionService.registrar(ctx, {
+        intermedioId: salsaId,
+        cantidadPlaneada: 2000,
+        unidad: 'GRAMO',
+        cantidadObtenida: t.obtenida,
+        consumos: [...teoricas].map(([componenteId, teorica]) => ({
+          componenteId,
+          cantidad: teorica * (componenteId === id('Tomate') ? t.extraTomate : 1),
+          // Los consumos van en la unidad base de cada componente.
+          unidad: catalogo.get(componenteId)!.unidadBase,
+        })),
+        observacion: t.observacion,
+      });
+      await prisma.tandaProduccion.update({
+        where: { id: tanda.id },
+        data: { fecha: haceDias(t.dias) },
+      });
+      await prisma.movimientoStock.updateMany({
+        where: { tandaId: tanda.id },
+        data: { fecha: haceDias(t.dias) },
+      });
+    }
+
+    // Mermas con motivos distintos; el costo es el vigente de cada componente.
+    const catalogo = await recetaRepository.cargarCatalogo(restauranteId);
+    const costoDe = (nombre: string) => redondearCosto(costoUnitario(catalogo.get(id(nombre))!));
+    const mermas = [
+      { nombre: 'Salsa criolla', cantidad: 150, motivoMerma: 'VENCIMIENTO', dias: 1 },
+      { nombre: 'Papa', cantidad: 800, motivoMerma: 'DETERIORO', dias: 3 },
+      { nombre: 'Huevo', cantidad: 6, motivoMerma: 'ERROR', dias: 5 },
+      { nombre: 'Tomate', cantidad: 300, motivoMerma: 'PREPARACION', dias: 4 },
+    ] as const;
+    for (const m of mermas) {
+      await stockRepository.registrarMovimiento(ctx, {
+        tipo: 'MERMA',
+        componenteId: id(m.nombre),
+        cantidad: m.cantidad,
+        costoUnitario: costoDe(m.nombre),
+        motivoMerma: m.motivoMerma,
+        observacion: null,
+      });
+      await fecharUltimoMovimiento(sucursalId, id(m.nombre), haceDias(m.dias, 17));
+    }
+
+    // Conteo de cebolla 250 g por debajo de lo que dice el sistema.
+    const cebolla = await prisma.existencia.findUniqueOrThrow({
+      where: { sucursalId_componenteId: { sucursalId, componenteId: id('Cebolla') } },
+    });
+    await stockRepository.registrarMovimiento(ctx, {
+      tipo: 'AJUSTE',
+      componenteId: id('Cebolla'),
+      cantidadContada: Number(cebolla.cantidadActual) - 250,
+      costoUnitario: costoDe('Cebolla'),
+      motivo: 'Conteo de cierre',
+    });
+    await fecharUltimoMovimiento(sucursalId, id('Cebolla'), haceDias(1, 23));
+  }
+}
+
 async function main(): Promise<void> {
   const passwordHash = await hashPassword(PASSWORD_DEMO);
 
-  const restauranteId = await prisma.$transaction(async (tx) => {
+  const { restauranteId, sucursalIds } = await prisma.$transaction(async (tx) => {
     const permisoIds = await seedPermisos(tx);
 
     const restaurante = await tx.restaurante.upsert({
@@ -657,7 +871,7 @@ async function main(): Promise<void> {
     const platoIds = await seedMenuEInventario(
       tx,
       restaurante.id,
-      sucursalIds.get('Centro')!,
+      [...sucursalIds.values()],
       admin.id,
     );
     const cartaId = await seedMenus(tx, restaurante.id, platoIds);
@@ -679,11 +893,12 @@ async function main(): Promise<void> {
         create: { usuarioId: comensal.id, nombre },
       });
     }
-    return restaurante.id;
+    return { restauranteId: restaurante.id, sucursalIds };
   });
   await seedModelosRa(restauranteId);
+  await seedProduccionDemo(restauranteId, sucursalIds);
 
-  const [permisos, roles, sucursales, usuarios, componentes, platos, movimientos] =
+  const [permisos, roles, sucursales, usuarios, componentes, platos, movimientos, tandas] =
     await Promise.all([
       prisma.permiso.count(),
       prisma.rol.count(),
@@ -692,10 +907,11 @@ async function main(): Promise<void> {
       prisma.componenteInventario.count(),
       prisma.itemMenu.count(),
       prisma.movimientoStock.count(),
+      prisma.tandaProduccion.count(),
     ]);
   console.log(
     `Seed listo: ${permisos} permisos, ${roles} roles, ${sucursales} sucursales, ${usuarios} usuarios, ` +
-      `${componentes} componentes, ${platos} platos, ${movimientos} movimientos (contraseña: ${PASSWORD_DEMO}).`,
+      `${componentes} componentes, ${platos} platos, ${movimientos} movimientos, ${tandas} tandas (contraseña: ${PASSWORD_DEMO}).`,
   );
 }
 

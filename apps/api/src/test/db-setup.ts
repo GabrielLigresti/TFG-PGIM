@@ -10,6 +10,7 @@ export interface Escenario {
   cuentaMesaId: string;
   harinaId: string;
   quesoId: string;
+  masaId: string;
   pizzaId: string;
   aguaId: string;
   menuId: string;
@@ -72,7 +73,13 @@ export async function crearEscenario(): Promise<Escenario> {
   });
 
   const harina = await prisma.componenteInventario.create({
-    data: { restauranteId, tipo: 'INSUMO', nombre: 'Harina', unidadBase: 'GRAMO', costoCompra: 2 },
+    data: {
+      restauranteId,
+      tipo: 'INSUMO',
+      nombre: 'Harina',
+      unidadBase: 'GRAMO',
+      costoCompraVigente: 2,
+    },
   });
   const queso = await prisma.componenteInventario.create({
     data: { restauranteId, tipo: 'INSUMO', nombre: 'Queso', unidadBase: 'GRAMO' },
@@ -142,6 +149,7 @@ export async function crearEscenario(): Promise<Escenario> {
     cuentaMesaId: reserva.cuentaMesa!.id,
     harinaId: harina.id,
     quesoId: queso.id,
+    masaId: masa.id,
     pizzaId: pizza.id,
     aguaId: agua.id,
     menuId: menu.id,

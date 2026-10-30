@@ -8,12 +8,12 @@ const sal: Insumo = {
   id: 'sal',
   nombre: 'Sal',
   unidadBase: 'GRAMO',
-  costoCompra: 0.001,
+  costoCompraVigente: 0.001,
   activo: true,
   stock: 0,
 };
 
-const datos: InsumoInput = { nombre: 'Sal', unidadBase: 'GRAMO', costoCompra: 0.001 };
+const datos: InsumoInput = { nombre: 'Sal', unidadBase: 'GRAMO', costoCompraVigente: 0.001 };
 
 function repoFalso(usos: string[] = [], reventa: string[] = []): jest.Mocked<InsumoRepository> {
   return {
@@ -78,7 +78,7 @@ describe('insumoService', () => {
   it('edita el costo de un insumo en uso', async () => {
     const repo = repoFalso(['Provoleta']);
 
-    await createInsumoService(repo).actualizar(R, 'sal', { ...datos, costoCompra: 0.002 });
+    await createInsumoService(repo).actualizar(R, 'sal', { ...datos, costoCompraVigente: 0.002 });
 
     expect(repo.actualizar).toHaveBeenCalled();
   });

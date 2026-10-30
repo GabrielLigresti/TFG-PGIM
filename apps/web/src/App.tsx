@@ -23,7 +23,6 @@ import { BeneficiosPage } from './pages/panel/BeneficiosPage';
 import { ProgramaPuntosPage } from './pages/panel/ProgramaPuntosPage';
 import { AlertasPage } from './pages/panel/AlertasPage';
 import { CocinaPage } from './pages/panel/CocinaPage';
-import { InsumosPage } from './pages/panel/InsumosPage';
 import { MenusPage } from './pages/panel/MenusPage';
 import { PersonalPage } from './pages/panel/PersonalPage';
 import { PlatosPage } from './pages/panel/PlatosPage';
@@ -32,12 +31,22 @@ import { RecetasPage } from './pages/panel/RecetasPage';
 import { ReservasPage } from './pages/panel/ReservasPage';
 import { RolesPage } from './pages/panel/RolesPage';
 import { SalonPage } from './pages/panel/SalonPage';
+import { StockPage } from './pages/panel/StockPage';
 import { SucursalesPage } from './pages/panel/SucursalesPage';
 
 // Las pantallas del panel piden el permiso de lectura de su módulo.
 function conPermiso(permiso: CodigoPermiso, pagina: ReactNode) {
   return (
     <RutaProtegida tipo="EMPLEADO" requiereSucursal permiso={permiso}>
+      {pagina}
+    </RutaProtegida>
+  );
+}
+
+// Igual, pero alcanza con tener uno de los permisos.
+function conAlgunPermiso(permisos: CodigoPermiso[], pagina: ReactNode) {
+  return (
+    <RutaProtegida tipo="EMPLEADO" requiereSucursal permiso={permisos}>
       {pagina}
     </RutaProtegida>
   );
@@ -95,7 +104,11 @@ export default function App() {
                   />
                   <Route path="roles" element={conPermiso('rol.ver', <RolesPage />)} />
                   <Route path="personal" element={conPermiso('personal.ver', <PersonalPage />)} />
-                  <Route path="insumos" element={conPermiso('insumo.ver', <InsumosPage />)} />
+                  <Route path="insumos" element={<Navigate to="/panel/stock" replace />} />
+                  <Route
+                    path="stock"
+                    element={conAlgunPermiso(['insumo.ver', 'stock.registrar'], <StockPage />)}
+                  />
                   <Route path="recetas" element={conPermiso('receta.ver', <RecetasPage />)} />
                   <Route
                     path="recetas/:tipo/:id"

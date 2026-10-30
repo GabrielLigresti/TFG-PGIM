@@ -1,0 +1,218 @@
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ChefHat, ChevronRight } from 'lucide-react';
+import type { ComponenteStock, Pagina, TandaResumen } from '@pgim/shared';
+import { useSesion } from '../../../auth/SesionProvider';
+import { Lista } from '../../../components/Lista';
+import { Boton, EstadoCarga, Estado, Vacio, claseInput } from '../../../components/ui';
+import { formatoCantidadLegible, formatoDiaYHora, formatoPesos } from '../../../lib/formato';
+import { useRecurso } from '../../../lib/useRecurso';
+import { FormTanda } from './FormTanda';
+import { formatoRendimiento, marcaTanda } from './tanda';
+import { VerTanda } from './VerTanda';
+
+// Preparaciones que se producen por tandas: historial y registro de una nueva.
+export function ProduccionTab({ accionesEncabezado }: { accionesEncabezado: HTMLElement | null }) {
+  const { sesion, tienePermiso } = useSesion();
+  const puedeRegistrar = tienePermiso('stock.registrar');
+  const sucursal = sesion?.sucursalActiva?.id ?? '';
+
+  const [registrando, setRegistrando] = useState(false);
+  const [intermedioId, setIntermedioId] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const [abierta, setAbierta] = useState<string | null>(null);
+
+  const stock = useRecurso<ComponenteStock[]>(`/stock?sucursal=${sucursal}`);
+  const q = new URLSearchParams({ pagina: String(pagina), sucursal });
+  if (intermedioId) q.set('intermedioId', intermedioId);
+  const tandas = useRecurso<Pagina<TandaResumen>>(`/stock/produccion?${q}`);
+
+  const componentes = (stock.datos ?? []).filter((c) => c.activo);
+  const preparaciones = componentes.filter((c) => c.tipo === 'INTERMEDIO');
+  const unidadDe = (id: string) => stock.datos?.find((c) => c.id === id)?.unidadBase;
+
+  if (registrando) {
+    return (
+      <FormTanda
+        preparaciones={preparaciones}
+        componentes={componentes}
+        onVolver={() => setRegistrando(false)}
+        onRegistrada={() => {
+          stock.recargar();
+          tandas.recargar();
+        }}
+      />
+    );
+  }
+
+  const registrar = puedeRegistrar && (
+    <Boton onClick={() => setRegistrando(true)}>Registrar tanda</Boton>
+  );
+  const filtrada = intermedioId !== '';
+  const nombreFiltro = preparaciones.find((x) => x.id === intermedioId)?.nombre;
+  // Con la lista vacía y sin filtro, el único botón principal es el del aviso vacío.
+  const sinTandas = !filtrada && tandas.datos?.total === 0;
+  const ultimaPagina = tandas.datos
+    ? Math.max(1, Math.ceil(tandas.datos.total / tandas.datos.porPagina))
+    : 1;
+
+  return (
+    <div className="space-y-3">
+      {accionesEncabezado &&
+        !sinTandas &&
+        puedeRegistrar &&
+        createPortal(
+          <Boton className="max-sm:w-full" onClick={() => setRegistrando(true)}>
+            Registrar tanda
+          </Boton>,
+          accionesEncabezado,
+        )}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <select
+          aria-label="Preparación"
+          value={intermedioId}
+          onChange={(e) => {
+            setIntermedioId(e.target.value);
+            setPagina(1);
+          }}
+          className={`${claseInput} sm:w-64`}
+        >
+          <option value="">Todas las preparaciones</option>
+          {preparaciones.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nombre}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <EstadoCarga cargando={tandas.cargando && !tandas.datos} error={tandas.error} />
+      {tandas.datos && (
+        <>
+          <Lista
+            filas={tandas.datos.filas}
+            clave={(t) => t.id}
+            onSeleccionar={(t) => setAbierta(t.id)}
+            etiquetaSeleccion={(t) => `Ver la tanda de ${t.intermedio.nombre}`}
+            tarjeta={(t) => {
+              const unidad = unidadDe(t.intermedio.id);
+              return (
+                <div className="space-y-1.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0 font-semibold text-ink [overflow-wrap:anywhere]">
+                      {t.intermedio.nombre}
+                    </span>
+                    <span className="whitespace-nowrap tabular-nums text-text">
+                      Pérdida {formatoPesos(t.desvio.total)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="tabular-nums text-text">
+                        Rindió {formatoRendimiento(t.desvio)}
+                      </span>
+                      <Estado entidad="tanda" valor={marcaTanda(t.desvio)} />
+                    </span>
+                    <ChevronRight aria-hidden className="size-5 shrink-0 text-meta" />
+                  </div>
+                  <p className="text-xs text-meta">
+                    {[
+                      formatoDiaYHora(t.fecha),
+                      t.empleado,
+                      `${formatoCantidadLegible(t.obtenida, unidad)} de ${formatoCantidadLegible(t.esperada, unidad)}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </div>
+              );
+            }}
+            vacio={
+              <Vacio
+                icono={ChefHat}
+                titulo={
+                  filtrada
+                    ? `No hay tandas de ${nombreFiltro ?? 'esta preparación'}`
+                    : 'Todavía no se registró ninguna tanda'
+                }
+                texto={
+                  puedeRegistrar && !filtrada
+                    ? 'Cuando prepares una tanda, registrala acá para descontar los insumos y sumar lo obtenido.'
+                    : undefined
+                }
+                accion={filtrada ? undefined : registrar || undefined}
+              />
+            }
+            columnas={[
+              {
+                titulo: 'Fecha',
+                valor: (t) => formatoDiaYHora(t.fecha),
+                className: 'whitespace-nowrap',
+              },
+              { titulo: 'Preparación', valor: (t) => t.intermedio.nombre },
+              {
+                titulo: 'Esperado',
+                valor: (t) => formatoCantidadLegible(t.esperada, unidadDe(t.intermedio.id)),
+                className: 'tabular-nums',
+              },
+              {
+                titulo: 'Obtenido',
+                valor: (t) => formatoCantidadLegible(t.obtenida, unidadDe(t.intermedio.id)),
+                className: 'tabular-nums',
+              },
+              {
+                titulo: 'Rendimiento',
+                valor: (t) => formatoRendimiento(t.desvio),
+                className: 'tabular-nums',
+              },
+              {
+                titulo: 'Pérdida',
+                valor: (t) => formatoPesos(t.desvio.total),
+                className: 'tabular-nums',
+              },
+              {
+                titulo: 'Estado',
+                valor: (t) => (
+                  <span className="flex items-center justify-between gap-2">
+                    <Estado entidad="tanda" valor={marcaTanda(t.desvio)} />
+                    <ChevronRight aria-hidden className="size-4 shrink-0 text-meta" />
+                  </span>
+                ),
+              },
+            ]}
+          />
+          {ultimaPagina > 1 && (
+            <div className="flex items-center justify-between gap-3 text-sm text-meta">
+              <Boton
+                variante="secundario"
+                disabled={pagina <= 1}
+                onClick={() => setPagina((p) => p - 1)}
+              >
+                Anteriores
+              </Boton>
+              <span>
+                Página {tandas.datos.pagina} de {ultimaPagina}
+              </span>
+              <Boton
+                variante="secundario"
+                disabled={pagina >= ultimaPagina}
+                onClick={() => setPagina((p) => p + 1)}
+              >
+                Siguientes
+              </Boton>
+            </div>
+          )}
+        </>
+      )}
+
+      {abierta && (
+        <VerTanda
+          id={abierta}
+          sucursal={sucursal}
+          componentes={stock.datos ?? []}
+          onCerrar={() => setAbierta(null)}
+        />
+      )}
+    </div>
+  );
+}

@@ -39,7 +39,7 @@ end box
 
 U -> V : Elige el tipo de movimiento:\ningreso, merma o ajuste
 activate V
-V --> U : Solicita insumo, cantidad, unidad y motivo\n(en un ingreso, también el costo de compra)
+V --> U : Solicita componente con stock, cantidad, unidad y motivo\n(en un ingreso, solo insumos y también el costo de compra;\nen una merma, el motivo de una lista)
 U -> V : Completa los datos y confirma
 V -> SC : registrarMovimiento(tipo, insumoId, cantidad,\nunidad, motivo, costoCompra)
 activate SC
@@ -58,12 +58,12 @@ MS --> E : movimiento registrado
 deactivate MS
 E --> SC : existencia actualizada
 deactivate E
-note right of E : Merma: Existencia.descontar(cantidad) con\nun movimiento MERMA.\nE2. Existencia negativa: rechaza la merma o el\najuste e indica la existencia actual
+note right of E : Merma: Existencia.descontar(cantidad) con\nun movimiento MERMA y su motivoMerma.\nE2. Existencia negativa: rechaza la merma o el\najuste e indica la existencia actual
 SC --> V : existencia resultante
 deactivate SC
 V --> U : Muestra la existencia resultante
 deactivate V
 
-note over V, MS : A. Merma de un producto intermedio: StockController pide Receta.insumosNecesarios(cantidad)\ndel intermedio y registra una merma (descontar + MovimientoStock MERMA) por cada insumo
-note over V, MS : B. Ajuste por conteo físico: el usuario ingresa la cantidad contada; Existencia.ajustar(cantidadContada)\ncalcula la diferencia y registra un MovimientoStock AJUSTE
+note over V, MS : Un intermedio con stock (llevaStock) se merma y se ajusta como un insumo, sobre su propia existencia.\nUn intermedio sin stock no admite movimientos; su producción se registra en CU-22.
+note over V, MS : A. Ajuste por conteo físico: el usuario ingresa la cantidad contada; Existencia.ajustar(cantidadContada)\ncalcula la diferencia y registra un MovimientoStock AJUSTE
 @enduml

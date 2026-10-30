@@ -37,8 +37,11 @@ if (¿Qué tarea realiza?) then (Configurar receta)
   repeat while (¿Agrega otra línea?) is (Sí) not (No)
   :Sistema: guarda la receta y calcula el costo;
   stop
-else (Registrar movimiento)
+elseif (¿Qué tarea realiza?) then (Registrar movimiento)
   (A)
+  detach
+else (Registrar producción)
+  (B)
   detach
 endif
 @enduml

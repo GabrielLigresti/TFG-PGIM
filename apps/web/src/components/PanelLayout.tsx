@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import {
   BookOpen,
+  Boxes,
   CalendarDays,
   ChefHat,
   Gift,
@@ -10,7 +11,6 @@ import {
   LogOut,
   MapPin,
   Menu,
-  Package,
   ScrollText,
   Shield,
   Users,
@@ -27,7 +27,8 @@ export interface SeccionPanel {
   ruta: string;
   titulo: string;
   descripcion: string;
-  permiso: CodigoPermiso;
+  // Alcanza con tener uno de los permisos.
+  permisos: CodigoPermiso[];
   grupo: GrupoPanel;
   icono: LucideIcon;
 }
@@ -40,7 +41,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'reservas',
     titulo: 'Reservas',
     descripcion: 'Reservas del día y activación de mesas',
-    permiso: 'reserva.ver',
+    permisos: ['reserva.ver'],
     grupo: 'Operación',
     icono: CalendarDays,
   },
@@ -48,7 +49,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'cocina',
     titulo: 'Cocina',
     descripcion: 'Cola de pedidos de la cocina',
-    permiso: 'pedido.ver',
+    permisos: ['pedido.ver'],
     grupo: 'Operación',
     icono: ChefHat,
   },
@@ -56,7 +57,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'platos',
     titulo: 'Platos',
     descripcion: 'Platos y categorías del menú',
-    permiso: 'menu.ver',
+    permisos: ['menu.ver'],
     grupo: 'Menú',
     icono: Utensils,
   },
@@ -64,7 +65,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'menus',
     titulo: 'Menús',
     descripcion: 'Menús con vigencia y sus platos',
-    permiso: 'menu.ver',
+    permisos: ['menu.ver'],
     grupo: 'Menú',
     icono: ScrollText,
   },
@@ -72,23 +73,23 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'recetas',
     titulo: 'Recetas',
     descripcion: 'Recetas, preparaciones y costos',
-    permiso: 'receta.ver',
+    permisos: ['receta.ver'],
     grupo: 'Menú',
     icono: BookOpen,
   },
   {
-    ruta: 'insumos',
-    titulo: 'Insumos',
-    descripcion: 'Insumos, costos y stock',
-    permiso: 'insumo.ver',
+    ruta: 'stock',
+    titulo: 'Stock',
+    descripcion: 'Existencias, producción y movimientos',
+    permisos: ['insumo.ver', 'stock.registrar'],
     grupo: 'Stock',
-    icono: Package,
+    icono: Boxes,
   },
   {
     ruta: 'alertas',
     titulo: 'Alertas',
     descripcion: 'Faltantes de stock y platos sin receta',
-    permiso: 'stock.registrar',
+    permisos: ['stock.registrar'],
     grupo: 'Stock',
     icono: TriangleAlert,
   },
@@ -96,7 +97,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'programa-puntos',
     titulo: 'Programa de puntos',
     descripcion: 'Cuántos puntos suma cada compra',
-    permiso: 'beneficio.ver',
+    permisos: ['beneficio.ver'],
     grupo: 'Gestión',
     icono: Star,
   },
@@ -104,7 +105,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'beneficios',
     titulo: 'Beneficios',
     descripcion: 'Recompensas y promociones para los comensales',
-    permiso: 'beneficio.ver',
+    permisos: ['beneficio.ver'],
     grupo: 'Gestión',
     icono: Gift,
   },
@@ -112,7 +113,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'personal',
     titulo: 'Personal',
     descripcion: 'Empleados, rol y sucursales',
-    permiso: 'personal.ver',
+    permisos: ['personal.ver'],
     grupo: 'Gestión',
     icono: Users,
   },
@@ -120,7 +121,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'roles',
     titulo: 'Roles',
     descripcion: 'Roles y permisos del personal',
-    permiso: 'rol.ver',
+    permisos: ['rol.ver'],
     grupo: 'Gestión',
     icono: Shield,
   },
@@ -128,7 +129,7 @@ export const SECCIONES: SeccionPanel[] = [
     ruta: 'sucursales',
     titulo: 'Sucursales',
     descripcion: 'Locales, horarios de servicio y salón',
-    permiso: 'sucursal.ver',
+    permisos: ['sucursal.ver'],
     grupo: 'Gestión',
     icono: MapPin,
   },
@@ -188,7 +189,7 @@ export function PanelLayout() {
 
   if (!sesion) return null;
 
-  const grupos = agrupar(SECCIONES.filter((s) => tienePermiso(s.permiso)));
+  const grupos = agrupar(SECCIONES.filter((s) => s.permisos.some(tienePermiso)));
   const restaurante = sesion.restaurante?.nombre;
 
   const selectorSucursal =
