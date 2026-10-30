@@ -20,6 +20,9 @@ apps/api/src/generated/
 # Skills de agentes (se restauran desde skills-lock.json)
 .claude/skills/
 
+# Worktrees de las sesiones de Claude Code (copias locales del repo)
+.claude/worktrees/
+
 # Impeccable: se suben config.json y design.json; lo demás es de trabajo o personal
 .impeccable/*
 !.impeccable/config.json
