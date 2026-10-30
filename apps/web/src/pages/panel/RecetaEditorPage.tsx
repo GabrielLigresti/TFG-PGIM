@@ -225,7 +225,9 @@ function Editor({
         <p className="text-sm text-meta">
           {tipo === 'plato'
             ? 'La cantidad bruta que se descuenta del stock es la neta ÷ (1 − merma).'
-            : 'El costo por unidad de la preparación es el costo de la receta ÷ lo que rinde.'}
+            : detalle?.dueno.llevaStock
+              ? 'Su costo es el de la última tanda; esta receta fija lo que se espera usar y obtener.'
+              : 'El costo por unidad de la preparación es el costo de la receta ÷ lo que rinde.'}
         </p>
       </div>
 
