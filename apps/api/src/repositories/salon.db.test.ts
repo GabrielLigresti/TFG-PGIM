@@ -161,6 +161,22 @@ describe('pedidoRepository.delSalon', () => {
     expect(mapa.size).toBe(0);
   });
 
+  it('delSalon no devuelve pedidos de otra sucursal', async () => {
+    await pedidoRepository.confirmar(cuenta, [agua()]);
+    const otra = await prisma.sucursal.create({
+      data: {
+        restauranteId: e.restauranteId,
+        nombre: 'Otra',
+        direccion: 'Calle 2',
+        horarioApertura: new Date('1970-01-01T12:00:00Z'),
+        horarioCierre: new Date('1970-01-01T23:00:00Z'),
+        toleranciaNoShowMin: 15,
+      },
+    });
+    const mapa = await pedidoRepository.delSalon(e.restauranteId, otra.id, [e.reservaId]);
+    expect(mapa.size).toBe(0);
+  });
+
   it('con una lista vacía devuelve un mapa vacío', async () => {
     await pedidoRepository.confirmar(cuenta, [agua()]);
     expect((await delSalon([])).size).toBe(0);
