@@ -7,11 +7,13 @@ import { formatoPesos } from './formato';
 
 // Cierre de mesa (CU-18). Con saldo pendiente o un pago en revisión la API pide
 // confirmación; con pedidos sin entregar, no cierra.
-export function useCerrarMesa(alCerrar: () => void) {
+export function useCerrarMesa(recargar: () => void) {
   const confirmar = useConfirmar();
   const { avisar } = useAvisos();
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Última reserva cerrada bien: hasta que llegue la lista nueva no se vuelve a ofrecer cerrarla.
+  const [cerradaId, setCerradaId] = useState<string | null>(null);
 
   async function enviarCierre(
     r: Pick<ReservaPanel, 'id' | 'mesa'>,
@@ -25,7 +27,8 @@ export function useCerrarMesa(alCerrar: () => void) {
         body: { confirmarSaldo },
       });
       avisar(`Mesa ${r.mesa.numero} cerrada`);
-      alCerrar();
+      setCerradaId(r.id);
+      recargar();
     } catch (e) {
       const bloqueo = e instanceof ApiError ? (e.detalles as BloqueoCierre | undefined) : undefined;
       if (bloqueo?.pagoEnRevision && !confirmarSaldo) {
@@ -51,6 +54,7 @@ export function useCerrarMesa(alCerrar: () => void) {
         return;
       }
       setError(e instanceof ApiError ? e.message : 'No se pudo cerrar la mesa');
+      recargar();
     } finally {
       setEnviando(false);
     }
@@ -60,6 +64,7 @@ export function useCerrarMesa(alCerrar: () => void) {
     cerrar: (r: Pick<ReservaPanel, 'id' | 'mesa'>) => enviarCierre(r, false),
     enviando,
     error,
+    cerradaId,
     limpiarError: (): void => setError(null),
   };
 }

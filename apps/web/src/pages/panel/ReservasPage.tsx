@@ -173,7 +173,7 @@ export function ReservasPage() {
                         Activar mesa
                       </Boton>
                     )}
-                    {r.cerrable && tienePermiso('mesa.cerrar') && (
+                    {r.cerrable && r.id !== cierre.cerradaId && tienePermiso('mesa.cerrar') && (
                       <Boton
                         variante="tonal"
                         disabled={cierre.enviando || cancelando}

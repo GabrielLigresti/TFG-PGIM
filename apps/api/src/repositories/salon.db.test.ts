@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { crearEscenario, limpiarBase, type Escenario } from '../test/db-setup';
 import { pedidoRepository, type CuentaParaPedido } from './pedido.repository';
+import { mesaRepository } from './mesa.repository';
 import { reservaRepository } from './reserva.repository';
 
 afterAll(() => prisma.$disconnect());
@@ -180,5 +181,33 @@ describe('pedidoRepository.delSalon', () => {
   it('con una lista vacía devuelve un mapa vacío', async () => {
     await pedidoRepository.confirmar(cuenta, [agua()]);
     expect((await delSalon([])).size).toBe(0);
+  });
+});
+
+describe('mesaRepository.listar', () => {
+  it('no devuelve mesas de otra sucursal', async () => {
+    const otra = await prisma.sucursal.create({
+      data: {
+        restauranteId: e.restauranteId,
+        nombre: 'Otra',
+        direccion: 'Calle 2',
+        horarioApertura: new Date('1970-01-01T12:00:00Z'),
+        horarioCierre: new Date('1970-01-01T23:00:00Z'),
+        toleranciaNoShowMin: 15,
+      },
+    });
+    const ajena = await prisma.mesa.create({
+      data: { sucursalId: otra.id, numero: 900, capacidad: 2, posX: 20, posY: 20 },
+    });
+    const ids = (await mesaRepository.listar(e.restauranteId, e.sucursalId)).map((m) => m.id);
+    expect(ids).not.toContain(ajena.id);
+  });
+
+  it('no devuelve mesas de otro restaurante', async () => {
+    const ajeno = await prisma.restaurante.create({
+      data: { nombre: 'Ajeno', cuit: `30-${Date.now()}-2` },
+    });
+    const filas = await mesaRepository.listar(ajeno.id, e.sucursalId);
+    expect(filas).toEqual([]);
   });
 });
