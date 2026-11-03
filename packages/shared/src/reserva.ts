@@ -100,9 +100,7 @@ export const salaComensal = (id: string) => `comensal:${id}`;
 // Solo personal con pedido.ver o stock.registrar: cola de cocina y alertas.
 export const salaPersonal = (id: string) => `personal:${id}`;
 
-// CU-12: reservas del día de la sucursal de trabajo, en el panel.
-export const consultaReservasPanelSchema = z.object({ fecha: fechaSchema });
-
+// CU-12: reservas vigentes de la sucursal de trabajo, en el panel.
 export interface ReservaPanel {
   id: string;
   comensal: { nombre: string; telefono: string | null };

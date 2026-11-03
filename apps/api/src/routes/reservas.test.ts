@@ -18,7 +18,7 @@ jest.mock('../repositories/reserva.repository', () => ({
     buscarDelComensal: jest.fn(),
     listarDelComensal: jest.fn().mockResolvedValue([]),
     cambiarEstado: jest.fn(),
-    listarDelDia: jest.fn().mockResolvedValue([]),
+    listarVigentes: jest.fn().mockResolvedValue([]),
     buscarEnSucursal: jest.fn(),
     activar: jest.fn().mockResolvedValue(true),
     cerrar: jest.fn(),
@@ -126,29 +126,17 @@ describe('/api/reservas (panel)', () => {
 
   it('sin reserva.ver responde 403', async () => {
     const res = await request(app)
-      .get('/api/reservas?fecha=2026-10-30')
+      .get('/api/reservas')
       .set('Cookie', cookieConPermisos(['menu.ver']));
     expect(res.status).toBe(403);
   });
 
-  it('con reserva.ver lista las reservas del día de la sucursal de trabajo', async () => {
+  it('con reserva.ver lista las reservas vigentes de la sucursal de trabajo', async () => {
     const res = await request(app)
-      .get('/api/reservas?fecha=2026-10-30')
+      .get('/api/reservas')
       .set('Cookie', cookieConPermisos(['reserva.ver']));
     expect(res.status).toBe(200);
-    expect(reservaRepository.listarDelDia).toHaveBeenCalledWith(
-      IDS.restaurante,
-      IDS.centro,
-      new Date('2026-10-30T03:00:00.000Z'),
-      new Date('2026-10-31T03:00:00.000Z'),
-    );
-  });
-
-  it('valida la fecha', async () => {
-    const res = await request(app)
-      .get('/api/reservas?fecha=hoy')
-      .set('Cookie', cookieConPermisos(['reserva.ver']));
-    expect(res.status).toBe(400);
+    expect(reservaRepository.listarVigentes).toHaveBeenCalledWith(IDS.restaurante, IDS.centro);
   });
 
   it('activar sin reserva.activar responde 403', async () => {

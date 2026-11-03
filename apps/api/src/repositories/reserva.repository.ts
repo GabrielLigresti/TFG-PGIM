@@ -67,12 +67,8 @@ export interface ReservaRepository {
     hacia: EstadoReserva,
   ): Promise<boolean>;
   // Panel (CU-12): acotadas por restaurante y sucursal de trabajo.
-  listarDelDia(
-    restauranteId: string,
-    sucursalId: string,
-    desde: Date,
-    hasta: Date,
-  ): Promise<FilaReservaPanel[]>;
+  // Sin límite de fecha: una mesa abierta de ayer sigue apareciendo hasta que se cierra.
+  listarVigentes(restauranteId: string, sucursalId: string): Promise<FilaReservaPanel[]>;
   buscarEnSucursal(
     restauranteId: string,
     sucursalId: string,
@@ -255,9 +251,9 @@ export const reservaRepository: ReservaRepository = {
     return count === 1;
   },
 
-  async listarDelDia(restauranteId, sucursalId, desde, hasta) {
+  async listarVigentes(restauranteId, sucursalId) {
     const filas = await prisma.reserva.findMany({
-      where: { ...deLaSucursal(restauranteId, sucursalId), inicio: { gte: desde, lt: hasta } },
+      where: { ...deLaSucursal(restauranteId, sucursalId), estado: { in: VIGENTES } },
       select: seleccionPanel,
       orderBy: [{ inicio: 'asc' }, { mesa: { numero: 'asc' } }],
     });

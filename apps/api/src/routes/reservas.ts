@@ -3,7 +3,6 @@ import {
   cerrarMesaSchema,
   consultaFranjasSchema,
   consultaMapaSchema,
-  consultaReservasPanelSchema,
   idParamSchema,
   reservaInputSchema,
   type ReservaInput,
@@ -62,8 +61,7 @@ export function sucursalDeTrabajo(req: Request): string {
 }
 
 reservasPanelRouter.get('/', requierePermiso('reserva.ver'), async (req, res) => {
-  const { fecha } = consultaReservasPanelSchema.parse(req.query);
-  res.json(await reservaService.delDia(req.tenant!.restauranteId, sucursalDeTrabajo(req), fecha));
+  res.json(await reservaService.vigentes(req.tenant!.restauranteId, sucursalDeTrabajo(req)));
 });
 
 reservasPanelRouter.post(
