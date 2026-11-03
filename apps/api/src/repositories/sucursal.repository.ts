@@ -1,4 +1,8 @@
-import type { Sucursal, SucursalInput } from '@pgim/shared';
+import {
+  CONFIGURACION_APERTURA_POR_DEFECTO,
+  type Sucursal,
+  type SucursalInput,
+} from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { aHora, deHora } from '../lib/hora';
 import { prisma } from '../lib/prisma';
@@ -109,6 +113,8 @@ export const sucursalRepository: SucursalRepository = {
         restauranteId,
         ...columnas(datos),
         horariosServicio: { create: horarios(datos) },
+        // El asistente de apertura necesita una configuración desde el primer día.
+        configuracionApertura: { create: CONFIGURACION_APERTURA_POR_DEFECTO },
         empleados: { create: { empleadoId } },
       },
       select: seleccion,
