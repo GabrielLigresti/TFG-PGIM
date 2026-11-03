@@ -39,3 +39,13 @@ const formatoFecha = new Intl.DateTimeFormat('en-CA', {
 export function hoyArgentina(ahora: Date = new Date()): string {
   return formatoFecha.format(ahora);
 }
+
+// Listados paginados.
+export const paginaSchema = z.coerce.number().int().min(1).default(1);
+
+export interface Pagina<T> {
+  filas: T[];
+  total: number;
+  pagina: number;
+  porPagina: 25;
+}

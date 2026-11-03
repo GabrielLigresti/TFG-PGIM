@@ -110,8 +110,23 @@ enum TipoMovimiento {
   DEVOLUCION_PEDIDO
   MERMA
   AJUSTE
+  PRODUCCION
+  CONSUMO_PRODUCCION
 
   @@map("tipo_movimiento")
+}
+
+enum MotivoMerma {
+  VENCIMIENTO
+  DETERIORO
+  PREPARACION
+  SOBREPRODUCCION
+  ERROR
+  DEVUELTO_POR_CLIENTE
+  RECEPCION
+  OTRO
+
+  @@map("motivo_merma")
 }
 
 enum TipoMovimientoPuntos {
@@ -221,6 +236,7 @@ model Sucursal {
   pedidos               Pedido[]
   comprobantes          Comprobante[]
   existencias           Existencia[]
+  tandasProduccion      TandaProduccion[]
   configuracionApertura ConfiguracionApertura?
   planificacionesTurnos PlanificacionTurnos[]
   pronosticos           Pronostico[]
@@ -272,6 +288,7 @@ model Empleado {
   sucursales       EmpleadoSucursal[]
   turnos           Turno[]
   movimientosStock MovimientoStock[]
+  tandasProduccion TandaProduccion[]
 
   @@index([restauranteId])
   @@index([rolId])
@@ -605,19 +622,23 @@ model ModeloRA {
 
 // CHECK unidad_base en GRAMO, MILILITRO o UNIDAD: en la migración.
 model ComponenteInventario {
-  id            String         @id @default(uuid(7)) @db.Uuid
-  restauranteId String         @map("restaurante_id") @db.Uuid
-  tipo          TipoComponente
-  nombre        String
-  unidadBase    UnidadMedida   @map("unidad_base")
-  costoCompra   Decimal?       @map("costo_compra") @db.Decimal(14, 4)
-  activo        Boolean        @default(true)
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  restauranteId      String         @map("restaurante_id") @db.Uuid
+  tipo               TipoComponente
+  nombre             String
+  unidadBase         UnidadMedida   @map("unidad_base")
+  // Insumo: última compra. Intermedio con stock: última tanda.
+  costoCompraVigente Decimal?       @map("costo_compra_vigente") @db.Decimal(14, 4)
+  // Solo intermedios (CHECK en la migración): se produce por tandas y tiene existencia.
+  llevaStock         Boolean        @default(false) @map("lleva_stock")
+  activo             Boolean        @default(true)
 
-  restaurante  Restaurante   @relation(fields: [restauranteId], references: [id])
-  receta       Receta?
-  lineasReceta LineaReceta[]
-  itemsReventa ItemMenu[]
-  existencias  Existencia[]
+  restaurante      Restaurante       @relation(fields: [restauranteId], references: [id])
+  receta           Receta?
+  lineasReceta     LineaReceta[]
+  itemsReventa     ItemMenu[]
+  existencias      Existencia[]
+  tandasProduccion TandaProduccion[]
 
   @@index([restauranteId])
   @@map("componente_inventario")
@@ -672,25 +693,54 @@ model Existencia {
   @@map("existencia")
 }
 
+// CHECK de motivo_merma (MERMA), tanda_id (PRODUCCION y CONSUMO_PRODUCCION) y
+// cantidad_teorica (CONSUMO_PRODUCCION): en la migración.
 model MovimientoStock {
-  id            String         @id @default(uuid(7)) @db.Uuid
-  existenciaId  String         @map("existencia_id") @db.Uuid
-  tipo          TipoMovimiento
-  cantidad      Decimal        @db.Decimal(14, 3)
-  costoUnitario Decimal        @map("costo_unitario") @db.Decimal(14, 4)
-  fecha         DateTime       @default(now()) @db.Timestamptz(6)
-  motivo        String?
-  lineaPedidoId String?        @map("linea_pedido_id") @db.Uuid
-  empleadoId    String?        @map("empleado_id") @db.Uuid
+  id              String         @id @default(uuid(7)) @db.Uuid
+  existenciaId    String         @map("existencia_id") @db.Uuid
+  tipo            TipoMovimiento
+  cantidad        Decimal        @db.Decimal(14, 3)
+  cantidadTeorica Decimal?       @map("cantidad_teorica") @db.Decimal(14, 3)
+  costoUnitario   Decimal        @map("costo_unitario") @db.Decimal(14, 4)
+  fecha           DateTime       @default(now()) @db.Timestamptz(6)
+  motivoMerma     MotivoMerma?   @map("motivo_merma")
+  motivo          String?
+  lineaPedidoId   String?        @map("linea_pedido_id") @db.Uuid
+  tandaId         String?        @map("tanda_id") @db.Uuid
+  empleadoId      String?        @map("empleado_id") @db.Uuid
 
-  existencia  Existencia   @relation(fields: [existenciaId], references: [id])
-  lineaPedido LineaPedido? @relation(fields: [lineaPedidoId], references: [id])
-  empleado    Empleado?    @relation(fields: [empleadoId], references: [usuarioId])
+  existencia  Existencia       @relation(fields: [existenciaId], references: [id])
+  lineaPedido LineaPedido?     @relation(fields: [lineaPedidoId], references: [id])
+  tanda       TandaProduccion? @relation(fields: [tandaId], references: [id])
+  empleado    Empleado?        @relation(fields: [empleadoId], references: [usuarioId])
 
   @@index([existenciaId, fecha])
   @@index([lineaPedidoId])
+  @@index([tandaId])
   @@index([empleadoId])
   @@map("movimiento_stock")
+}
+
+// CHECK cantidades > 0: en la migración.
+model TandaProduccion {
+  id               String   @id @default(uuid(7)) @db.Uuid
+  sucursalId       String   @map("sucursal_id") @db.Uuid
+  intermedioId     String   @map("intermedio_id") @db.Uuid
+  empleadoId       String   @map("empleado_id") @db.Uuid
+  cantidadEsperada Decimal  @map("cantidad_esperada") @db.Decimal(14, 3)
+  cantidadObtenida Decimal  @map("cantidad_obtenida") @db.Decimal(14, 3)
+  fecha            DateTime @default(now()) @db.Timestamptz(6)
+  observacion      String?  @db.Text
+
+  sucursal    Sucursal             @relation(fields: [sucursalId], references: [id])
+  intermedio  ComponenteInventario @relation(fields: [intermedioId], references: [id])
+  empleado    Empleado             @relation(fields: [empleadoId], references: [usuarioId])
+  movimientos MovimientoStock[]
+
+  @@index([sucursalId, fecha])
+  @@index([intermedioId, fecha])
+  @@index([empleadoId])
+  @@map("tanda_produccion")
 }
 
 // ─── DER 3: fidelización y promociones ───────────────────────────────────────

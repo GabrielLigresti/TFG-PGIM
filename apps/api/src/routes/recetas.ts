@@ -2,8 +2,10 @@ import { Router } from 'express';
 import {
   idParamSchema,
   intermedioAltaSchema,
+  llevaStockInputSchema,
   recetaInputSchema,
   type IntermedioAlta,
+  type LlevaStockInput,
   type RecetaInput,
 } from '@pgim/shared';
 import { autenticar, requierePermiso, tenant, validar, validarParams } from '../middleware/auth';
@@ -98,6 +100,21 @@ recetasRouter.put(
         req.sesion!.permisos,
       ),
     );
+  },
+);
+
+recetasRouter.put(
+  '/intermedio/:id/lleva-stock',
+  requierePermiso('receta.editar'),
+  validarParams(idParamSchema),
+  validar(llevaStockInputSchema),
+  async (req, res) => {
+    await recetaService.cambiarLlevaStock(
+      req.tenant!.restauranteId,
+      req.params.id as string,
+      (req.body as LlevaStockInput).llevaStock,
+    );
+    res.status(204).end();
   },
 );
 

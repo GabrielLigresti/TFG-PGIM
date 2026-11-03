@@ -47,6 +47,16 @@ export function requierePermiso(codigo: CodigoPermiso): RequestHandler {
   };
 }
 
+// Pasa con cualquiera de los permisos indicados.
+export function requiereAlgunPermiso(...codigos: CodigoPermiso[]): RequestHandler {
+  return (req, _res, next) => {
+    if (!codigos.some((codigo) => req.sesion?.permisos.includes(codigo))) {
+      throw new AppError(403, 'No tenés permiso para esta acción');
+    }
+    next();
+  };
+}
+
 export function validar(schema: z.ZodType): RequestHandler {
   return (req, _res, next) => {
     req.body = schema.parse(req.body);

@@ -1,0 +1,90 @@
+@startuml cu-22-secuencia-v1
+' Formato Vialia: participantes ":Clase", barras de activación celestes,
+' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
+skinparam dpi 200
+skinparam defaultFontName DejaVu Sans Condensed
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam maxMessageSize 260
+skinparam sequenceMessageAlign center
+skinparam responseMessageBelowArrow false
+skinparam ArrowColor #000000
+skinparam ArrowThickness 1
+skinparam ActorBorderColor #000000
+skinparam ActorBackgroundColor #FFFFFF
+skinparam ActorFontColor #000000
+skinparam ParticipantBorderColor #000000
+skinparam ParticipantBackgroundColor #FFFFFF
+skinparam ParticipantFontColor #000000
+skinparam NoteBorderColor #BFA800
+skinparam NoteBackgroundColor #FFF59D
+skinparam NoteFontColor #000000
+skinparam BoxPadding 12
+skinparam sequence {
+  LifeLineBorderColor #444444
+  LifeLineBackgroundColor #DAE8FC
+  BoxBorderColor #4A90D9
+  BoxBackgroundColor #FFFFFF
+}
+hide footbox
+
+box
+  actor "Jefe de cocina /\nStaff con permiso" as U
+  participant ":Vista stock" as V
+  participant ":ProduccionController" as PC
+  participant ":Receta" as R
+  participant ":Existencia" as E
+  participant ":TandaProduccion" as T
+  participant ":MovimientoStock" as MS
+end box
+
+U -> V : Elige el intermedio y la cantidad a producir
+activate V
+V -> PC : planTanda(intermedioId, cantidad, unidad)
+activate PC
+PC -> R : insumosNecesarios(cantidad)
+activate R
+R --> PC : consumos teóricos\n(cantidad bruta; se detiene en los componentes con stock)
+deactivate R
+PC --> V : cantidad esperada, consumos teóricos y existencia de cada componente
+deactivate PC
+note right of PC : E3. Intermedio sin stock, dado de baja\no sin receta: indica el error y termina el caso
+V --> U : Muestra los consumos precargados
+U -> V : Corrige lo que realmente usó, carga la cantidad obtenida y confirma
+V -> PC : registrarTanda(intermedioId, cantidad, unidad,\nconsumos usados, cantidad obtenida)
+activate PC
+PC -> PC : convierte a unidad base, valida la dimensión\ny recalcula lo teórico con la receta
+note right of PC : E1. Unidad de otra dimensión:\nindica el error y vuelve a pedir los datos
+note over E #D5E8D4 : por cada componente usado
+PC -> E : descontar(cantidad usada)
+activate E
+E --> PC : existencia actualizada
+deactivate E
+note right of E : E2. Existencia insuficiente: rechaza la tanda\ncompleta e indica el componente y su existencia
+PC -> T : crear(intermedio, esperada, obtenida, empleado)
+activate T
+T -> MS : crear(CONSUMO_PRODUCCION, usada, teórica) por componente
+activate MS
+MS --> T : movimientos registrados
+deactivate MS
+T -> E : producir(cantidad obtenida, tanda)
+activate E
+E -> MS : crear(PRODUCCION, obtenida, costo de la tanda)
+activate MS
+MS --> E : movimiento registrado
+deactivate MS
+E --> T : existencia del intermedio actualizada
+deactivate E
+T --> PC : tanda registrada; el costo de la tanda pasa a ser\nel costo vigente del intermedio
+deactivate T
+PC -> T : desvio()
+activate T
+T --> PC : rendimiento real, faltante de rendimiento,\nuso de más y desvío total
+deactivate T
+PC --> V : tanda con su desvío
+deactivate PC
+V --> U : Muestra el rendimiento y el desvío de la tanda
+deactivate V
+
+note over V, MS : La tanda se registra en una sola transacción: si algún componente no alcanza, no se guarda nada.\nSolo cuentan los desvíos positivos: si rinde más o se usa menos, no se toma como ganancia.
+@enduml

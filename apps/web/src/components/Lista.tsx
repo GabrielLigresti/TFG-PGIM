@@ -20,6 +20,8 @@ interface Props<T> {
   // Compacta en escritorio; táctil para tablets de cocina y salón.
   densidad?: 'compacta' | 'tactil';
   seleccionada?(fila: T): boolean;
+  // Presentación propia de la tarjeta del celular, en lugar del título y la lista de campos.
+  tarjeta?(fila: T): ReactNode;
 }
 
 function propsSeleccion<T>(fila: T, onSeleccionar?: (fila: T) => void, etiqueta?: string) {
@@ -52,6 +54,7 @@ export function Lista<T>({
   vacio,
   densidad = 'compacta',
   seleccionada,
+  tarjeta,
 }: Props<T>) {
   const clickeable = onSeleccionar ? 'cursor-pointer hover:bg-panel' : '';
   if (filas.length === 0) {
@@ -111,19 +114,25 @@ export function Lista<T>({
             {...propsSeleccion(fila, onSeleccionar, etiquetaSeleccion?.(fila))}
             className={`rounded-panel border border-line bg-surface p-4 ${inactiva?.(fila) ? 'opacity-60' : ''} ${marcada(fila)} ${clickeable}`}
           >
-            <div className="min-w-0 font-semibold text-ink [overflow-wrap:anywhere]">
-              {principal?.valor(fila)}
-            </div>
-            <dl className="mt-2 space-y-1 text-sm">
-              {resto.map((c) => (
-                <div key={c.titulo} className="flex justify-between gap-3">
-                  <dt className="shrink-0 text-meta">{c.titulo}</dt>
-                  <dd className="min-w-0 text-right text-text [overflow-wrap:anywhere]">
-                    {c.valor(fila)}
-                  </dd>
+            {tarjeta ? (
+              tarjeta(fila)
+            ) : (
+              <>
+                <div className="min-w-0 font-semibold text-ink [overflow-wrap:anywhere]">
+                  {principal?.valor(fila)}
                 </div>
-              ))}
-            </dl>
+                <dl className="mt-2 space-y-1 text-sm">
+                  {resto.map((c) => (
+                    <div key={c.titulo} className="flex justify-between gap-3">
+                      <dt className="shrink-0 text-meta">{c.titulo}</dt>
+                      <dd className="min-w-0 text-right text-text [overflow-wrap:anywhere]">
+                        {c.valor(fila)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </>
+            )}
             {acciones && (
               <div className="mt-3 flex flex-wrap gap-2" onClick={frenar} onKeyDown={frenar}>
                 {acciones(fila)}

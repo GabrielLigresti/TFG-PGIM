@@ -1,5 +1,7 @@
 import type {
+  ConsultaReservasPanel,
   EstadoReserva,
+  Pagina,
   ReservaPanel,
   FranjaDisponible,
   MapaDeFranja,
@@ -7,7 +9,13 @@ import type {
   ReservaInput,
 } from '@pgim/shared';
 import { busEventos, type BusEventos, type TipoEventoReserva } from '../domain/eventos';
-import { elegirMesa, esFechaReservable, fechaDe, iniciosDelDia } from '../domain/franjas';
+import {
+  elegirMesa,
+  esFechaReservable,
+  fechaDe,
+  iniciosDelDia,
+  sumarDias,
+} from '../domain/franjas';
 import {
   estadoDeReserva,
   limiteDeLlegada,
@@ -240,15 +248,21 @@ export function createReservaService(
       return vencidas;
     },
 
-    // CU-12: reservas de un día (hora de Argentina) de la sucursal de trabajo.
-    async delDia(
+    // CU-12: reservas de hoy en adelante de la sucursal de trabajo.
+    async listado(
       restauranteId: string,
       sucursalId: string,
-      fecha: string,
-    ): Promise<ReservaPanel[]> {
-      const desde = iniciosDelDia(fecha, '00:00', '00:00')[0]!;
-      const hasta = new Date(desde.getTime() + 24 * 60 * 60 * 1000);
-      return (await repo.listarDelDia(restauranteId, sucursalId, desde, hasta)).map(aReservaPanel);
+      { pagina, desde, hasta }: ConsultaReservasPanel,
+    ): Promise<Pagina<ReservaPanel>> {
+      const hoy = fechaDe(ahora());
+      const inicioDe = (fecha: string) => iniciosDelDia(fecha, '00:00', '00:00')[0]!;
+      const resultado = await repo.listarPanel(restauranteId, sucursalId, {
+        pagina,
+        // Solo de hoy en adelante: el filtro acota, no abre el historial.
+        desde: inicioDe(desde && desde > hoy ? desde : hoy),
+        hasta: hasta ? inicioDe(sumarDias(hasta, 1)) : undefined,
+      });
+      return { ...resultado, filas: resultado.filas.map(aReservaPanel) };
     },
 
     // CU-12 Activar reserva: el comensal llegó; se abre la cuenta de mesa.

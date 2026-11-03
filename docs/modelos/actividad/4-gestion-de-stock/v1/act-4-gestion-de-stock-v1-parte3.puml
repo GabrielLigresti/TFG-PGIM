@@ -1,0 +1,37 @@
+@startuml act-4-gestion-de-stock-v1-parte3
+' Diagrama de actividades, formato Vialia (sin carriles; el actor va en el texto).
+' Dividido en partes para el documento; los conectores (A), (B)... unen las partes.
+skinparam dpi 220
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam activity {
+  BackgroundColor #FFFFFF
+  BorderColor #000000
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #000000
+  StartColor #000000
+  EndColor #000000
+}
+skinparam circledCharacter {
+  FontSize 12
+}
+
+(B)
+:Elegir el intermedio con stock
+y la cantidad a producir;
+:Sistema: precarga los consumos teóricos
+según la receta;
+:Corregir lo usado y cargar
+la cantidad obtenida;
+if (¿Algún componente quedaría negativo?) then (Sí)
+  :Sistema: rechaza la tanda completa;
+  stop
+else (No)
+endif
+:Sistema: descuenta lo usado, suma lo obtenido,
+actualiza el costo del intermedio
+y muestra el rendimiento y el desvío;
+stop
+@enduml

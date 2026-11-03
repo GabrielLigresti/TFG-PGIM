@@ -35,7 +35,7 @@ export const insumoInputSchema = z.object({
   nombre: nombreSchema,
   unidadBase: z.enum(UNIDADES_BASE),
   // Costo de compra por unidad base (por gramo, mililitro o unidad).
-  costoCompra: z.number().min(0, 'El costo no puede ser negativo').max(1e9),
+  costoCompraVigente: z.number().min(0, 'El costo no puede ser negativo').max(1e9),
   activo: z.boolean().optional(),
 });
 
@@ -45,7 +45,7 @@ export interface Insumo {
   id: string;
   nombre: string;
   unidadBase: UnidadBase;
-  costoCompra: number | null;
+  costoCompraVigente: number | null;
   activo: boolean;
   // Existencia en la sucursal de trabajo; 0 si todavía no tuvo movimientos.
   stock: number;
@@ -69,6 +69,11 @@ export const recetaInputSchema = z.object({
 });
 
 export type RecetaInput = z.infer<typeof recetaInputSchema>;
+
+// Marca "lleva stock" de un producto intermedio (se produce por tandas).
+export const llevaStockInputSchema = z.object({ llevaStock: z.boolean() });
+
+export type LlevaStockInput = z.infer<typeof llevaStockInputSchema>;
 
 // Flujo A del CU-07: producto intermedio nuevo con su receta.
 export const intermedioAltaSchema = z.object({
@@ -107,6 +112,8 @@ export interface RecetaDetalle {
     id: string;
     nombre: string;
     unidadBase: UnidadBase | null;
+    // Solo un intermedio puede llevar stock; un plato siempre es false.
+    llevaStock: boolean;
   };
   receta: {
     rendimiento: number;
@@ -134,6 +141,7 @@ export interface ResumenRecetas {
     activo: boolean;
     tieneReceta: boolean;
     costoUnitario: number;
+    llevaStock: boolean;
   }[];
 }
 

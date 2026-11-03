@@ -6,7 +6,7 @@ import { EncabezadoPagina, Vacio } from '../components/ui';
 
 export function PanelPage() {
   const { sesion, tienePermiso } = useSesion();
-  const visibles = SECCIONES.filter((s) => tienePermiso(s.permiso));
+  const visibles = SECCIONES.filter((s) => s.permisos.some(tienePermiso));
 
   return (
     <>

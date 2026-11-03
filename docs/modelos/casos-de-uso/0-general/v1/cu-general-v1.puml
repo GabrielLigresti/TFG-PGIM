@@ -73,6 +73,7 @@ rectangle "PGIM" {
     usecase "CU-07 Configurar\nreceta" as CU07
     usecase "Crear producto\nintermedio" as INT
     usecase "CU-08 Registrar\nmovimientos de stock" as CU08
+    usecase "CU-22 Registrar\nproducción de intermedio" as CU22
     usecase "CU-09 Asistente\nde apertura" as CU09
     usecase "Pronosticar\ndemanda" as PRON
     usecase "Verificar stock\ny mesas" as VERI
@@ -96,8 +97,10 @@ GER -- CU09
 GER -- CU19
 JEF -- CU07
 JEF -- CU08
+JEF -- CU22
 STF -- CU05
 STF -- CU08
+STF -- CU22
 STF -- CU12
 STF -- CU18
 
@@ -135,6 +138,7 @@ CU14 -[hidden]down- CU18
 CU16 -[hidden]down- CU05
 CU17 -[hidden]down- CU04
 CU19 -[hidden]down- CU08
+CU08 -[hidden]down- CU22
 ' módulos en dos filas
 HUE -[hidden]down- CU07
 CU02 -[hidden]down- CU19

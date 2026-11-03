@@ -8,8 +8,9 @@ interface Props {
   tipo: Sesion['usuario']['tipo'];
   // Las pantallas operativas del staff necesitan una sucursal de trabajo elegida.
   requiereSucursal?: boolean;
-  // Sin el permiso, vuelve al inicio del panel (la API igual lo rechazaría).
-  permiso?: CodigoPermiso;
+  // Sin el permiso (o sin ninguno de la lista), vuelve al inicio del panel
+  // (la API igual lo rechazaría).
+  permiso?: CodigoPermiso | CodigoPermiso[];
   children: ReactNode;
 }
 
@@ -22,6 +23,8 @@ export function RutaProtegida({ tipo, requiereSucursal = false, permiso, childre
   if (!sesion) return <Navigate to="/login" replace state={{ desde: pathname, tipo }} />;
   if (sesion.usuario.tipo !== tipo) return <Navigate to={rutaInicio(sesion)} replace />;
   if (requiereSucursal && !sesion.sucursalActiva) return <Navigate to="/sucursal" replace />;
-  if (permiso && !tienePermiso(permiso)) return <Navigate to="/panel" replace />;
+  const requeridos = permiso === undefined ? [] : [permiso].flat();
+  if (requeridos.length > 0 && !requeridos.some(tienePermiso))
+    return <Navigate to="/panel" replace />;
   return children;
 }

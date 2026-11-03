@@ -20,9 +20,9 @@ skinparam circledCharacter {
 
 (A)
 :Elegir tipo: ingreso, merma o ajuste;
-:Cargar insumo, cantidad, unidad y motivo
-(la merma de un intermedio se carga
-sobre sus insumos);
+:Cargar el insumo o intermedio con stock,
+cantidad, unidad y motivo (la merma,
+con un motivo de la lista);
 if (¿La unidad es de la misma dimensión?) then (No)
   :Sistema: rechaza el movimiento;
   stop
