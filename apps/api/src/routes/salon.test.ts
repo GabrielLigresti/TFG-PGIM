@@ -1,3 +1,4 @@
+import type { MesaSalon } from '@pgim/shared';
 import request from 'supertest';
 import { createApp } from '../app';
 import { firmarToken } from '../lib/jwt';
@@ -9,7 +10,7 @@ jest.mock('../repositories/usuario.repository', () => ({
 }));
 
 jest.mock('../services/salon.service', () => ({
-  salonService: { estado: jest.fn().mockResolvedValue([]) },
+  salonService: { estado: jest.fn() },
 }));
 
 const { salonService } = jest.requireMock('../services/salon.service');
@@ -17,7 +18,21 @@ const { salonService } = jest.requireMock('../services/salon.service');
 describe('GET /api/salon/estado', () => {
   const app = createApp();
 
-  beforeEach(() => salonService.estado.mockClear());
+  const libre: MesaSalon = {
+    id: 'm1',
+    numero: 1,
+    capacidad: 4,
+    posX: 10,
+    posY: 15,
+    estado: 'LIBRE',
+    reserva: null,
+    pedidos: [],
+  };
+
+  beforeEach(() => {
+    salonService.estado.mockReset();
+    salonService.estado.mockResolvedValue([libre]);
+  });
 
   it('sin sesión responde 401', async () => {
     await request(app).get('/api/salon/estado').expect(401);
@@ -40,7 +55,8 @@ describe('GET /api/salon/estado', () => {
     await request(app)
       .get('/api/salon/estado')
       .set('Cookie', cookieConPermisos(['reserva.ver', 'pedido.ver']))
-      .expect(200);
+      .expect(200)
+      .expect((res) => expect(res.body).toEqual([libre]));
     expect(salonService.estado).toHaveBeenCalledWith(IDS.restaurante, IDS.centro, true);
   });
 

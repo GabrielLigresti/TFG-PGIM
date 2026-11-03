@@ -81,9 +81,11 @@ describe('salonService.estado', () => {
       estado: 'PENDIENTE',
       inicio: new Date(AHORA.getTime() + 10 * MIN),
     });
-    const { servicio } = armar([mesa('m1', 1)], [pendiente], new Map());
+    const pedidos = new Map([['R2', [pedido('p2')]]]);
+    const { servicio, repoPedidos } = armar([mesa('m1', 1)], [pendiente], pedidos);
     const [m] = await servicio.estado('R', 'S', true);
     expect(m).toMatchObject({ estado: 'RESERVADA', reserva: { id: 'R2' }, pedidos: [] });
+    expect(repoPedidos.delSalon).not.toHaveBeenCalledWith('R', 'S', expect.arrayContaining(['R2']));
   });
 
   it('una mesa LIBRE viene con reserva null y pedidos vacíos', async () => {

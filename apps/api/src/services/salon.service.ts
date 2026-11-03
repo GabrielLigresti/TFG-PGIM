@@ -1,4 +1,4 @@
-import { MINUTOS_ANTES_ACTIVACION, type MesaSalon } from '@pgim/shared';
+import { MINUTOS_ANTES_ACTIVACION, type MesaSalon, type PedidoSalon } from '@pgim/shared';
 import { situacionDeMesa } from '../domain/salon';
 import type { MesaRepository } from '../repositories/mesa.repository';
 import { mesaRepository } from '../repositories/mesa.repository';
@@ -10,7 +10,7 @@ import { aReservaPanel } from './reserva-panel';
 
 const MINUTO = 60_000;
 
-// CU-14 en vivo: el estado actual de cada mesa de la sucursal, con su reserva
+// En vivo: el estado actual de cada mesa de la sucursal, con su reserva
 // y, si el permiso lo deja, los pedidos de su cuenta abierta.
 export function createSalonService(
   mesas: Pick<MesaRepository, 'listar'>,
@@ -46,7 +46,7 @@ export function createSalonService(
       const delSalon =
         incluirPedidos && idsOcupadas.length > 0
           ? await pedidos.delSalon(restauranteId, sucursalId, idsOcupadas)
-          : new Map();
+          : new Map<string, PedidoSalon[]>();
 
       return situaciones.map(({ mesa, estado, reserva }) => ({
         id: mesa.id,

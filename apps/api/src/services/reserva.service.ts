@@ -8,12 +8,7 @@ import type {
 } from '@pgim/shared';
 import { busEventos, type BusEventos, type TipoEventoReserva } from '../domain/eventos';
 import { elegirMesa, esFechaReservable, fechaDe, iniciosDelDia } from '../domain/franjas';
-import {
-  estadoDeReserva,
-  limiteDeLlegada,
-  puedeActivarse,
-  puedeCancelarse,
-} from '../domain/reserva';
+import { estadoDeReserva, limiteDeLlegada, puedeCancelarse } from '../domain/reserva';
 import { AppError, esClaveDuplicada } from '../lib/errors';
 import { horaArgentina } from '../lib/hora';
 import {
