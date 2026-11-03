@@ -50,7 +50,17 @@ function aSucursal(fila: Fila): Sucursal {
   };
 }
 
-function columnas(datos: SucursalInput) {
+export function columnas(
+  datos: Pick<
+    SucursalInput,
+    | 'nombre'
+    | 'direccion'
+    | 'horarioApertura'
+    | 'horarioCierre'
+    | 'toleranciaNoShowMin'
+    | 'menuActivoId'
+  >,
+) {
   return {
     nombre: datos.nombre,
     direccion: datos.direccion,
@@ -62,7 +72,7 @@ function columnas(datos: SucursalInput) {
   };
 }
 
-function horarios(datos: SucursalInput) {
+export function horarios(datos: Pick<SucursalInput, 'horariosServicio'>) {
   return datos.horariosServicio.map((h) => ({
     franja: h.franja,
     horaInicio: deHora(h.horaInicio),
