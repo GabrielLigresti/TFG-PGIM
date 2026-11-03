@@ -1,4 +1,4 @@
-import type { EstadoPedido, PedidoCola } from '@pgim/shared';
+import type { EstadoPedido, LineaPedidoVista, PedidoCola, PedidoSalon } from '@pgim/shared';
 import { ESTADOS_ACTIVOS } from '../domain/pedido';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
@@ -72,6 +72,12 @@ export interface PedidoRepository {
   // CONFIRMADO → CANCELADO con el motivo, y devolución de cada consumo de
   // stock, en una transacción. false si ya no estaba CONFIRMADO.
   cancelar(restauranteId: string, sucursalId: string, id: string, motivo: string): Promise<boolean>;
+  // reservaId → pedidos de su cuenta ABIERTA, de cualquier estado, por creadoEn.
+  delSalon(
+    restauranteId: string,
+    sucursalId: string,
+    reservaIds: string[],
+  ): Promise<Map<string, PedidoSalon[]>>;
 }
 
 function deLaSucursal(restauranteId: string, sucursalId: string) {
@@ -99,6 +105,18 @@ export const seleccionPedidoCola = {
 
 type FilaPedido = Prisma.PedidoGetPayload<{ select: typeof seleccionPedidoCola }>;
 
+type FilaLineas = FilaPedido['lineas'];
+
+function aLineasVista(lineas: FilaLineas): LineaPedidoVista[] {
+  return lineas.map((l) => ({
+    id: l.id,
+    plato: l.itemMenu,
+    cantidad: l.cantidad,
+    precioUnitario: Number(l.precioUnitario),
+    observaciones: l.observaciones,
+  }));
+}
+
 export function aPedidoCola(fila: FilaPedido): PedidoCola {
   return {
     id: fila.id,
@@ -107,13 +125,7 @@ export function aPedidoCola(fila: FilaPedido): PedidoCola {
     creadoEn: fila.creadoEn.toISOString(),
     listoEn: fila.listoEn?.toISOString() ?? null,
     estado: fila.estado,
-    lineas: fila.lineas.map((l) => ({
-      id: l.id,
-      plato: l.itemMenu,
-      cantidad: l.cantidad,
-      precioUnitario: Number(l.precioUnitario),
-      observaciones: l.observaciones,
-    })),
+    lineas: aLineasVista(fila.lineas),
   };
 }
 
@@ -269,6 +281,34 @@ export const pedidoRepository: PedidoRepository = {
       orderBy: [{ creadoEn: 'asc' }, { numero: 'asc' }],
     });
     return filas.map(aPedidoCola);
+  },
+
+  async delSalon(restauranteId, sucursalId, reservaIds) {
+    const mapa = new Map<string, PedidoSalon[]>();
+    if (reservaIds.length === 0) return mapa;
+    const filas = await prisma.pedido.findMany({
+      where: {
+        ...deLaSucursal(restauranteId, sucursalId),
+        cuentaMesa: { reservaId: { in: reservaIds }, estado: 'ABIERTA' },
+      },
+      select: {
+        ...seleccionPedidoCola,
+        cuentaMesa: { select: { reservaId: true } },
+      },
+      orderBy: [{ creadoEn: 'asc' }, { numero: 'asc' }],
+    });
+    for (const f of filas) {
+      const pedido: PedidoSalon = {
+        id: f.id,
+        numero: f.numero,
+        creadoEn: f.creadoEn.toISOString(),
+        estado: f.estado,
+        lineas: aLineasVista(f.lineas),
+      };
+      const reservaId = f.cuentaMesa.reservaId;
+      mapa.set(reservaId, [...(mapa.get(reservaId) ?? []), pedido]);
+    }
+    return mapa;
   },
 
   async buscarEnSucursal(restauranteId, sucursalId, id) {

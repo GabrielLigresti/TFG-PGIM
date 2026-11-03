@@ -99,6 +99,12 @@ export interface ReservaRepository {
     id: string,
     confirmarSaldo: boolean,
   ): Promise<ResultadoCierre>;
+  // Salón en vivo: ACTIVA de cualquier fecha y PENDIENTE con inicio <= pendientesHasta.
+  vigentesDelSalon(
+    restauranteId: string,
+    sucursalId: string,
+    pendientesHasta: Date,
+  ): Promise<FilaReservaPanel[]>;
   // CU-21: PENDIENTE ya empezadas, con la tolerancia de su sucursal. Incluye
   // las de sucursales dadas de baja, para que no queden pendientes para siempre.
   pendientesIniciadas(ahora: Date): Promise<FilaReserva[]>;
@@ -270,6 +276,18 @@ export const reservaRepository: ReservaRepository = {
       select: seleccionPanel,
     });
     return fila && aFilaReservaPanel(fila);
+  },
+
+  async vigentesDelSalon(restauranteId, sucursalId, pendientesHasta) {
+    const filas = await prisma.reserva.findMany({
+      where: {
+        ...deLaSucursal(restauranteId, sucursalId),
+        OR: [{ estado: 'ACTIVA' }, { estado: 'PENDIENTE', inicio: { lte: pendientesHasta } }],
+      },
+      select: seleccionPanel,
+      orderBy: [{ inicio: 'asc' }, { mesa: { numero: 'asc' } }],
+    });
+    return filas.map(aFilaReservaPanel);
   },
 
   activar(restauranteId, sucursalId, id, desde, hacia) {
