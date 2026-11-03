@@ -2,8 +2,8 @@ import { Router, type Request } from 'express';
 import {
   cerrarMesaSchema,
   consultaFranjasSchema,
-  consultaMapaSchema,
   consultaReservasPanelSchema,
+  consultaMapaSchema,
   idParamSchema,
   reservaInputSchema,
   type ReservaInput,
@@ -62,8 +62,10 @@ export function sucursalDeTrabajo(req: Request): string {
 }
 
 reservasPanelRouter.get('/', requierePermiso('reserva.ver'), async (req, res) => {
-  const { fecha } = consultaReservasPanelSchema.parse(req.query);
-  res.json(await reservaService.delDia(req.tenant!.restauranteId, sucursalDeTrabajo(req), fecha));
+  const consulta = consultaReservasPanelSchema.parse(req.query);
+  res.json(
+    await reservaService.listado(req.tenant!.restauranteId, sucursalDeTrabajo(req), consulta),
+  );
 });
 
 reservasPanelRouter.post(

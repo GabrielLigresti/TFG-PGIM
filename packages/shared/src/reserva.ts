@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { fechaSchema, type Referencia } from './comun';
+import { fechaSchema, paginaSchema, type Referencia } from './comun';
 
 // CU-03, CU-12 y CU-21: reservas de mesa por franja de 1 h.
 
@@ -100,8 +100,14 @@ export const salaComensal = (id: string) => `comensal:${id}`;
 // Solo personal con pedido.ver o stock.registrar: cola de cocina y alertas.
 export const salaPersonal = (id: string) => `personal:${id}`;
 
-// CU-12: reservas del día de la sucursal de trabajo, en el panel.
-export const consultaReservasPanelSchema = z.object({ fecha: fechaSchema });
+// CU-12: reservas de hoy en adelante de la sucursal de trabajo, en el panel.
+export const consultaReservasPanelSchema = z.object({
+  pagina: paginaSchema,
+  desde: fechaSchema.optional(),
+  hasta: fechaSchema.optional(),
+});
+
+export type ConsultaReservasPanel = z.infer<typeof consultaReservasPanelSchema>;
 
 export interface ReservaPanel {
   id: string;

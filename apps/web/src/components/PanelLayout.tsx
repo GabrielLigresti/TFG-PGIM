@@ -331,7 +331,8 @@ export function PanelLayout() {
         </header>
 
         <main className="mx-auto max-w-6xl px-4 py-6 lg:px-6">
-          <Outlet />
+          {/* Cambiar de sucursal remonta la pantalla: recarga sus datos y limpia sus filtros. */}
+          <Outlet key={sesion.sucursalActiva?.id} />
         </main>
       </div>
     </div>

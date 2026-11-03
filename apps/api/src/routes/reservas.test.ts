@@ -18,7 +18,7 @@ jest.mock('../repositories/reserva.repository', () => ({
     buscarDelComensal: jest.fn(),
     listarDelComensal: jest.fn().mockResolvedValue([]),
     cambiarEstado: jest.fn(),
-    listarDelDia: jest.fn().mockResolvedValue([]),
+    listarPanel: jest.fn().mockResolvedValue({ filas: [], total: 0, pagina: 1, porPagina: 25 }),
     buscarEnSucursal: jest.fn(),
     activar: jest.fn().mockResolvedValue(true),
     cerrar: jest.fn(),
@@ -126,27 +126,26 @@ describe('/api/reservas (panel)', () => {
 
   it('sin reserva.ver responde 403', async () => {
     const res = await request(app)
-      .get('/api/reservas?fecha=2026-10-30')
+      .get('/api/reservas')
       .set('Cookie', cookieConPermisos(['menu.ver']));
     expect(res.status).toBe(403);
   });
 
-  it('con reserva.ver lista las reservas del día de la sucursal de trabajo', async () => {
+  it('con reserva.ver lista las reservas de la sucursal de trabajo, paginadas', async () => {
     const res = await request(app)
-      .get('/api/reservas?fecha=2026-10-30')
+      .get('/api/reservas?pagina=2')
       .set('Cookie', cookieConPermisos(['reserva.ver']));
     expect(res.status).toBe(200);
-    expect(reservaRepository.listarDelDia).toHaveBeenCalledWith(
+    expect(reservaRepository.listarPanel).toHaveBeenCalledWith(
       IDS.restaurante,
       IDS.centro,
-      new Date('2026-10-30T03:00:00.000Z'),
-      new Date('2026-10-31T03:00:00.000Z'),
+      expect.objectContaining({ pagina: 2 }),
     );
   });
 
-  it('valida la fecha', async () => {
+  it('valida el rango de fechas', async () => {
     const res = await request(app)
-      .get('/api/reservas?fecha=hoy')
+      .get('/api/reservas?desde=hoy')
       .set('Cookie', cookieConPermisos(['reserva.ver']));
     expect(res.status).toBe(400);
   });

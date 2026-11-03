@@ -65,6 +65,21 @@ const diaYHora = new Intl.DateTimeFormat('es-AR', {
   hourCycle: 'h23',
 });
 
+const diaLargo = new Intl.DateTimeFormat('es-AR', {
+  timeZone: ZONA_ARGENTINA,
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+// "AAAA-MM-DD" → "Hoy, martes 3 de noviembre", "Mañana, …" o "Jueves 5 de noviembre".
+export function formatoDiaRelativo(fecha: string, hoy: string): string {
+  const dia = diaLargo.format(new Date(`${fecha}T12:00:00-03:00`)).replace(',', '');
+  if (fecha === hoy) return `Hoy, ${dia}`;
+  if (fecha === sumarDias(hoy, 1)) return `Mañana, ${dia}`;
+  return dia.charAt(0).toUpperCase() + dia.slice(1);
+}
+
 // Instantes ISO (UTC) mostrados en hora de Argentina.
 export const formatoHora = (instante: string) => hora.format(new Date(instante));
 export const formatoDiaYHora = (instante: string) => diaYHora.format(new Date(instante));

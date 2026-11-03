@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Referencia } from './comun';
+import { paginaSchema, type Referencia } from './comun';
 import { UNIDADES_MEDIDA, type TipoComponente, type UnidadBase } from './inventario';
 
 // Mismo orden y valores que los enums del schema de Prisma.
@@ -103,8 +103,6 @@ export const tandaInputSchema = z.object({
 
 export type TandaInput = z.infer<typeof tandaInputSchema>;
 
-const paginaSchema = z.coerce.number().int().min(1).default(1);
-
 export const planTandaQuerySchema = z.object({
   intermedioId: z.uuid(),
   cantidad: z.coerce.number().positive(),
@@ -154,13 +152,6 @@ export interface MovimientoStockFila {
   motivo: string | null;
   empleado: string | null;
   tandaId: string | null;
-}
-
-export interface Pagina<T> {
-  filas: T[];
-  total: number;
-  pagina: number;
-  porPagina: 25;
 }
 
 export interface PlanTanda {
