@@ -74,7 +74,7 @@ describe('/api/apertura', () => {
       .get('/api/apertura/configuracion')
       .set('Cookie', cookie())
       .expect(200, CONFIG);
-    expect(repo.obtenerConfiguracion).toHaveBeenCalledWith(IDS.restaurante, IDS.centro);
+    expect(repo.obtenerConfiguracion).toHaveBeenCalledWith(IDS.restaurante, IDS.centro, undefined);
   });
 
   it('PUT /configuracion inválida responde 400', async () => {

@@ -1,5 +1,6 @@
 import type { ConfiguracionApertura, Franja, PronosticoFranja } from '@pgim/shared';
 import type { FilaPronostico, HistorialVentas, ItemPronostico } from '../domain/pronostico';
+import type { Prisma } from '../generated/prisma/client';
 import { sumarDias } from '../domain/franjas';
 import { aHora } from '../lib/hora';
 import { prisma } from '../lib/prisma';
@@ -10,15 +11,19 @@ export interface TenantSucursal {
   sucursalId: string;
 }
 
-// Las lecturas que hace `calcular` van por fuera de la transacción (usan el
-// cliente global, no ven la tx): el lock solo serializa generaciones y
-// regeneraciones de la sucursal, y el cálculo es de solo lectura.
-export type CalcularFilas = () => Promise<FilaPronostico[]>;
+// `calcular` recibe la transacción y hace sus lecturas con ella (en serie): así
+// la generación usa una sola conexión del pool mientras espera o tiene el lock.
+// Si el historial ya no alcanza (pudo cambiar mientras se esperaba el lock),
+// devuelve `suficiente: false` y el repositorio no borra ni escribe nada.
+export type CalcularFilas = (
+  tx: Prisma.TransactionClient,
+) => Promise<{ suficiente: boolean; filas: FilaPronostico[] }>;
 
 export interface AperturaRepository {
   obtenerConfiguracion(
     restauranteId: string,
     sucursalId: string,
+    db?: Prisma.TransactionClient,
   ): Promise<ConfiguracionApertura | null>;
   actualizarConfiguracion(
     restauranteId: string,
@@ -26,7 +31,11 @@ export interface AperturaRepository {
     config: ConfiguracionApertura,
   ): Promise<ConfiguracionApertura | null>;
   // Reservas FINALIZADA con cuenta CERRADA y las líneas de sus pedidos ENTREGADO.
-  historial(restauranteId: string, sucursalId: string): Promise<HistorialVentas>;
+  historial(
+    restauranteId: string,
+    sucursalId: string,
+    db?: Prisma.TransactionClient,
+  ): Promise<HistorialVentas>;
   // Los 7 días desde `semanaDesde` (AAAA-MM-DD), ordenados por fecha y franja.
   pronosticosDeSemana(
     restauranteId: string,
@@ -34,18 +43,20 @@ export interface AperturaRepository {
     semanaDesde: string,
   ): Promise<PronosticoFranja[]>;
   // Si la semana no tiene pronósticos (comprobado dentro del lock) corre
-  // `calcular` y los guarda. Devuelve true si generó.
+  // `calcular` y los guarda. Devuelve true si generó (false si ya había o si
+  // el historial no alcanzaba).
   generarSiFalta(
     tenant: TenantSucursal,
     semanaDesde: string,
     calcular: CalcularFilas,
   ): Promise<boolean>;
-  // Borra los pronósticos de la semana (DemandaItem cae en cascada) y guarda los nuevos.
+  // Borra los pronósticos de la semana (DemandaItem cae en cascada) y guarda los
+  // nuevos. Devuelve false, sin tocar nada, si el historial no alcanzaba.
   reemplazarSemana(
     tenant: TenantSucursal,
     semanaDesde: string,
     calcular: CalcularFilas,
-  ): Promise<void>;
+  ): Promise<boolean>;
 }
 
 const TIMEOUT_TX_MS = 15_000;
@@ -69,8 +80,8 @@ function rangoSemana(semanaDesde: string) {
 }
 
 export const aperturaRepository: AperturaRepository = {
-  async obtenerConfiguracion(restauranteId, sucursalId) {
-    const c = await prisma.configuracionApertura.findFirst({
+  async obtenerConfiguracion(restauranteId, sucursalId, db = prisma) {
+    const c = await db.configuracionApertura.findFirst({
       where: { sucursalId, sucursal: { restauranteId } },
     });
     return c ? aConfiguracion(c) : null;
@@ -84,46 +95,45 @@ export const aperturaRepository: AperturaRepository = {
     return count === 0 ? null : aperturaRepository.obtenerConfiguracion(restauranteId, sucursalId);
   },
 
-  async historial(restauranteId, sucursalId) {
-    const [reservas, horarios, items] = await Promise.all([
-      prisma.reserva.findMany({
-        where: {
-          sucursalId,
-          sucursal: { restauranteId },
-          estado: 'FINALIZADA',
-          cuentaMesa: { estado: 'CERRADA' },
-        },
-        select: {
-          inicio: true,
-          cantidadPersonas: true,
-          cuentaMesa: {
-            select: {
-              pedidos: {
-                where: { estado: 'ENTREGADO', sucursalId },
-                select: { lineas: { select: { itemMenuId: true, cantidad: true } } },
-              },
+  async historial(restauranteId, sucursalId, db = prisma) {
+    // En serie: con una transacción interactiva las consultas comparten conexión.
+    const reservas = await db.reserva.findMany({
+      where: {
+        sucursalId,
+        sucursal: { restauranteId },
+        estado: 'FINALIZADA',
+        cuentaMesa: { estado: 'CERRADA' },
+      },
+      select: {
+        inicio: true,
+        cantidadPersonas: true,
+        cuentaMesa: {
+          select: {
+            pedidos: {
+              where: { estado: 'ENTREGADO', sucursalId },
+              select: { lineas: { select: { itemMenuId: true, cantidad: true } } },
             },
           },
         },
-        orderBy: { inicio: 'asc' },
-      }),
-      prisma.horarioServicio.findMany({
-        where: { sucursalId, sucursal: { restauranteId } },
-        orderBy: { horaInicio: 'asc' },
-      }),
-      // Ítems activos del menú activo de la sucursal, con su precio vigente.
-      prisma.itemMenu.findMany({
-        where: {
-          restauranteId,
-          activo: true,
-          menus: {
-            some: { menu: { sucursalesActivas: { some: { id: sucursalId, restauranteId } } } },
-          },
+      },
+      orderBy: { inicio: 'asc' },
+    });
+    const horarios = await db.horarioServicio.findMany({
+      where: { sucursalId, sucursal: { restauranteId } },
+      orderBy: { horaInicio: 'asc' },
+    });
+    // Ítems activos del menú activo de la sucursal, con su precio vigente.
+    const items = await db.itemMenu.findMany({
+      where: {
+        restauranteId,
+        activo: true,
+        menus: {
+          some: { menu: { sucursalesActivas: { some: { id: sucursalId, restauranteId } } } },
         },
-        select: { id: true, nombre: true, precio: true },
-        orderBy: { id: 'asc' },
-      }),
-    ]);
+      },
+      select: { id: true, nombre: true, precio: true },
+      orderBy: { id: 'asc' },
+    });
     return {
       reservas: reservas.map((r) => ({
         inicio: r.inicio,
@@ -184,23 +194,27 @@ export const aperturaRepository: AperturaRepository = {
           where: { sucursalId: tenant.sucursalId, fechaServicio: rangoSemana(semanaDesde) },
         });
         if (existentes > 0) return false;
-        await guardar(tx, tenant.sucursalId, await calcular());
+        const { suficiente, filas } = await calcular(tx);
+        if (!suficiente) return false;
+        await guardar(tx, tenant.sucursalId, filas);
         return true;
       },
       { timeout: TIMEOUT_TX_MS },
     );
   },
 
-  async reemplazarSemana(tenant, semanaDesde, calcular) {
-    await prisma.$transaction(
+  reemplazarSemana(tenant, semanaDesde, calcular) {
+    return prisma.$transaction(
       async (tx) => {
         await bloquearSucursal(tx, 'apertura', tenant.sucursalId);
         await asegurarSucursal(tx, tenant);
-        const filas = await calcular();
+        const { suficiente, filas } = await calcular(tx);
+        if (!suficiente) return false;
         await tx.pronostico.deleteMany({
           where: { sucursalId: tenant.sucursalId, fechaServicio: rangoSemana(semanaDesde) },
         });
         await guardar(tx, tenant.sucursalId, filas);
+        return true;
       },
       { timeout: TIMEOUT_TX_MS },
     );

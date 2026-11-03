@@ -7,6 +7,8 @@ afterAll(() => prisma.$disconnect());
 
 const SEMANA = '2026-11-09'; // lunes
 
+const ok = (filas: FilaPronostico[]) => async () => ({ suficiente: true, filas });
+
 const fila = (
   fecha: string,
   franja: 'ALMUERZO' | 'CENA',
@@ -37,11 +39,15 @@ describe('apertura: pronósticos', () => {
   const contar = () => prisma.pronostico.count({ where: { sucursalId: e.sucursalId } });
 
   it('guarda y lee la semana ordenada, con nombres de ítem y números', async () => {
-    const generado = await aperturaRepository.generarSiFalta(tenant, SEMANA, async () => [
-      fila('2026-11-10', 'CENA'),
-      fila('2026-11-09', 'CENA'),
-      fila('2026-11-09', 'ALMUERZO', [{ itemMenuId: e.pizzaId, cantidad: 3 }]),
-    ]);
+    const generado = await aperturaRepository.generarSiFalta(
+      tenant,
+      SEMANA,
+      ok([
+        fila('2026-11-10', 'CENA'),
+        fila('2026-11-09', 'CENA'),
+        fila('2026-11-09', 'ALMUERZO', [{ itemMenuId: e.pizzaId, cantidad: 3 }]),
+      ]),
+    );
     expect(generado).toBe(true);
     const r = await aperturaRepository.pronosticosDeSemana(e.restauranteId, e.sucursalId, SEMANA);
     expect(r.map((p) => `${p.fecha} ${p.franja}`)).toEqual([
@@ -54,19 +60,17 @@ describe('apertura: pronósticos', () => {
   });
 
   it('no lee fuera de los 7 días de la semana', async () => {
-    await aperturaRepository.generarSiFalta(tenant, SEMANA, async () => [
-      fila('2026-11-08', 'CENA'),
-      fila('2026-11-15', 'CENA'),
-      fila('2026-11-16', 'CENA'),
-    ]);
+    await aperturaRepository.generarSiFalta(
+      tenant,
+      SEMANA,
+      ok([fila('2026-11-08', 'CENA'), fila('2026-11-15', 'CENA'), fila('2026-11-16', 'CENA')]),
+    );
     const r = await aperturaRepository.pronosticosDeSemana(e.restauranteId, e.sucursalId, SEMANA);
     expect(r.map((p) => p.fecha)).toEqual(['2026-11-15']);
   });
 
   it('aísla entre restaurantes', async () => {
-    await aperturaRepository.generarSiFalta(tenant, SEMANA, async () => [
-      fila('2026-11-09', 'CENA'),
-    ]);
+    await aperturaRepository.generarSiFalta(tenant, SEMANA, ok([fila('2026-11-09', 'CENA')]));
     const otro = await crearEscenario();
     expect(
       await aperturaRepository.pronosticosDeSemana(otro.restauranteId, e.sucursalId, SEMANA),
@@ -75,7 +79,7 @@ describe('apertura: pronósticos', () => {
       aperturaRepository.generarSiFalta(
         { restauranteId: otro.restauranteId, sucursalId: e.sucursalId },
         '2026-11-16',
-        async () => [fila('2026-11-16', 'CENA')],
+        ok([fila('2026-11-16', 'CENA')]),
       ),
     ).rejects.toThrow();
     expect(await contar()).toBe(1);
@@ -90,15 +94,17 @@ describe('apertura: pronósticos', () => {
   });
 
   it('regenerar reemplaza la semana sin duplicar y respeta otras semanas', async () => {
-    await aperturaRepository.generarSiFalta(tenant, SEMANA, async () => [
-      fila('2026-11-09', 'CENA', [{ itemMenuId: e.pizzaId, cantidad: 3 }]),
-    ]);
-    await aperturaRepository.generarSiFalta(tenant, '2026-11-16', async () => [
-      fila('2026-11-16', 'CENA'),
-    ]);
-    await aperturaRepository.reemplazarSemana(tenant, SEMANA, async () => [
-      fila('2026-11-09', 'CENA', [{ itemMenuId: e.aguaId, cantidad: 5 }], 20),
-    ]);
+    await aperturaRepository.generarSiFalta(
+      tenant,
+      SEMANA,
+      ok([fila('2026-11-09', 'CENA', [{ itemMenuId: e.pizzaId, cantidad: 3 }])]),
+    );
+    await aperturaRepository.generarSiFalta(tenant, '2026-11-16', ok([fila('2026-11-16', 'CENA')]));
+    await aperturaRepository.reemplazarSemana(
+      tenant,
+      SEMANA,
+      ok([fila('2026-11-09', 'CENA', [{ itemMenuId: e.aguaId, cantidad: 5 }], 20)]),
+    );
     expect(await contar()).toBe(2);
     expect(await prisma.demandaItem.count()).toBe(1);
     const r = await aperturaRepository.pronosticosDeSemana(e.restauranteId, e.sucursalId, SEMANA);
@@ -108,9 +114,7 @@ describe('apertura: pronósticos', () => {
   });
 
   it('si calcular falla al regenerar, la semana queda como estaba', async () => {
-    await aperturaRepository.generarSiFalta(tenant, SEMANA, async () => [
-      fila('2026-11-09', 'CENA'),
-    ]);
+    await aperturaRepository.generarSiFalta(tenant, SEMANA, ok([fila('2026-11-09', 'CENA')]));
     await expect(
       aperturaRepository.reemplazarSemana(tenant, SEMANA, async () => {
         throw new Error('falla');
@@ -122,7 +126,10 @@ describe('apertura: pronósticos', () => {
   it('dos generarSiFalta en paralelo dejan una sola tanda', async () => {
     const calcular = jest.fn(async () => {
       await new Promise((r) => setTimeout(r, 200));
-      return [fila('2026-11-09', 'ALMUERZO'), fila('2026-11-09', 'CENA')];
+      return {
+        suficiente: true,
+        filas: [fila('2026-11-09', 'ALMUERZO'), fila('2026-11-09', 'CENA')],
+      };
     });
     const [a, b] = await Promise.all([
       aperturaRepository.generarSiFalta(tenant, SEMANA, calcular),
@@ -131,6 +138,41 @@ describe('apertura: pronósticos', () => {
     expect([a, b].sort()).toEqual([false, true]);
     expect(calcular).toHaveBeenCalledTimes(1);
     expect(await contar()).toBe(2);
+  });
+
+  it('12 generarSiFalta en paralelo no agotan el pool y dejan una sola tanda', async () => {
+    // Cada generación relee con su transacción: una sola conexión por llamada.
+    const resultados = await Promise.all(
+      Array.from({ length: 12 }, () =>
+        aperturaRepository.generarSiFalta(tenant, SEMANA, async (tx) => {
+          const config = await aperturaRepository.obtenerConfiguracion(
+            tenant.restauranteId,
+            tenant.sucursalId,
+            tx,
+          );
+          expect(config).toBeNull(); // el escenario no crea configuración; basta con usar tx
+          await aperturaRepository.historial(tenant.restauranteId, tenant.sucursalId, tx);
+          return { suficiente: true, filas: [fila('2026-11-09', 'CENA')] };
+        }),
+      ),
+    );
+    expect(resultados.filter(Boolean)).toHaveLength(1);
+    expect(await contar()).toBe(1);
+  }, 30_000);
+
+  it('si el historial no alcanza dentro del lock, no borra ni escribe', async () => {
+    await aperturaRepository.generarSiFalta(tenant, SEMANA, ok([fila('2026-11-09', 'CENA')]));
+    const insuficiente = async () => ({
+      suficiente: false,
+      filas: [fila('2026-11-09', 'ALMUERZO')],
+    });
+    expect(await aperturaRepository.reemplazarSemana(tenant, SEMANA, insuficiente)).toBe(false);
+    expect(await contar()).toBe(1);
+    expect(
+      (await aperturaRepository.pronosticosDeSemana(e.restauranteId, e.sucursalId, SEMANA))[0],
+    ).toMatchObject({ franja: 'CENA' });
+    expect(await aperturaRepository.generarSiFalta(tenant, '2026-11-16', insuficiente)).toBe(false);
+    expect(await contar()).toBe(1);
   });
 });
 

@@ -70,11 +70,43 @@ describe('aperturaService', () => {
     const repo = repoFalso(SUFICIENTE);
     await servicio(repo).obtenerAsistente(T, AHORA);
     expect(repo.historial).toHaveBeenCalledTimes(1);
-    const calcular = repo.generarSiFalta.mock.calls[0]![2] as () => Promise<unknown[]>;
-    const filas = await calcular();
+    const calcular = repo.generarSiFalta.mock.calls[0]![2] as (
+      tx: unknown,
+    ) => Promise<{ suficiente: boolean; filas: unknown[] }>;
+    const tx = { tx: true };
+    const { suficiente, filas } = await calcular(tx);
     expect(repo.historial).toHaveBeenCalledTimes(2);
     expect(repo.obtenerConfiguracion).toHaveBeenCalledTimes(2);
+    // Las relecturas van con la transacción.
+    expect(repo.historial).toHaveBeenLastCalledWith('r1', 's1', tx);
+    expect(repo.obtenerConfiguracion).toHaveBeenLastCalledWith('r1', 's1', tx);
+    expect(suficiente).toBe(true);
     expect(filas).toHaveLength(7); // una franja, siete días
+  });
+
+  it('responde con el progreso recalculado dentro del lock, no con el de afuera', async () => {
+    const repo = repoFalso(SUFICIENTE);
+    // Entre la lectura de afuera y el lock el historial pasó a ser insuficiente.
+    repo.generarSiFalta.mockImplementation(async (_t, _s, calcular) => {
+      repo.historial.mockResolvedValue(INSUFICIENTE);
+      const r = await calcular({});
+      return r.suficiente;
+    });
+    repo.pronosticosDeSemana.mockResolvedValue([{ fecha: SEMANA }]);
+    const res = await servicio(repo).obtenerAsistente(T, AHORA);
+    expect(res.progreso).toMatchObject({ semanas: 2, suficiente: false });
+    expect(res.pronosticos).toEqual([]);
+  });
+
+  it('regenerar también responde con el progreso del lock', async () => {
+    const repo = repoFalso(SUFICIENTE);
+    repo.reemplazarSemana.mockImplementation(async (_t, _s, calcular) => {
+      repo.historial.mockResolvedValue(INSUFICIENTE);
+      return (await calcular({})).suficiente;
+    });
+    const res = await servicio(repo).regenerar(T, AHORA);
+    expect(res.progreso.suficiente).toBe(false);
+    expect(res.pronosticos).toEqual([]);
   });
 
   it('regenerar con historial suficiente reemplaza la semana', async () => {
