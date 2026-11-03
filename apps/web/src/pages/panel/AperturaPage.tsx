@@ -31,7 +31,7 @@ import {
   propsDecimal,
 } from '../../components/ui';
 import type { Tono } from '../../lib/estados';
-import { aNumero, formatoPesos, sumarDias } from '../../lib/formato';
+import { aNumero, formatoPesosEnteros, sumarDias } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
@@ -207,7 +207,7 @@ function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
         <Kpi etiqueta="Cubiertos estimados" valor={totalCubiertos} detalle="En la semana" />
         <Kpi
           etiqueta="Ingreso estimado"
-          valor={formatoPesos(totalIngreso)}
+          valor={formatoPesosEnteros(totalIngreso)}
           detalle="En la semana"
         />
         <Kpi
@@ -217,14 +217,14 @@ function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
         />
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="grid min-w-0 content-start gap-4 lg:col-span-2">
+      <div className="grid gap-4">
+        <div className="min-w-0">
           <Panel titulo="Demanda de la semana">
-            <div className="hidden overflow-x-auto md:block">
-              <table className="w-full border-separate border-spacing-1 text-left">
+            <div className="hidden md:block">
+              <table className="w-full table-fixed border-separate border-spacing-1 text-left">
                 <thead>
                   <tr>
-                    <th scope="col" className="w-20" />
+                    <th scope="col" className="w-24" />
                     {fechas.map((f) => (
                       <th key={f} scope="col" className="px-1 pb-1 text-xs font-medium text-meta">
                         {diaCorto(f)}
@@ -267,16 +267,13 @@ function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
                       const p = porClave.get(clave({ fecha: f, franja }));
                       if (!p) return null;
                       return (
-                        <div key={franja} className="grid grid-cols-[5rem_1fr] items-stretch gap-1">
-                          <span className="self-center text-sm font-medium text-ink">
-                            {NOMBRE_FRANJA[franja]}
-                          </span>
-                          <Celda
-                            p={p}
-                            activa={clave(p) === clave(seleccionada)}
-                            onElegir={() => setElegida(clave(p))}
-                          />
-                        </div>
+                        <Celda
+                          key={franja}
+                          fila
+                          p={p}
+                          activa={clave(p) === clave(seleccionada)}
+                          onElegir={() => setElegida(clave(p))}
+                        />
                       );
                     })}
                   </div>
@@ -289,16 +286,18 @@ function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
                 const p = pronosticos.find((x) => x.franja === franja)!;
                 const c = confianza(p.errorMape);
                 return (
-                  <li key={franja} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                  <li key={franja} className="grid gap-0.5 text-sm">
+                    <div className="flex items-center justify-between gap-2 sm:justify-start">
+                      <span className="font-medium text-ink">{NOMBRE_FRANJA[franja]}</span>
+                      <Etiqueta tono={c.tono}>
+                        <c.icono aria-hidden className="size-3.5" strokeWidth={2.4} />
+                        {c.texto}
+                      </Etiqueta>
+                    </div>
                     <span className="text-meta">
-                      <span className="font-medium text-ink">{NOMBRE_FRANJA[franja]}</span> ·{' '}
                       {ETIQUETA_METODO_PRONOSTICO[p.metodo]} · Error del pronóstico{' '}
                       {Math.round(p.errorMape)} %
                     </span>
-                    <Etiqueta tono={c.tono}>
-                      <c.icono aria-hidden className="size-3.5" strokeWidth={2.4} />
-                      {c.texto}
-                    </Etiqueta>
                   </li>
                 );
               })}
@@ -315,21 +314,48 @@ function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
 function Celda({
   p,
   activa,
+  fila = false,
   onElegir,
 }: {
   p: PronosticoFranja;
   activa: boolean;
+  // En el celular, cada franja es una fila baja; en la grilla, una celda.
+  fila?: boolean;
   onElegir(): void;
 }) {
+  const color = activa
+    ? 'border-accent bg-accent-soft'
+    : 'border-transparent bg-surface hover:bg-panel';
+  const etiqueta = `${diaLargo(p.fecha)}, ${NOMBRE_FRANJA[p.franja]}: ${cubiertos(p.cubiertosEstimados)}`;
+  if (fila) {
+    return (
+      <button
+        type="button"
+        onClick={onElegir}
+        aria-pressed={activa}
+        aria-label={etiqueta}
+        className={`grid min-h-11 w-full grid-cols-[5.5rem_1fr_auto] items-center gap-2 rounded-control border-2 px-2 py-1 text-left ${color}`}
+      >
+        <span className="text-sm font-medium text-ink">{NOMBRE_FRANJA[p.franja]}</span>
+        <span className="text-[20px] font-semibold text-ink tabular-nums">
+          {p.cubiertosEstimados}
+        </span>
+        <span className="grid text-right text-xs leading-4 text-meta tabular-nums">
+          <span>
+            entre {p.limiteInferior} y {p.limiteSuperior}
+          </span>
+          <span>{formatoPesosEnteros(p.ingresoEstimado)}</span>
+        </span>
+      </button>
+    );
+  }
   return (
     <button
       type="button"
       onClick={onElegir}
       aria-pressed={activa}
-      aria-label={`${diaLargo(p.fecha)}, ${NOMBRE_FRANJA[p.franja]}: ${cubiertos(p.cubiertosEstimados)}`}
-      className={`grid w-full min-w-0 gap-0.5 rounded-control border-2 px-2 py-2 text-left ${
-        activa ? 'border-accent bg-accent-soft' : 'border-transparent bg-surface hover:bg-panel'
-      }`}
+      aria-label={etiqueta}
+      className={`grid w-full min-w-0 gap-0.5 rounded-control border-2 px-2 py-2 text-left ${color}`}
     >
       <span className="text-[22px] font-semibold leading-7 text-ink tabular-nums">
         {p.cubiertosEstimados}
@@ -337,7 +363,9 @@ function Celda({
       <span className="text-xs text-meta">
         entre {p.limiteInferior} y {p.limiteSuperior}
       </span>
-      <span className="text-sm text-text tabular-nums">{formatoPesos(p.ingresoEstimado)}</span>
+      <span className="text-sm text-text tabular-nums">
+        {formatoPesosEnteros(p.ingresoEstimado)}
+      </span>
     </button>
   );
 }
@@ -362,7 +390,7 @@ function Detalle({ p }: { p: PronosticoFranja }) {
         {platos.length === 0 ? (
           <Vacio icono={TrendingUp} titulo="Sin platos estimados para esta franja" />
         ) : (
-          <ul className="grid gap-3">
+          <ul className="grid gap-x-8 gap-y-3 md:grid-cols-2">
             {platos.map((d) => (
               <li key={d.itemMenuId} className="grid gap-1">
                 <div className="flex items-baseline justify-between gap-3 text-sm">

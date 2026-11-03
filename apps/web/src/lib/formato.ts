@@ -14,6 +14,15 @@ export const formatoLista = (elementos: string[]) => lista.format(elementos);
 
 export const formatoPesos = (valor: number) => pesos.format(valor);
 
+const pesosEnteros = new Intl.NumberFormat('es-AR', {
+  style: 'currency',
+  currency: 'ARS',
+  maximumFractionDigits: 0,
+});
+
+// Para totales y estimaciones, donde los centavos no aportan.
+export const formatoPesosEnteros = (valor: number) => pesosEnteros.format(valor);
+
 export const formatoCantidad = (valor: number, unidad?: UnidadMedida) =>
   unidad ? `${numero.format(valor)} ${ETIQUETA_UNIDAD[unidad]}` : numero.format(valor);
 
