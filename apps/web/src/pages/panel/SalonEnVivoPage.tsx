@@ -73,6 +73,7 @@ export function SalonEnVivoPage() {
         <div className="lg:flex lg:items-start lg:gap-4">
           <div className="min-w-0 flex-1 space-y-3">
             <MapaSalon
+              ajustarAncho
               todasElegibles
               mesas={datos}
               seleccionadaId={mesaId}
@@ -123,7 +124,7 @@ function DetalleMesa({
   return (
     <aside
       ref={ref}
-      className="mt-4 flex flex-col rounded-panel border border-line bg-surface p-4 lg:sticky lg:top-4 lg:mt-0 lg:max-h-[calc(100dvh-2rem)] lg:w-80 lg:shrink-0"
+      className="mt-4 flex flex-col rounded-panel border border-line bg-surface p-4 scroll-mt-20 lg:mt-0 lg:max-h-[calc(100dvh-10rem)] lg:w-80 lg:shrink-0"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
@@ -157,17 +158,18 @@ function DetalleMesa({
               <ul className="mt-3 divide-y divide-line">
                 {mesa.pedidos.map((pedido) => (
                   <li key={pedido.id} className="py-3 first:pt-0">
-                    <p className="font-semibold text-ink">Pedido {pedido.numero}</p>
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="font-semibold text-ink">Pedido {pedido.numero}</p>
+                      <Estado entidad="pedido" valor={pedido.estado} />
+                    </div>
                     <ul className="mt-2 space-y-2">
                       {pedido.lineas.map((linea) => (
-                        <li key={linea.id} className="flex items-start justify-between gap-3">
-                          <span className="min-w-0 text-sm text-ink [overflow-wrap:anywhere]">
-                            <span className="tabular-nums">{linea.cantidad}</span> ×{' '}
-                            {linea.plato.nombre}
-                          </span>
-                          <span className="shrink-0">
-                            <Estado entidad="pedido" valor={pedido.estado} />
-                          </span>
+                        <li
+                          key={linea.id}
+                          className="min-w-0 text-sm text-ink [overflow-wrap:anywhere]"
+                        >
+                          <span className="tabular-nums">{linea.cantidad}</span> ×{' '}
+                          {linea.plato.nombre}
                         </li>
                       ))}
                     </ul>

@@ -93,6 +93,7 @@ export function MapaSalon({
   seleccionadaId,
   onElegir,
   todasElegibles,
+  ajustarAncho,
   onMover,
   horaReservada,
 }: {
@@ -103,6 +104,8 @@ export function MapaSalon({
   onElegir?(id: string): void;
   // Con esta prop toda mesa no dada de baja es elegible, no solo las libres.
   todasElegibles?: boolean;
+  // En pantallas anchas deja que el plano se achique al ancho de su columna.
+  ajustarAncho?: boolean;
   onMover?(id: string, posX: number, posY: number): void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
@@ -145,7 +148,7 @@ export function MapaSalon({
       <svg
         ref={svg}
         viewBox={`0 0 ${LIENZO_SALON.ancho} ${LIENZO_SALON.alto}`}
-        className={`block w-full min-w-[500px] select-none ${onMover ? 'touch-none' : ''}`}
+        className={`block w-full min-w-[500px] select-none ${ajustarAncho ? 'lg:min-w-0' : ''} ${onMover ? 'touch-none' : ''}`}
         role="img"
         aria-label="Mapa del salón"
       >
@@ -177,7 +180,9 @@ export function MapaSalon({
           return (
             <g
               key={mesa.id}
-              className={onMover ? 'cursor-grab' : elegible ? 'cursor-pointer' : undefined}
+              className={`group outline-none ${
+                onMover ? 'cursor-grab' : elegible ? 'cursor-pointer' : ''
+              }`}
               onPointerDown={(e) => alApretar(e, mesa)}
               onPointerMove={alMover}
               onPointerUp={() => alSoltar(mesa)}
@@ -212,6 +217,13 @@ export function MapaSalon({
               <circle
                 cx={x}
                 cy={y}
+                r={RADIO + 1.3}
+                strokeWidth={0.6}
+                className="fill-none stroke-accent opacity-0 group-focus-visible:opacity-100"
+              />
+              <circle
+                cx={x}
+                cy={y}
                 r={RADIO}
                 strokeWidth={0.4}
                 className={colores.mesa}
@@ -233,7 +245,7 @@ export function MapaSalon({
                   y={y + 2.2}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize={2.4}
+                  fontSize={2}
                   className="fill-meta"
                 >
                   {hora}
@@ -241,7 +253,7 @@ export function MapaSalon({
               )}
               <text
                 x={x}
-                y={y + RADIO + 2.6}
+                y={y + RADIO + 3.4}
                 textAnchor="middle"
                 fontSize={2.4}
                 className="fill-meta"
