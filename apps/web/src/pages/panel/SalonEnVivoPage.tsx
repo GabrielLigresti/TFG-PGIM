@@ -150,7 +150,7 @@ function DetalleMesa({
   return (
     <aside
       ref={ref}
-      className="mt-4 flex flex-col rounded-panel border border-line bg-surface p-4 scroll-mt-20 lg:mt-0 lg:max-h-[calc(100dvh-10rem)] lg:w-80 lg:shrink-0"
+      className="mt-4 flex flex-col rounded-panel border border-line bg-surface p-4 scroll-mt-20 lg:mt-0 lg:max-h-[calc(100dvh-10.5rem)] lg:w-80 lg:shrink-0"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 space-y-1">
