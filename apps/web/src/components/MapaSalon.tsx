@@ -87,7 +87,8 @@ function limitar(valor: number, max: number) {
 
 // Plano del salón sobre el lienzo lógico de 100 × 60 (CU-14). Con onMover las
 // mesas se arrastran con mouse o con el dedo y la posición se informa al
-// soltar; con onElegir se pueden tocar las mesas libres (CU-03).
+// soltar; con onElegir se pueden tocar las mesas libres (CU-03), o todas las
+// no dadas de baja con todasElegibles.
 export function MapaSalon({
   mesas,
   seleccionadaId,
@@ -149,7 +150,7 @@ export function MapaSalon({
         ref={svg}
         viewBox={`0 0 ${LIENZO_SALON.ancho} ${LIENZO_SALON.alto}`}
         className={`block w-full min-w-[500px] select-none ${ajustarAncho ? 'lg:min-w-0' : ''} ${onMover ? 'touch-none' : ''}`}
-        role="img"
+        role={onElegir ? 'group' : 'img'}
         aria-label="Mapa del salón"
       >
         <defs>

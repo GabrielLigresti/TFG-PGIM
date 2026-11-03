@@ -16,18 +16,26 @@ const REFRESCO_MS = 60_000;
 // u ocupada y, al tocar una, su detalle con los pedidos y el cierre (CU-18).
 export function SalonEnVivoPage() {
   const { sesion } = useSesion();
+  // Al cambiar de sucursal se vuelve a montar: recarga los datos y suelta la mesa elegida.
+  return <SalonEnVivo key={sesion?.sucursalActiva?.id} />;
+}
+
+function SalonEnVivo() {
+  const { sesion } = useSesion();
   const { datos, cargando, error, recargar } = useRecurso<MesaSalon[]>('/salon/estado');
   const [mesaId, setMesaId] = useState<string | null>(null);
   const cierre = useCerrarMesa(recargar);
   const { limpiarError } = cierre;
   const columna = useRef<HTMLElement>(null);
+  const plano = useRef<HTMLDivElement>(null);
+  const [toques, setToques] = useState(0);
 
   useEventoSocket(EVENTOS_SOCKET.cambioSalon, recargar);
   useEventoSocket(EVENTOS_SOCKET.pedidoNuevo, recargar);
   useEventoSocket(EVENTOS_SOCKET.pedidoCambio, recargar);
   const conexion = useConexionSocket(recargar);
 
-  // Red de seguridad: las reservas que vencen por tiempo no siempre llegan como evento.
+  // Ningún evento avisa cuando una mesa entra en la ventana de activación: se recarga por intervalo.
   useEffect(() => {
     const id = setInterval(recargar, REFRESCO_MS);
     return () => clearInterval(id);
@@ -40,7 +48,17 @@ export function SalonEnVivoPage() {
     if (datos && mesaId && !mesa) setMesaId(null);
   }, [datos, mesaId, mesa]);
 
-  // Debajo de lg la columna queda bajo el plano: se lleva a la vista al elegir.
+  // Un error de cierre es de la situación en que se intentó: si la reserva o
+  // sus pedidos cambian en la misma mesa, ya no vale.
+  const clave = `${mesa?.reserva?.id}|${mesa?.pedidos.map((p) => p.estado).join(',')}`;
+  const anterior = useRef({ mesaId, clave });
+  useEffect(() => {
+    if (anterior.current.mesaId === mesaId && anterior.current.clave !== clave) limpiarError();
+    anterior.current = { mesaId, clave };
+  }, [mesaId, clave, limpiarError]);
+
+  // Debajo de lg la columna queda bajo el plano: se lleva a la vista al elegir,
+  // también al volver a tocar la misma mesa.
   useEffect(() => {
     if (!mesaId || window.matchMedia('(min-width: 1024px)').matches) return;
     const sinMovimiento = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -48,14 +66,17 @@ export function SalonEnVivoPage() {
       block: 'start',
       behavior: sinMovimiento ? 'auto' : 'smooth',
     });
-  }, [mesaId]);
+  }, [mesaId, toques]);
 
   function elegir(id: string) {
     limpiarError();
     setMesaId(id);
+    setToques((n) => n + 1);
   }
 
   function cerrarColumna() {
+    // El foco vuelve a la mesa elegida antes de que desaparezca la columna.
+    plano.current?.querySelector<SVGElement>('[aria-pressed="true"]')?.focus();
     limpiarError();
     setMesaId(null);
   }
@@ -73,7 +94,7 @@ export function SalonEnVivoPage() {
       )}
       {datos && datos.length > 0 && (
         <div className="lg:flex lg:items-start lg:gap-4">
-          <div className="min-w-0 flex-1 space-y-3">
+          <div ref={plano} className="min-w-0 flex-1 space-y-3">
             <MapaSalon
               ajustarAncho
               todasElegibles
@@ -93,6 +114,7 @@ export function SalonEnVivoPage() {
               mesa={mesa}
               enviando={cierre.enviando}
               error={cierre.error}
+              cerrable={mesa.reserva?.id !== cierre.cerradaId}
               onCerrarColumna={cerrarColumna}
               onCerrarMesa={() => void cierre.cerrar(mesa.reserva!)}
             />
@@ -108,6 +130,7 @@ function DetalleMesa({
   mesa,
   enviando,
   error,
+  cerrable,
   onCerrarColumna,
   onCerrarMesa,
 }: {
@@ -115,13 +138,14 @@ function DetalleMesa({
   mesa: MesaSalon;
   enviando: boolean;
   error: string | null;
+  cerrable: boolean;
   onCerrarColumna(): void;
   onCerrarMesa(): void;
 }) {
   const { tienePermiso } = useSesion();
   const { reserva } = mesa;
   const verPedidos = tienePermiso('pedido.ver');
-  const puedeCerrar = Boolean(reserva?.cerrable) && tienePermiso('mesa.cerrar');
+  const puedeCerrar = Boolean(reserva?.cerrable) && cerrable && tienePermiso('mesa.cerrar');
 
   return (
     <aside
