@@ -31,6 +31,7 @@ import {
   propsDecimal,
 } from '../../components/ui';
 import type { Tono } from '../../lib/estados';
+import { api } from '../../lib/api';
 import { aNumero, formatoPesosEnteros, sumarDias } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
@@ -65,8 +66,8 @@ interface Confianza {
 
 // Cuánto confiar en el pronóstico según el error medido sobre el historial.
 function confianza(error: number): Confianza {
-  if (error <= 15) return { texto: 'Confiable', tono: 'acento', icono: Check };
-  if (error <= 25) return { texto: 'Aceptable', tono: 'ok', icono: CircleHelp };
+  if (error <= 15) return { texto: 'Confiable', tono: 'ok', icono: Check };
+  if (error <= 25) return { texto: 'Aceptable', tono: 'acento', icono: CircleHelp };
   return { texto: 'Orientativo', tono: 'warn', icono: TriangleAlert };
 }
 
@@ -133,11 +134,23 @@ export function AperturaPage() {
           onCerrar={() => setConfigurando(false)}
           onGuardado={(minimoCambio) => {
             setConfigurando(false);
-            setAviso('Configuración guardada. Regenerá el pronóstico para aplicarla.');
-            if (minimoCambio) {
-              setNuevo(null);
-              recurso.recargar();
-            }
+            // Solo el mínimo de semanas cambia el pronóstico vigente: los
+            // coeficientes (mozos, cocineros) no entran en él, así que alcanza con
+            // confirmar. Si el mínimo cambió se pide el pronóstico de nuevo (el
+            // servidor genera la semana si ya alcanza el historial) y el aviso
+            // depende del resultado.
+            setAviso('Configuración guardada.');
+            if (!minimoCambio) return;
+            api<AsistenteApertura>('/apertura/pronostico')
+              .then((datos) => {
+                setNuevo(datos);
+                if (!datos.progreso.suficiente) {
+                  setAviso(
+                    'Configuración guardada. Todavía no hay historial suficiente para pronosticar.',
+                  );
+                }
+              })
+              .catch(() => recurso.recargar());
           }}
         />
       )}
@@ -567,5 +580,5 @@ function FormularioConfiguracion({
 function mensaje(campo: CampoConfiguracion, valor: number, original: string): string {
   if (Number.isNaN(valor)) return 'Ingresá un número';
   if (campo === 'semanasHistoricoMinimo') return 'Ingresá un número entero entre 5 y 52';
-  return original.includes('mayor que 0') ? original : 'Ingresá un número entre 0 y 999';
+  return original.includes('mayor que 0') ? original : 'Ingresá un número mayor que 0 y hasta 999';
 }
