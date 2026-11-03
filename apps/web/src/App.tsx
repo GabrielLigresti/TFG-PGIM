@@ -10,6 +10,7 @@ import { ProveedorCarrito } from './lib/carrito';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/PanelPage';
 import { RegistroPage } from './pages/RegistroPage';
+import { RegistroRestaurantePage } from './pages/RegistroRestaurantePage';
 import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
 import { MisPuntosPage } from './pages/comensal/MisPuntosPage';
@@ -67,6 +68,7 @@ export default function App() {
               <Routes>
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/registro" element={<RegistroPage />} />
+                <Route path="/registrar-restaurante" element={<RegistroRestaurantePage />} />
                 <Route
                   path="/sucursal"
                   element={
