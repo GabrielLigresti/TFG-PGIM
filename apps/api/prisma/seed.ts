@@ -497,7 +497,7 @@ async function seedMenuEInventario(
   return platoIds;
 }
 
-// "Carta principal" queda vigente y activa en Centro; "Menú de invierno" ya
+// "Carta principal" queda vigente y activa en Centro y en Palermo; "Menú de invierno" ya
 // venció, para ver cómo se marca en el panel.
 const MENUS = [
   {
@@ -828,25 +828,39 @@ async function seedHistorialVentas(
     await tx.reserva.deleteMany({ where: { comensalId: deHistorial } });
   });
 
-  const platos = (
-    await prisma.itemMenu.findMany({
-      where: { restauranteId, activo: true },
-      select: { id: true, precio: true },
-      orderBy: { nombre: 'asc' },
-    })
-  ).map((p) => ({ id: p.id, precio: Number(p.precio) }));
-
   const hoy = new Date();
   let total = 0;
   for (const [indice, [nombre, sucursalId]] of [...sucursalIds].entries()) {
-    const [mesas, horarios, ultimo] = await Promise.all([
-      prisma.mesa.findMany({
-        where: { sucursalId, activa: true },
-        select: { id: true, numero: true, capacidad: true },
-      }),
-      prisma.horarioServicio.findMany({ where: { sucursalId } }),
-      prisma.pedido.aggregate({ where: { sucursalId }, _max: { numero: true } }),
-    ]);
+    // Lecturas con orden fijo: alimentan al generador pseudoaleatorio y el
+    // historial tiene que salir igual en cada corrida.
+    const mesas = await prisma.mesa.findMany({
+      where: { sucursalId, sucursal: { restauranteId }, activa: true },
+      select: { id: true, numero: true, capacidad: true },
+      orderBy: { numero: 'asc' },
+    });
+    const horarios = await prisma.horarioServicio.findMany({
+      where: { sucursalId, sucursal: { restauranteId } },
+      orderBy: { horaInicio: 'asc' },
+    });
+    // Platos activos del menú activo de la sucursal (misma condición que el
+    // historial que lee el pronóstico).
+    const platos = (
+      await prisma.itemMenu.findMany({
+        where: {
+          restauranteId,
+          activo: true,
+          menus: {
+            some: { menu: { sucursalesActivas: { some: { id: sucursalId, restauranteId } } } },
+          },
+        },
+        select: { id: true, precio: true },
+        orderBy: [{ nombre: 'asc' }, { id: 'asc' }],
+      })
+    ).map((p) => ({ id: p.id, precio: Number(p.precio) }));
+    const ultimo = await prisma.pedido.aggregate({
+      where: { sucursalId },
+      _max: { numero: true },
+    });
     const reservas = generarReservasHistorial({
       semilla: SEMILLA_HISTORIAL + indice,
       hoy,
@@ -1018,8 +1032,9 @@ async function main(): Promise<void> {
       admin.id,
     );
     const cartaId = await seedMenus(tx, restaurante.id, platoIds);
-    await tx.sucursal.update({
-      where: { id: sucursalIds.get('Centro')! },
+    // Las dos sucursales usan la carta: el historial de ventas sale de ella.
+    await tx.sucursal.updateMany({
+      where: { id: { in: [...sucursalIds.values()] } },
       data: { menuActivoId: cartaId },
     });
     await seedFidelizacion(tx, restaurante.id, cartaId);
