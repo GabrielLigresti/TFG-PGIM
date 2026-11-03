@@ -154,13 +154,18 @@ export function ReservasPage() {
                 filas={dia.filas}
                 clave={(r) => r.id}
                 columnas={[
-                  { titulo: 'Hora', valor: (r) => formatoHora(r.inicio) },
-                  { titulo: 'Mesa', valor: (r) => r.mesa.numero },
-                  { titulo: 'A nombre de', valor: (r) => r.comensal.nombre },
-                  { titulo: 'Teléfono', valor: (r) => r.comensal.telefono ?? '—' },
-                  { titulo: 'Personas', valor: (r) => r.cantidadPersonas },
+                  { titulo: 'Hora', className: 'w-[9%]', valor: (r) => formatoHora(r.inicio) },
+                  { titulo: 'Mesa', className: 'w-[7%]', valor: (r) => r.mesa.numero },
+                  { titulo: 'A nombre de', className: 'w-[20%]', valor: (r) => r.comensal.nombre },
+                  {
+                    titulo: 'Teléfono',
+                    className: 'w-[13%]',
+                    valor: (r) => r.comensal.telefono ?? '—',
+                  },
+                  { titulo: 'Personas', className: 'w-[9%]', valor: (r) => r.cantidadPersonas },
                   {
                     titulo: 'Estado',
+                    className: 'w-[26%]',
                     valor: (r) => (
                       <span className="inline-flex flex-wrap items-center gap-2">
                         <Estado entidad="reserva" valor={r.estado} />
