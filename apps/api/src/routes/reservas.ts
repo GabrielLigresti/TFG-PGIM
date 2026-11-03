@@ -2,6 +2,7 @@ import { Router, type Request } from 'express';
 import {
   cerrarMesaSchema,
   consultaFranjasSchema,
+  consultaReservasPanelSchema,
   consultaMapaSchema,
   idParamSchema,
   reservaInputSchema,
@@ -61,7 +62,10 @@ export function sucursalDeTrabajo(req: Request): string {
 }
 
 reservasPanelRouter.get('/', requierePermiso('reserva.ver'), async (req, res) => {
-  res.json(await reservaService.vigentes(req.tenant!.restauranteId, sucursalDeTrabajo(req)));
+  const consulta = consultaReservasPanelSchema.parse(req.query);
+  res.json(
+    await reservaService.listado(req.tenant!.restauranteId, sucursalDeTrabajo(req), consulta),
+  );
 });
 
 reservasPanelRouter.post(

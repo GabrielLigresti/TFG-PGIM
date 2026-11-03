@@ -1,4 +1,4 @@
-import type { BloqueoCierre, EstadoReserva, Mesa, ModoAsignacion } from '@pgim/shared';
+import type { BloqueoCierre, EstadoReserva, Mesa, ModoAsignacion, Pagina } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { aHora } from '../lib/hora';
 import { prisma } from '../lib/prisma';
@@ -67,8 +67,12 @@ export interface ReservaRepository {
     hacia: EstadoReserva,
   ): Promise<boolean>;
   // Panel (CU-12): acotadas por restaurante y sucursal de trabajo.
-  // Sin límite de fecha: una mesa abierta de ayer sigue apareciendo hasta que se cierra.
-  listarVigentes(restauranteId: string, sucursalId: string): Promise<FilaReservaPanel[]>;
+  // Reservas en [desde, hasta), en cualquier estado.
+  listarPanel(
+    restauranteId: string,
+    sucursalId: string,
+    filtro: { desde: Date; hasta?: Date; pagina: number },
+  ): Promise<Pagina<FilaReservaPanel>>;
   buscarEnSucursal(
     restauranteId: string,
     sucursalId: string,
@@ -113,6 +117,7 @@ export type AlcanceReserva =
   { comensalId: string } | { restauranteId: string; sucursalId: string } | { sistema: true };
 
 const VIGENTES: EstadoReserva[] = ['PENDIENTE', 'ACTIVA'];
+const POR_PAGINA = 25;
 
 export const seleccionReserva = {
   id: true,
@@ -251,13 +256,23 @@ export const reservaRepository: ReservaRepository = {
     return count === 1;
   },
 
-  async listarVigentes(restauranteId, sucursalId) {
-    const filas = await prisma.reserva.findMany({
-      where: { ...deLaSucursal(restauranteId, sucursalId), estado: { in: VIGENTES } },
-      select: seleccionPanel,
-      orderBy: [{ inicio: 'asc' }, { mesa: { numero: 'asc' } }],
-    });
-    return filas.map(aFilaReservaPanel);
+  async listarPanel(restauranteId, sucursalId, { desde, hasta, pagina }) {
+    const where = {
+      ...deLaSucursal(restauranteId, sucursalId),
+      inicio: { gte: desde, lt: hasta },
+    };
+    const [filas, total] = await prisma.$transaction([
+      prisma.reserva.findMany({
+        where,
+        select: seleccionPanel,
+        // El id desempata las canceladas de una misma mesa y franja entre páginas.
+        orderBy: [{ inicio: 'asc' }, { mesa: { numero: 'asc' } }, { id: 'asc' }],
+        skip: (pagina - 1) * POR_PAGINA,
+        take: POR_PAGINA,
+      }),
+      prisma.reserva.count({ where }),
+    ]);
+    return { filas: filas.map(aFilaReservaPanel), total, pagina, porPagina: POR_PAGINA };
   },
 
   async buscarEnSucursal(restauranteId, sucursalId, id) {

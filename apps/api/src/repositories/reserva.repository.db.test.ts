@@ -12,8 +12,8 @@ beforeEach(async () => {
   e = await crearEscenario();
 });
 
-describe('reservaRepository.listarVigentes', () => {
-  // La reserva del escenario tiene la cuenta abierta: se saca de las vigentes.
+describe('reservaRepository.listarPanel', () => {
+  // La reserva del escenario tiene la cuenta abierta: se cierra para no contarla.
   beforeEach(() =>
     prisma.reserva.update({ where: { id: e.reservaId }, data: { estado: 'FINALIZADA' } }),
   );
@@ -34,23 +34,49 @@ describe('reservaRepository.listarVigentes', () => {
     return id;
   }
 
-  const ids = async () =>
-    (await reservaRepository.listarVigentes(e.restauranteId, e.sucursalId)).map((r) => r.id);
+  const HOY = new Date('2030-01-02T03:00:00.000Z');
 
-  it('trae las pendientes y activas de cualquier día, de la más vieja a la más nueva', async () => {
-    const pasadoManana = await reservar('PENDIENTE', '2030-01-03T23:00:00.000Z');
-    const abiertaDeAyer = await reservar('ACTIVA', '2030-01-01T23:00:00.000Z');
-    const manana = await reservar('PENDIENTE', '2030-01-02T23:00:00.000Z');
+  const ids = async (filtro: { desde?: Date; hasta?: Date; pagina?: number } = {}) =>
+    (
+      await reservaRepository.listarPanel(e.restauranteId, e.sucursalId, {
+        desde: HOY,
+        pagina: 1,
+        ...filtro,
+      })
+    ).filas.map((r) => r.id);
 
-    expect(await ids()).toEqual([abiertaDeAyer, manana, pasadoManana]);
+  it('trae todos los estados desde hoy, de la más cercana a la más lejana', async () => {
+    const finalizada = await reservar('FINALIZADA', '2030-01-04T23:00:00.000Z');
+    const vencida = await reservar('VENCIDA', '2030-01-03T23:00:00.000Z');
+    const pendiente = await reservar('PENDIENTE', '2030-01-02T23:00:00.000Z');
+    const cancelada = await reservar('CANCELADA', '2030-01-05T23:00:00.000Z');
+
+    expect(await ids()).toEqual([pendiente, vencida, finalizada, cancelada]);
   });
 
-  it('deja afuera las vencidas, canceladas y finalizadas', async () => {
-    await reservar('VENCIDA', '2030-01-01T23:00:00.000Z');
-    await reservar('CANCELADA', '2030-01-02T23:00:00.000Z');
-    await reservar('FINALIZADA', '2030-01-03T23:00:00.000Z');
+  it('no trae nada de antes de desde', async () => {
+    await reservar('ACTIVA', '2030-01-01T23:00:00.000Z');
+    await reservar('PENDIENTE', '2030-01-01T22:00:00.000Z');
 
     expect(await ids()).toEqual([]);
+  });
+
+  it('hasta no incluye el límite', async () => {
+    const adentro = await reservar('PENDIENTE', '2030-01-02T23:00:00.000Z');
+    await reservar('PENDIENTE', '2030-01-03T03:00:00.000Z');
+
+    expect(await ids({ hasta: new Date('2030-01-03T03:00:00.000Z') })).toEqual([adentro]);
+  });
+
+  it('pagina de a 25 e informa el total', async () => {
+    for (let dia = 0; dia < 26; dia++) {
+      await reservar('CANCELADA', new Date(HOY.getTime() + dia * 86_400_000).toISOString());
+    }
+    const filtro = { desde: HOY, pagina: 2 };
+    const pagina = await reservaRepository.listarPanel(e.restauranteId, e.sucursalId, filtro);
+
+    expect(pagina).toMatchObject({ total: 26, pagina: 2, porPagina: 25 });
+    expect(pagina.filas).toHaveLength(1);
   });
 
   it('no trae reservas de otra sucursal', async () => {

@@ -18,7 +18,7 @@ jest.mock('../repositories/reserva.repository', () => ({
     buscarDelComensal: jest.fn(),
     listarDelComensal: jest.fn().mockResolvedValue([]),
     cambiarEstado: jest.fn(),
-    listarVigentes: jest.fn().mockResolvedValue([]),
+    listarPanel: jest.fn().mockResolvedValue({ filas: [], total: 0, pagina: 1, porPagina: 25 }),
     buscarEnSucursal: jest.fn(),
     activar: jest.fn().mockResolvedValue(true),
     cerrar: jest.fn(),
@@ -131,12 +131,23 @@ describe('/api/reservas (panel)', () => {
     expect(res.status).toBe(403);
   });
 
-  it('con reserva.ver lista las reservas vigentes de la sucursal de trabajo', async () => {
+  it('con reserva.ver lista las reservas de la sucursal de trabajo, paginadas', async () => {
     const res = await request(app)
-      .get('/api/reservas')
+      .get('/api/reservas?pagina=2')
       .set('Cookie', cookieConPermisos(['reserva.ver']));
     expect(res.status).toBe(200);
-    expect(reservaRepository.listarVigentes).toHaveBeenCalledWith(IDS.restaurante, IDS.centro);
+    expect(reservaRepository.listarPanel).toHaveBeenCalledWith(
+      IDS.restaurante,
+      IDS.centro,
+      expect.objectContaining({ pagina: 2 }),
+    );
+  });
+
+  it('valida el rango de fechas', async () => {
+    const res = await request(app)
+      .get('/api/reservas?desde=hoy')
+      .set('Cookie', cookieConPermisos(['reserva.ver']));
+    expect(res.status).toBe(400);
   });
 
   it('activar sin reserva.activar responde 403', async () => {

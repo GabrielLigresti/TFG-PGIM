@@ -61,6 +61,8 @@ function filaPanel(cambios: Partial<FilaReservaPanel> = {}): FilaReservaPanel {
   };
 }
 
+const paginaDe = <T>(filas: T[]) => ({ filas, total: filas.length, pagina: 1, porPagina: 25 });
+
 function repoFalso(cambios: Partial<ReservaRepository> = {}): jest.Mocked<ReservaRepository> {
   return {
     buscarSucursalReservable: jest.fn().mockResolvedValue(sucursal),
@@ -71,7 +73,7 @@ function repoFalso(cambios: Partial<ReservaRepository> = {}): jest.Mocked<Reserv
     buscarDelComensal: jest.fn().mockResolvedValue(fila()),
     listarDelComensal: jest.fn().mockResolvedValue([fila()]),
     cambiarEstado: jest.fn().mockResolvedValue(true),
-    listarVigentes: jest.fn().mockResolvedValue([filaPanel()]),
+    listarPanel: jest.fn().mockResolvedValue(paginaDe([filaPanel()])),
     buscarEnSucursal: jest.fn().mockResolvedValue(filaPanel()),
     activar: jest.fn().mockResolvedValue('ACTIVADA'),
     cerrar: jest
@@ -402,36 +404,68 @@ describe('activación (CU-12)', () => {
 
   it('marca el pago en curso solo en una mesa activa', async () => {
     const repo = repoFalso({
-      listarVigentes: jest
+      listarPanel: jest
         .fn()
-        .mockResolvedValue([
-          filaPanel({ id: 'activa', estado: 'ACTIVA', pagoEnCurso: true }),
-          filaPanel({ id: 'cerrada', estado: 'FINALIZADA', pagoEnCurso: true }),
-        ]),
+        .mockResolvedValue(
+          paginaDe([
+            filaPanel({ id: 'activa', estado: 'ACTIVA', pagoEnCurso: true }),
+            filaPanel({ id: 'cerrada', estado: 'FINALIZADA', pagoEnCurso: true }),
+          ]),
+        ),
     });
     const { service } = servicio(repo, undefined, DENTRO);
-    const lista = await service.vigentes(R, S);
+    const { filas: lista } = await service.listado(R, S, { pagina: 1 });
     expect(lista.map((r) => [r.id, r.pagoEnCurso])).toEqual([
       ['activa', true],
       ['cerrada', false],
     ]);
   });
 
-  it('activable refleja la ventana en el listado de vigentes', async () => {
+  describe('rango del listado', () => {
+    const rango = async (consulta: { desde?: string; hasta?: string }) => {
+      const repo = repoFalso();
+      await servicio(repo, undefined, DENTRO).service.listado(R, S, { pagina: 1, ...consulta });
+      return (repo.listarPanel as jest.Mock).mock.calls[0][2];
+    };
+
+    it('sin fechas arranca hoy, en hora de Argentina, y no tiene fin', async () => {
+      expect(await rango({})).toEqual({
+        pagina: 1,
+        desde: new Date('2026-10-30T03:00:00.000Z'),
+        hasta: undefined,
+      });
+    });
+
+    it('un desde pasado no abre el historial', async () => {
+      expect((await rango({ desde: '2026-10-01' })).desde).toEqual(
+        new Date('2026-10-30T03:00:00.000Z'),
+      );
+    });
+
+    it('incluye el día hasta completo', async () => {
+      expect(await rango({ desde: '2026-11-02', hasta: '2026-11-03' })).toMatchObject({
+        desde: new Date('2026-11-02T03:00:00.000Z'),
+        hasta: new Date('2026-11-04T03:00:00.000Z'),
+      });
+    });
+  });
+
+  it('activable refleja la ventana en el listado', async () => {
     const repo = repoFalso({
-      listarVigentes: jest
+      listarPanel: jest
         .fn()
-        .mockResolvedValue([
-          filaPanel(),
-          filaPanel({ id: 'tarde', inicio: new Date('2026-10-31T00:00:00.000Z') }),
-          filaPanel({ id: 'activa', estado: 'ACTIVA' }),
-        ]),
+        .mockResolvedValue(
+          paginaDe([
+            filaPanel(),
+            filaPanel({ id: 'tarde', inicio: new Date('2026-10-31T00:00:00.000Z') }),
+            filaPanel({ id: 'activa', estado: 'ACTIVA' }),
+          ]),
+        ),
     });
     const { service } = servicio(repo, undefined, DENTRO);
 
-    const lista = await service.vigentes(R, S);
+    const { filas: lista } = await service.listado(R, S, { pagina: 1 });
 
-    expect(repo.listarVigentes).toHaveBeenCalledWith(R, S);
     expect(lista.map((r) => [r.id, r.activable])).toEqual([
       ['R', true],
       ['tarde', false],
@@ -568,13 +602,15 @@ describe('cancelación desde el panel', () => {
   });
 
   it('el panel la muestra cancelable hasta el fin de la tolerancia', async () => {
-    const [enLimite] = await servicio(undefined, undefined, LIMITE).service.vigentes(R, S);
+    const {
+      filas: [enLimite],
+    } = await servicio(undefined, undefined, LIMITE).service.listado(R, S, { pagina: 1 });
     expect(enLimite).toMatchObject({ cancelable: true, cerrable: false });
-    const [pasada] = await servicio(
-      undefined,
-      undefined,
-      new Date(LIMITE.getTime() + 1),
-    ).service.vigentes(R, S);
+    const {
+      filas: [pasada],
+    } = await servicio(undefined, undefined, new Date(LIMITE.getTime() + 1)).service.listado(R, S, {
+      pagina: 1,
+    });
     expect(pasada!.cancelable).toBe(false);
   });
 });
