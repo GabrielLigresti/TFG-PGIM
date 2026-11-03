@@ -92,6 +92,7 @@ export function MapaSalon({
   mesas,
   seleccionadaId,
   onElegir,
+  todasElegibles,
   onMover,
   horaReservada,
 }: {
@@ -100,6 +101,8 @@ export function MapaSalon({
   // Hora que se escribe dentro de las mesas reservadas.
   horaReservada?(mesa: MesaDibujo): string | undefined;
   onElegir?(id: string): void;
+  // Con esta prop toda mesa no dada de baja es elegible, no solo las libres.
+  todasElegibles?: boolean;
   onMover?(id: string, posX: number, posY: number): void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
@@ -164,7 +167,8 @@ export function MapaSalon({
           const x = enArrastre?.x ?? mesa.posX;
           const y = enArrastre?.y ?? mesa.posY;
           const estado = mesa.estado ?? 'LIBRE';
-          const elegible = Boolean(onElegir) && estado === 'LIBRE' && !mesa.inactiva;
+          const elegible =
+            Boolean(onElegir) && !mesa.inactiva && (todasElegibles || estado === 'LIBRE');
           const seleccionada = mesa.id === seleccionadaId;
           const hora = estado === 'RESERVADA' ? horaReservada?.(mesa) : undefined;
           const colores = mesa.inactiva
