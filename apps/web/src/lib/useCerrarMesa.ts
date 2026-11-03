@@ -13,22 +13,22 @@ export function useCerrarMesa(alCerrar: () => void) {
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function confirmarSaldo(
+  async function enviarCierre(
     r: Pick<ReservaPanel, 'id' | 'mesa'>,
-    confirmado: boolean,
+    confirmarSaldo: boolean,
   ): Promise<void> {
     setError(null);
     setEnviando(true);
     try {
       await api(`/reservas/${r.id}/cerrar`, {
         method: 'POST',
-        body: { confirmarSaldo: confirmado },
+        body: { confirmarSaldo },
       });
       avisar(`Mesa ${r.mesa.numero} cerrada`);
       alCerrar();
     } catch (e) {
       const bloqueo = e instanceof ApiError ? (e.detalles as BloqueoCierre | undefined) : undefined;
-      if (bloqueo?.pagoEnRevision && !confirmado) {
+      if (bloqueo?.pagoEnRevision && !confirmarSaldo) {
         setEnviando(false);
         const ok = await confirmar({
           mensaje: `Mercado Pago todavía está revisando un pago de la mesa ${r.mesa.numero}. ¿Cerrarla igual?`,
@@ -36,18 +36,18 @@ export function useCerrarMesa(alCerrar: () => void) {
             'Si Mercado Pago lo aprueba después, el pago se registra igual y queda para conciliar.',
           accion: 'Cerrar mesa',
         });
-        if (ok) await confirmarSaldo(r, true);
+        if (ok) await enviarCierre(r, true);
         return;
       }
       const saldo = bloqueo?.saldoPendiente;
-      if (saldo && !confirmado) {
+      if (saldo && !confirmarSaldo) {
         setEnviando(false);
         const ok = await confirmar({
           mensaje: `Queda ${formatoPesos(saldo)} sin pagar. ¿Cerrar la mesa ${r.mesa.numero} igual?`,
           detalle: 'La visita se registra solo si el cliente pagó.',
           accion: 'Cerrar mesa',
         });
-        if (ok) await confirmarSaldo(r, true);
+        if (ok) await enviarCierre(r, true);
         return;
       }
       setError(e instanceof ApiError ? e.message : 'No se pudo cerrar la mesa');
@@ -57,8 +57,9 @@ export function useCerrarMesa(alCerrar: () => void) {
   }
 
   return {
-    cerrar: (r: Pick<ReservaPanel, 'id' | 'mesa'>) => confirmarSaldo(r, false),
+    cerrar: (r: Pick<ReservaPanel, 'id' | 'mesa'>) => enviarCierre(r, false),
     enviando,
     error,
+    limpiarError: (): void => setError(null),
   };
 }

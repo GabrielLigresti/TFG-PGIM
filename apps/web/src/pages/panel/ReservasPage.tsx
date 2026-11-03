@@ -65,6 +65,7 @@ export function ReservasPage() {
       accion: 'Cancelar reserva',
     });
     if (!ok) return;
+    cierre.limpiarError();
     setErrorCancelar(null);
     setCancelando(true);
     try {
@@ -148,7 +149,10 @@ export function ReservasPage() {
                 <Boton
                   variante="tonal"
                   disabled={cierre.enviando || cancelando}
-                  onClick={() => void cierre.cerrar(r)}
+                  onClick={() => {
+                    setErrorCancelar(null);
+                    void cierre.cerrar(r);
+                  }}
                 >
                   Cerrar mesa
                 </Boton>
