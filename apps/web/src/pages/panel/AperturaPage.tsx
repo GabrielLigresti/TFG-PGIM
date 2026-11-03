@@ -1,0 +1,543 @@
+import { useState, type FormEvent } from 'react';
+import {
+  Check,
+  CircleHelp,
+  RefreshCw,
+  Settings2,
+  TrendingUp,
+  TriangleAlert,
+  type LucideIcon,
+} from 'lucide-react';
+import {
+  ETIQUETA_METODO_PRONOSTICO,
+  configuracionAperturaSchema,
+  type AsistenteApertura,
+  type ConfiguracionApertura,
+  type Franja,
+  type PronosticoFranja,
+} from '@pgim/shared';
+import {
+  Aviso,
+  Boton,
+  Campo,
+  Etiqueta,
+  EncabezadoPagina,
+  EstadoCarga,
+  Kpi,
+  Modal,
+  Panel,
+  Vacio,
+  claseInput,
+  propsDecimal,
+} from '../../components/ui';
+import type { Tono } from '../../lib/estados';
+import { aNumero, formatoPesos, sumarDias } from '../../lib/formato';
+import { useGuardar } from '../../lib/useGuardar';
+import { useRecurso } from '../../lib/useRecurso';
+
+const NOMBRE_FRANJA: Record<Franja, string> = { ALMUERZO: 'Almuerzo', CENA: 'Cena' };
+const ORDEN_FRANJA: Franja[] = ['ALMUERZO', 'CENA'];
+const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+// "AAAA-MM-DD" → índice de día de la semana, sin zona horaria (0 = domingo).
+function diaDeSemana(fecha: string): number {
+  const [a, m, d] = fecha.split('-').map(Number) as [number, number, number];
+  return new Date(Date.UTC(a, m - 1, d)).getUTCDay();
+}
+
+const diaMes = (fecha: string) => fecha.slice(8, 10) + '/' + fecha.slice(5, 7);
+const nombreDia = (fecha: string) => DIAS[diaDeSemana(fecha)]!;
+const diaLargo = (fecha: string) => `${nombreDia(fecha)} ${diaMes(fecha)}`;
+const diaCorto = (fecha: string) => `${nombreDia(fecha).slice(0, 3)} ${diaMes(fecha)}`;
+const diaMinuscula = (fecha: string) =>
+  `${nombreDia(fecha).slice(0, 3).toLowerCase()} ${diaMes(fecha)}`;
+
+const clave = (p: { fecha: string; franja: Franja }) => `${p.fecha}|${p.franja}`;
+
+const cubiertos = (n: number) => `${n} ${n === 1 ? 'cubierto' : 'cubiertos'}`;
+const porciones = (n: number) => `${n} ${n === 1 ? 'porción' : 'porciones'}`;
+
+interface Confianza {
+  texto: string;
+  tono: Tono;
+  icono: LucideIcon;
+}
+
+// Cuánto confiar en el pronóstico según el error medido sobre el historial.
+function confianza(error: number): Confianza {
+  if (error <= 15) return { texto: 'Confiable', tono: 'acento', icono: Check };
+  if (error <= 25) return { texto: 'Aceptable', tono: 'ok', icono: CircleHelp };
+  return { texto: 'Orientativo', tono: 'warn', icono: TriangleAlert };
+}
+
+// Pronóstico de la semana siguiente de la sucursal de trabajo (CU-09).
+export function AperturaPage() {
+  const recurso = useRecurso<AsistenteApertura>('/apertura/pronostico');
+  const [configurando, setConfigurando] = useState(false);
+  const [regenerando, setRegenerando] = useState(false);
+  const [aviso, setAviso] = useState<string | null>(null);
+  const [nuevo, setNuevo] = useState<AsistenteApertura | null>(null);
+  const asistente = nuevo ?? recurso.datos;
+
+  const suficiente = asistente?.progreso.suficiente ?? false;
+  const fin = asistente ? sumarDias(asistente.semanaDesde, 6) : null;
+
+  return (
+    <section>
+      <EncabezadoPagina
+        titulo="Asistente de apertura"
+        descripcion={
+          asistente && fin
+            ? `Semana del ${diaMinuscula(asistente.semanaDesde)} al ${diaMinuscula(fin)}`
+            : 'Pronóstico de la semana siguiente'
+        }
+        accion={
+          <div className="flex flex-wrap gap-2">
+            <Boton variante="secundario" onClick={() => setConfigurando(true)}>
+              <Settings2 aria-hidden className="size-4" />
+              Configuración
+            </Boton>
+            {suficiente && (
+              <Boton variante="tonal" onClick={() => setRegenerando(true)}>
+                <RefreshCw aria-hidden className="size-4" />
+                Regenerar
+              </Boton>
+            )}
+          </div>
+        }
+      />
+      <EstadoCarga
+        cargando={recurso.cargando && !asistente}
+        error={asistente ? null : recurso.error}
+      />
+      {aviso && (
+        <div className="mb-3">
+          <Aviso tono="ok">{aviso}</Aviso>
+        </div>
+      )}
+      {asistente && !suficiente && <Progreso asistente={asistente} />}
+      {asistente && suficiente && <Pronostico asistente={asistente} />}
+
+      {regenerando && (
+        <ModalRegenerar
+          onCerrar={() => setRegenerando(false)}
+          onRegenerado={(datos) => {
+            setNuevo(datos);
+            setAviso(null);
+            setRegenerando(false);
+          }}
+        />
+      )}
+      {configurando && (
+        <ModalConfiguracion
+          onCerrar={() => setConfigurando(false)}
+          onGuardado={(minimoCambio) => {
+            setConfigurando(false);
+            setAviso('Configuración guardada. Regenerá el pronóstico para aplicarla.');
+            if (minimoCambio) {
+              setNuevo(null);
+              recurso.recargar();
+            }
+          }}
+        />
+      )}
+    </section>
+  );
+}
+
+function Progreso({ asistente }: { asistente: AsistenteApertura }) {
+  const { semanas, minimo } = asistente.progreso;
+  const faltan = Math.max(minimo - semanas, 0);
+  const porcentaje = Math.min(100, Math.round((semanas / minimo) * 100));
+  return (
+    <Panel className="mx-auto grid max-w-xl justify-items-center gap-4 py-8 text-center">
+      <p className="text-2xl font-semibold tracking-tight text-ink tabular-nums">
+        {semanas} de {minimo} semanas
+      </p>
+      <div
+        role="progressbar"
+        aria-label="Semanas de historial"
+        aria-valuenow={Math.min(semanas, minimo)}
+        aria-valuemin={0}
+        aria-valuemax={minimo}
+        className="h-2 w-full max-w-sm overflow-hidden rounded-full bg-panel"
+      >
+        <div className="h-full rounded-full bg-accent" style={{ width: `${porcentaje}%` }} />
+      </div>
+      <p className="max-w-md text-sm text-meta">
+        {faltan === 1 ? 'Falta 1 semana' : `Faltan ${faltan} semanas`} de reservas atendidas para
+        pronosticar la demanda. Se cuentan desde la primera reserva con la cuenta cerrada.
+      </p>
+    </Panel>
+  );
+}
+
+function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
+  const { pronosticos, semanaDesde } = asistente;
+  const [elegida, setElegida] = useState<string | null>(null);
+
+  if (pronosticos.length === 0) {
+    return (
+      <Vacio
+        icono={TrendingUp}
+        titulo="Todavía no hay pronóstico guardado."
+        texto="Tocá Regenerar para calcular la semana."
+      />
+    );
+  }
+
+  const fechas = Array.from({ length: 7 }, (_, i) => sumarDias(semanaDesde, i));
+  const franjas = ORDEN_FRANJA.filter((f) => pronosticos.some((p) => p.franja === f));
+  const porClave = new Map(pronosticos.map((p) => [clave(p), p]));
+
+  const mayor = pronosticos.reduce((a, b) => (b.cubiertosEstimados > a.cubiertosEstimados ? b : a));
+  const seleccionada = (elegida && porClave.get(elegida)) || mayor;
+
+  const totalCubiertos = pronosticos.reduce((s, p) => s + p.cubiertosEstimados, 0);
+  const totalIngreso = pronosticos.reduce((s, p) => s + p.ingresoEstimado, 0);
+  const porDia = fechas.map((f) => ({
+    fecha: f,
+    total: pronosticos.filter((p) => p.fecha === f).reduce((s, p) => s + p.cubiertosEstimados, 0),
+  }));
+  const diaMayor = porDia.reduce((a, b) => (b.total > a.total ? b : a));
+
+  return (
+    <div className="grid gap-4">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Kpi etiqueta="Cubiertos estimados" valor={totalCubiertos} detalle="En la semana" />
+        <Kpi
+          etiqueta="Ingreso estimado"
+          valor={formatoPesos(totalIngreso)}
+          detalle="En la semana"
+        />
+        <Kpi
+          etiqueta="Día de más demanda"
+          valor={diaLargo(diaMayor.fecha)}
+          detalle={cubiertos(diaMayor.total)}
+        />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="grid min-w-0 content-start gap-4 lg:col-span-2">
+          <Panel titulo="Demanda de la semana">
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full border-separate border-spacing-1 text-left">
+                <thead>
+                  <tr>
+                    <th scope="col" className="w-20" />
+                    {fechas.map((f) => (
+                      <th key={f} scope="col" className="px-1 pb-1 text-xs font-medium text-meta">
+                        {diaCorto(f)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {franjas.map((franja) => (
+                    <tr key={franja}>
+                      <th scope="row" className="pr-2 text-sm font-medium text-ink">
+                        {NOMBRE_FRANJA[franja]}
+                      </th>
+                      {fechas.map((f) => {
+                        const p = porClave.get(clave({ fecha: f, franja }));
+                        return (
+                          <td key={f} className="align-top">
+                            {p ? (
+                              <Celda
+                                p={p}
+                                activa={clave(p) === clave(seleccionada)}
+                                onElegir={() => setElegida(clave(p))}
+                              />
+                            ) : null}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <ul className="grid gap-3 md:hidden">
+              {fechas.map((f) => (
+                <li key={f} className="rounded-panel border border-line p-2">
+                  <h3 className="px-1 pb-1 text-sm font-semibold text-ink">{diaLargo(f)}</h3>
+                  <div className="grid gap-1">
+                    {franjas.map((franja) => {
+                      const p = porClave.get(clave({ fecha: f, franja }));
+                      if (!p) return null;
+                      return (
+                        <div key={franja} className="grid grid-cols-[5rem_1fr] items-stretch gap-1">
+                          <span className="self-center text-sm font-medium text-ink">
+                            {NOMBRE_FRANJA[franja]}
+                          </span>
+                          <Celda
+                            p={p}
+                            activa={clave(p) === clave(seleccionada)}
+                            onElegir={() => setElegida(clave(p))}
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <ul className="mt-4 grid gap-2 border-t border-line pt-3">
+              {franjas.map((franja) => {
+                const p = pronosticos.find((x) => x.franja === franja)!;
+                const c = confianza(p.errorMape);
+                return (
+                  <li key={franja} className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+                    <span className="text-meta">
+                      <span className="font-medium text-ink">{NOMBRE_FRANJA[franja]}</span> ·{' '}
+                      {ETIQUETA_METODO_PRONOSTICO[p.metodo]} · Error del pronóstico{' '}
+                      {Math.round(p.errorMape)} %
+                    </span>
+                    <Etiqueta tono={c.tono}>
+                      <c.icono aria-hidden className="size-3.5" strokeWidth={2.4} />
+                      {c.texto}
+                    </Etiqueta>
+                  </li>
+                );
+              })}
+            </ul>
+          </Panel>
+        </div>
+
+        <Detalle p={seleccionada} />
+      </div>
+    </div>
+  );
+}
+
+function Celda({
+  p,
+  activa,
+  onElegir,
+}: {
+  p: PronosticoFranja;
+  activa: boolean;
+  onElegir(): void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onElegir}
+      aria-pressed={activa}
+      aria-label={`${diaLargo(p.fecha)}, ${NOMBRE_FRANJA[p.franja]}: ${cubiertos(p.cubiertosEstimados)}`}
+      className={`grid w-full min-w-0 gap-0.5 rounded-control border-2 px-2 py-2 text-left ${
+        activa ? 'border-accent bg-accent-soft' : 'border-transparent bg-surface hover:bg-panel'
+      }`}
+    >
+      <span className="text-[22px] font-semibold leading-7 text-ink tabular-nums">
+        {p.cubiertosEstimados}
+      </span>
+      <span className="text-xs text-meta">
+        entre {p.limiteInferior} y {p.limiteSuperior}
+      </span>
+      <span className="text-sm text-text tabular-nums">{formatoPesos(p.ingresoEstimado)}</span>
+    </button>
+  );
+}
+
+function Detalle({ p }: { p: PronosticoFranja }) {
+  const platos = [...p.demanda].sort((a, b) => b.cantidad - a.cantidad);
+  const maxima = platos[0]?.cantidad ?? 0;
+  return (
+    <Panel
+      titulo={`${diaLargo(p.fecha)} · ${NOMBRE_FRANJA[p.franja]}`}
+      className="min-w-0 content-start"
+    >
+      <p className="text-sm text-text">
+        <span className="font-semibold text-ink tabular-nums">
+          {cubiertos(p.cubiertosEstimados)}
+        </span>{' '}
+        <span className="text-meta">
+          (entre {p.limiteInferior} y {p.limiteSuperior})
+        </span>
+      </p>
+      <div className="mt-3">
+        {platos.length === 0 ? (
+          <Vacio icono={TrendingUp} titulo="Sin platos estimados para esta franja" />
+        ) : (
+          <ul className="grid gap-3">
+            {platos.map((d) => (
+              <li key={d.itemMenuId} className="grid gap-1">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="min-w-0 text-ink [overflow-wrap:anywhere]">{d.nombre}</span>
+                  <span className="shrink-0 text-meta tabular-nums">{porciones(d.cantidad)}</span>
+                </div>
+                <div aria-hidden className="h-1.5 rounded-full bg-panel">
+                  <div
+                    className="h-full rounded-full bg-accent-soft"
+                    style={{ width: `${maxima > 0 ? (d.cantidad / maxima) * 100 : 0}%` }}
+                  />
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
+function ModalRegenerar({
+  onCerrar,
+  onRegenerado,
+}: {
+  onCerrar(): void;
+  onRegenerado(datos: AsistenteApertura): void;
+}) {
+  const { enviar, enviando, error } = useGuardar();
+
+  async function confirmar() {
+    const r = await enviar<AsistenteApertura>('/apertura/pronostico/regenerar', 'POST');
+    if (r) onRegenerado(r.datos);
+  }
+
+  return (
+    <Modal titulo="¿Regenerar el pronóstico?" onCerrar={onCerrar} ancho="max-w-md">
+      <p className="text-sm text-text">
+        Se vuelve a calcular la semana con el historial y la configuración actuales, y se reemplaza
+        el pronóstico guardado.
+      </p>
+      <div className="mt-3">
+        <Aviso>{error}</Aviso>
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <Boton variante="secundario" onClick={onCerrar} disabled={enviando}>
+          Cancelar
+        </Boton>
+        <Boton onClick={() => void confirmar()} disabled={enviando}>
+          {enviando ? 'Regenerando…' : 'Regenerar'}
+        </Boton>
+      </div>
+    </Modal>
+  );
+}
+
+type CampoConfiguracion = keyof ConfiguracionApertura;
+
+function ModalConfiguracion({
+  onCerrar,
+  onGuardado,
+}: {
+  onCerrar(): void;
+  onGuardado(minimoCambio: boolean): void;
+}) {
+  const config = useRecurso<ConfiguracionApertura>('/apertura/configuracion');
+  return (
+    <Modal titulo="Configuración" onCerrar={onCerrar} ancho="max-w-md">
+      <EstadoCarga cargando={config.cargando && !config.datos} error={config.error} />
+      {config.datos && (
+        <FormularioConfiguracion
+          inicial={config.datos}
+          onCerrar={onCerrar}
+          onGuardado={onGuardado}
+        />
+      )}
+    </Modal>
+  );
+}
+
+function FormularioConfiguracion({
+  inicial,
+  onCerrar,
+  onGuardado,
+}: {
+  inicial: ConfiguracionApertura;
+  onCerrar(): void;
+  onGuardado(minimoCambio: boolean): void;
+}) {
+  const [valores, setValores] = useState({
+    semanasHistoricoMinimo: String(inicial.semanasHistoricoMinimo),
+    cubiertosPorMozo: String(inicial.cubiertosPorMozo),
+    platosPorCocineroHora: String(inicial.platosPorCocineroHora),
+  });
+  const [errores, setErrores] = useState<Partial<Record<CampoConfiguracion, string>>>({});
+  const { enviar, enviando, error } = useGuardar();
+
+  const cambiar = (campo: CampoConfiguracion) => (e: { target: { value: string } }) =>
+    setValores((v) => ({ ...v, [campo]: e.target.value }));
+
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const resultado = configuracionAperturaSchema.safeParse({
+      semanasHistoricoMinimo: aNumero(valores.semanasHistoricoMinimo),
+      cubiertosPorMozo: aNumero(valores.cubiertosPorMozo),
+      platosPorCocineroHora: aNumero(valores.platosPorCocineroHora),
+    });
+    if (!resultado.success) {
+      const nuevos: Partial<Record<CampoConfiguracion, string>> = {};
+      for (const issue of resultado.error.issues) {
+        const campo = issue.path[0] as CampoConfiguracion;
+        nuevos[campo] ??= mensaje(campo, aNumero(valores[campo]), issue.message);
+      }
+      setErrores(nuevos);
+      return;
+    }
+    setErrores({});
+    const r = await enviar('/apertura/configuracion', 'PUT', resultado.data);
+    if (r) onGuardado(resultado.data.semanasHistoricoMinimo !== inicial.semanasHistoricoMinimo);
+  }
+
+  return (
+    <form onSubmit={onSubmit} noValidate className="grid gap-4">
+      <Campo
+        etiqueta="Semanas mínimas de historial"
+        ayuda="Entre 5 y 52. Con menos semanas de reservas atendidas no se pronostica."
+        error={errores.semanasHistoricoMinimo}
+      >
+        <input
+          {...propsDecimal}
+          value={valores.semanasHistoricoMinimo}
+          onChange={cambiar('semanasHistoricoMinimo')}
+          className={claseInput}
+        />
+      </Campo>
+      <Campo
+        etiqueta="Cubiertos que atiende un mozo por franja"
+        ayuda="Se usan para planificar los turnos"
+        error={errores.cubiertosPorMozo}
+      >
+        <input
+          {...propsDecimal}
+          value={valores.cubiertosPorMozo}
+          onChange={cambiar('cubiertosPorMozo')}
+          className={claseInput}
+        />
+      </Campo>
+      <Campo
+        etiqueta="Platos que prepara un cocinero por hora"
+        ayuda="Se usan para planificar los turnos"
+        error={errores.platosPorCocineroHora}
+      >
+        <input
+          {...propsDecimal}
+          value={valores.platosPorCocineroHora}
+          onChange={cambiar('platosPorCocineroHora')}
+          className={claseInput}
+        />
+      </Campo>
+      <Aviso>{error}</Aviso>
+      <div className="flex justify-end gap-2">
+        <Boton variante="secundario" onClick={onCerrar} disabled={enviando}>
+          Cancelar
+        </Boton>
+        <Boton type="submit" disabled={enviando}>
+          {enviando ? 'Guardando…' : 'Guardar'}
+        </Boton>
+      </div>
+    </form>
+  );
+}
+
+// Los mensajes de zod para números vacíos o inválidos no están pensados para la pantalla.
+function mensaje(campo: CampoConfiguracion, valor: number, original: string): string {
+  if (Number.isNaN(valor)) return 'Ingresá un número';
+  if (campo === 'semanasHistoricoMinimo') return 'Ingresá un número entero entre 5 y 52';
+  return original.includes('mayor que 0') ? original : 'Ingresá un número entre 0 y 999';
+}
