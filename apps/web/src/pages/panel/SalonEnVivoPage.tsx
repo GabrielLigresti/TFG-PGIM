@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { EVENTOS_SOCKET, type MesaSalon } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
+import { IndicadorConexion } from '../../components/IndicadorConexion';
 import { LeyendaSalon, MapaSalon } from '../../components/MapaSalon';
 import { Aviso, Boton, EncabezadoPagina, Estado, EstadoCarga } from '../../components/ui';
 import { formatoHora } from '../../lib/formato';
@@ -24,7 +25,7 @@ export function SalonEnVivoPage() {
   useEventoSocket(EVENTOS_SOCKET.cambioSalon, recargar);
   useEventoSocket(EVENTOS_SOCKET.pedidoNuevo, recargar);
   useEventoSocket(EVENTOS_SOCKET.pedidoCambio, recargar);
-  useConexionSocket(recargar);
+  const conexion = useConexionSocket(recargar);
 
   // Red de seguridad: las reservas que vencen por tiempo no siempre llegan como evento.
   useEffect(() => {
@@ -64,6 +65,7 @@ export function SalonEnVivoPage() {
       <EncabezadoPagina
         titulo="Salón"
         descripcion={`Estado actual de las mesas de ${sesion?.sucursalActiva?.nombre ?? 'la sucursal'}.`}
+        accion={<IndicadorConexion estado={conexion} />}
       />
       <EstadoCarga cargando={cargando && !datos} error={error} />
       {datos?.length === 0 && (

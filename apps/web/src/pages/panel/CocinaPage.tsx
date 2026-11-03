@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Clock, Pencil, Radio, TriangleAlert, WifiOff } from 'lucide-react';
+import { Clock, Pencil, TriangleAlert } from 'lucide-react';
 import {
   EVENTOS_SOCKET,
   MOTIVOS_CANCELACION,
@@ -9,6 +9,7 @@ import {
 } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { useAvisos } from '../../components/AvisoEmergente';
+import { IndicadorConexion } from '../../components/IndicadorConexion';
 import { Boton, EncabezadoPagina, EstadoCarga, claseInput } from '../../components/ui';
 import { ApiError, api } from '../../lib/api';
 import { useConexionSocket, useEventoSocket } from '../../lib/socket';
@@ -274,26 +275,6 @@ export function CocinaPage() {
         Demorado: 15 min o más (en Listos, 3 min). Muy demorado: 25 min o más (en Listos, 6 min).
       </p>
     </section>
-  );
-}
-
-function IndicadorConexion({ estado }: { estado: ReturnType<typeof useConexionSocket> }) {
-  if (estado === 'conectando') {
-    return <span className="text-sm text-meta">Conectando…</span>;
-  }
-  if (estado === 'en-vivo') {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-ok">
-        <Radio aria-hidden className="size-4" />
-        En vivo
-      </span>
-    );
-  }
-  return (
-    <span role="status" className="inline-flex items-center gap-1.5 text-sm font-semibold text-bad">
-      <WifiOff aria-hidden className="size-4" />
-      {estado === 'reintentando' ? 'Sin conexión. Reintentando…' : 'Sin conexión'}
-    </span>
   );
 }
 
