@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { EVENTOS_SOCKET, hoyArgentina, type BloqueoCierre, type ReservaPanel } from '@pgim/shared';
+import {
+  EVENTOS_SOCKET,
+  hoyArgentina,
+  type BloqueoCierre,
+  type Pagina,
+  type ReservaPanel,
+} from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { useAvisos } from '../../components/AvisoEmergente';
 import { useConfirmar } from '../../components/Confirmacion';
@@ -21,22 +27,19 @@ import { useAhora } from '../../lib/useAhora';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
-const FILTROS = [
-  { valor: 'TODAS', texto: 'Todas' },
-  { valor: 'PENDIENTE', texto: 'Reservadas' },
-  { valor: 'ACTIVA', texto: 'En curso' },
-] as const;
-
-type Filtro = (typeof FILTROS)[number]['valor'];
-
-// CU-12: reservas vigentes de la sucursal de trabajo, un bloque por día. Al
-// llegar el comensal se activa la reserva, lo que abre su cuenta de mesa; al
-// irse, se cierra la mesa (CU-18). Una reserva pendiente se puede cancelar
-// hasta que vence.
+// CU-12: reservas de hoy en adelante de la sucursal de trabajo, paginadas y en
+// un bloque por día. Al llegar el comensal se activa la reserva, lo que abre su
+// cuenta de mesa; al irse, se cierra la mesa (CU-18). Una reserva pendiente se
+// puede cancelar hasta que vence.
 export function ReservasPage() {
   const { sesion, tienePermiso } = useSesion();
-  const [filtro, setFiltro] = useState<Filtro>('TODAS');
-  const { datos, cargando, error, recargar } = useRecurso<ReservaPanel[]>('/reservas');
+  const [desde, setDesde] = useState('');
+  const [hasta, setHasta] = useState('');
+  const [pagina, setPagina] = useState(1);
+  const q = new URLSearchParams({ pagina: String(pagina) });
+  if (desde) q.set('desde', desde);
+  if (hasta) q.set('hasta', hasta);
+  const { datos, cargando, error, recargar } = useRecurso<Pagina<ReservaPanel>>(`/reservas?${q}`);
   const activacion = useGuardar();
   const ahora = useAhora();
   const hoy = hoyArgentina(new Date(ahora));
@@ -48,7 +51,13 @@ export function ReservasPage() {
   // activación o vencimiento refresca la lista.
   useEventoSocket(EVENTOS_SOCKET.cambioSalon, recargar);
 
-  const filas = datos?.filter((r) => filtro === 'TODAS' || r.estado === filtro);
+  const filas = datos?.filas;
+  const ultimaPagina = datos ? Math.max(1, Math.ceil(datos.total / datos.porPagina)) : 1;
+
+  function filtrar(accion: () => void) {
+    accion();
+    setPagina(1);
+  }
 
   async function activar(r: ReservaPanel) {
     if (await activacion.enviar(`/reservas/${r.id}/activar`, 'POST')) recargar();
@@ -116,42 +125,57 @@ export function ReservasPage() {
     <section>
       <EncabezadoPagina
         titulo="Reservas"
-        descripcion={`Próximas reservas de ${sesion?.sucursalActiva?.nombre ?? 'la sucursal'}.`}
+        descripcion={`Reservas de hoy en adelante de ${sesion?.sucursalActiva?.nombre ?? 'la sucursal'}.`}
       />
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <Campo etiqueta="Estado">
-          <select
-            value={filtro}
-            onChange={(e) => setFiltro(e.target.value as Filtro)}
+        <Campo etiqueta="Desde">
+          <input
+            type="date"
+            min={hoy}
+            max={hasta || undefined}
+            value={desde}
+            onChange={(e) => filtrar(() => setDesde(e.target.value))}
             className={claseInput}
-          >
-            {FILTROS.map((f) => (
-              <option key={f.valor} value={f.valor}>
-                {f.texto}
-              </option>
-            ))}
-          </select>
+          />
         </Campo>
+        <Campo etiqueta="Hasta">
+          <input
+            type="date"
+            min={desde || hoy}
+            value={hasta}
+            onChange={(e) => filtrar(() => setHasta(e.target.value))}
+            className={claseInput}
+          />
+        </Campo>
+        {(desde || hasta) && (
+          <Boton
+            variante="fantasma"
+            onClick={() =>
+              filtrar(() => {
+                setDesde('');
+                setHasta('');
+              })
+            }
+          >
+            Quitar fechas
+          </Boton>
+        )}
       </div>
       <EstadoCarga cargando={cargando && !datos} error={error} />
       <div className="mb-3">
         <Aviso>{activacion.error ?? errorAccion}</Aviso>
       </div>
-      {filas?.length === 0 && <p className="text-sm text-meta">No hay reservas próximas.</p>}
+      {filas?.length === 0 && <p className="text-sm text-meta">No hay reservas para mostrar.</p>}
       {filas && filas.length > 0 && (
         <div className="space-y-6">
           {agruparPorDia(filas).map((dia) => (
             <section key={dia.fecha} aria-label={formatoDiaRelativo(dia.fecha, hoy)}>
-              <div className="mb-2 flex items-baseline justify-between gap-3">
-                <h2 className="text-lg font-semibold text-ink">
-                  {formatoDiaRelativo(dia.fecha, hoy)}
-                </h2>
-                <span className="shrink-0 text-sm text-meta">
-                  {dia.filas.length === 1 ? '1 reserva' : `${dia.filas.length} reservas`}
-                </span>
-              </div>
+              <h2 className="mb-2 text-lg font-semibold text-ink">
+                {formatoDiaRelativo(dia.fecha, hoy)}
+              </h2>
               <Lista
                 filas={dia.filas}
+                inactiva={(r) => r.estado !== 'PENDIENTE' && r.estado !== 'ACTIVA'}
                 clave={(r) => r.id}
                 columnas={[
                   { titulo: 'Hora', className: 'w-[9%]', valor: (r) => formatoHora(r.inicio) },
@@ -209,6 +233,27 @@ export function ReservasPage() {
               />
             </section>
           ))}
+          {ultimaPagina > 1 && (
+            <div className="flex items-center justify-between gap-3 text-sm text-meta">
+              <Boton
+                variante="secundario"
+                disabled={pagina <= 1}
+                onClick={() => setPagina((p) => p - 1)}
+              >
+                Anteriores
+              </Boton>
+              <span>
+                Página {datos?.pagina} de {ultimaPagina}
+              </span>
+              <Boton
+                variante="secundario"
+                disabled={pagina >= ultimaPagina}
+                onClick={() => setPagina((p) => p + 1)}
+              >
+                Siguientes
+              </Boton>
+            </div>
+          )}
         </div>
       )}
     </section>
