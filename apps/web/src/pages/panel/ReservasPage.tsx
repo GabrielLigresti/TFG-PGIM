@@ -14,8 +14,8 @@ import {
   claseInput,
 } from '../../components/ui';
 import { ApiError, api } from '../../lib/api';
-import { formatoHora, formatoPesos } from '../../lib/formato';
-import { esActivable } from '../../lib/reservas';
+import { formatoDiaRelativo, formatoFecha, formatoHora, formatoPesos } from '../../lib/formato';
+import { agruparPorDia, esActivable } from '../../lib/reservas';
 import { useEventoSocket } from '../../lib/socket';
 import { useAhora } from '../../lib/useAhora';
 import { useGuardar } from '../../lib/useGuardar';
@@ -25,23 +25,21 @@ const FILTROS = [
   { valor: 'TODAS', texto: 'Todas' },
   { valor: 'PENDIENTE', texto: 'Reservadas' },
   { valor: 'ACTIVA', texto: 'En curso' },
-  { valor: 'VENCIDA', texto: 'Inasistencias' },
 ] as const;
 
 type Filtro = (typeof FILTROS)[number]['valor'];
 
-// CU-12: reservas del día de la sucursal de trabajo. Al llegar el comensal se
-// activa la reserva, lo que abre su cuenta de mesa; al irse, se cierra la mesa
-// (CU-18). Una reserva pendiente se puede cancelar hasta que vence.
+// CU-12: reservas vigentes de la sucursal de trabajo, un bloque por día. Al
+// llegar el comensal se activa la reserva, lo que abre su cuenta de mesa; al
+// irse, se cierra la mesa (CU-18). Una reserva pendiente se puede cancelar
+// hasta que vence.
 export function ReservasPage() {
   const { sesion, tienePermiso } = useSesion();
-  const [fecha, setFecha] = useState(hoyArgentina());
   const [filtro, setFiltro] = useState<Filtro>('TODAS');
-  const { datos, cargando, error, recargar } = useRecurso<ReservaPanel[]>(
-    `/reservas?fecha=${fecha}`,
-  );
+  const { datos, cargando, error, recargar } = useRecurso<ReservaPanel[]>('/reservas');
   const activacion = useGuardar();
   const ahora = useAhora();
+  const hoy = hoyArgentina(new Date(ahora));
   const confirmar = useConfirmar();
   const { avisar } = useAvisos();
   const [enviando, setEnviando] = useState(false);
@@ -96,7 +94,7 @@ export function ReservasPage() {
 
   async function cancelar(r: ReservaPanel) {
     const ok = await confirmar({
-      mensaje: `¿Cancelar la reserva de ${r.comensal.nombre} a las ${formatoHora(r.inicio)}?`,
+      mensaje: `¿Cancelar la reserva de ${r.comensal.nombre} del ${formatoFecha(hoyArgentina(new Date(r.inicio)))} a las ${formatoHora(r.inicio)}?`,
       detalle: `La mesa ${r.mesa.numero} queda libre.`,
       accion: 'Cancelar reserva',
     });
@@ -118,17 +116,9 @@ export function ReservasPage() {
     <section>
       <EncabezadoPagina
         titulo="Reservas"
-        descripcion={`Reservas de ${sesion?.sucursalActiva?.nombre ?? 'la sucursal'}.`}
+        descripcion={`Próximas reservas de ${sesion?.sucursalActiva?.nombre ?? 'la sucursal'}.`}
       />
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <Campo etiqueta="Fecha">
-          <input
-            type="date"
-            value={fecha}
-            onChange={(e) => e.target.value && setFecha(e.target.value)}
-            className={claseInput}
-          />
-        </Campo>
         <Campo etiqueta="Estado">
           <select
             value={filtro}
@@ -147,52 +137,74 @@ export function ReservasPage() {
       <div className="mb-3">
         <Aviso>{activacion.error ?? errorAccion}</Aviso>
       </div>
-      {filas?.length === 0 && <p className="text-sm text-meta">No hay reservas para mostrar.</p>}
+      {filas?.length === 0 && <p className="text-sm text-meta">No hay reservas próximas.</p>}
       {filas && filas.length > 0 && (
-        <Lista
-          filas={filas}
-          clave={(r) => r.id}
-          columnas={[
-            { titulo: 'Hora', valor: (r) => formatoHora(r.inicio) },
-            { titulo: 'Mesa', valor: (r) => r.mesa.numero },
-            { titulo: 'A nombre de', valor: (r) => r.comensal.nombre },
-            { titulo: 'Teléfono', valor: (r) => r.comensal.telefono ?? '—' },
-            { titulo: 'Personas', valor: (r) => r.cantidadPersonas },
-            {
-              titulo: 'Estado',
-              valor: (r) => (
-                <span className="inline-flex flex-wrap items-center gap-2">
-                  <Estado entidad="reserva" valor={r.estado} />
-                  {r.pagoEnCurso && <Estado entidad="pago" valor="PENDIENTE" />}
-                  {r.estado === 'PENDIENTE' && (
-                    <span className="text-xs text-meta">
-                      Tolerancia hasta {formatoHora(r.limiteLlegada)}
-                    </span>
-                  )}
+        <div className="space-y-6">
+          {agruparPorDia(filas).map((dia) => (
+            <section key={dia.fecha} aria-label={formatoDiaRelativo(dia.fecha, hoy)}>
+              <div className="mb-2 flex items-baseline justify-between gap-3">
+                <h2 className="text-lg font-semibold text-ink">
+                  {formatoDiaRelativo(dia.fecha, hoy)}
+                </h2>
+                <span className="shrink-0 text-sm text-meta">
+                  {dia.filas.length === 1 ? '1 reserva' : `${dia.filas.length} reservas`}
                 </span>
-              ),
-            },
-          ]}
-          acciones={(r) => (
-            <span className="inline-flex flex-wrap justify-end gap-2">
-              {esActivable(r, ahora) && tienePermiso('reserva.activar') && (
-                <Boton variante="tonal" disabled={activacion.enviando} onClick={() => activar(r)}>
-                  Activar mesa
-                </Boton>
-              )}
-              {r.cerrable && tienePermiso('mesa.cerrar') && (
-                <Boton variante="tonal" disabled={enviando} onClick={() => void cerrar(r)}>
-                  Cerrar mesa
-                </Boton>
-              )}
-              {r.cancelable && tienePermiso('reserva.activar') && (
-                <Boton variante="fantasma" disabled={enviando} onClick={() => void cancelar(r)}>
-                  Cancelar
-                </Boton>
-              )}
-            </span>
-          )}
-        />
+              </div>
+              <Lista
+                filas={dia.filas}
+                clave={(r) => r.id}
+                columnas={[
+                  { titulo: 'Hora', valor: (r) => formatoHora(r.inicio) },
+                  { titulo: 'Mesa', valor: (r) => r.mesa.numero },
+                  { titulo: 'A nombre de', valor: (r) => r.comensal.nombre },
+                  { titulo: 'Teléfono', valor: (r) => r.comensal.telefono ?? '—' },
+                  { titulo: 'Personas', valor: (r) => r.cantidadPersonas },
+                  {
+                    titulo: 'Estado',
+                    valor: (r) => (
+                      <span className="inline-flex flex-wrap items-center gap-2">
+                        <Estado entidad="reserva" valor={r.estado} />
+                        {r.pagoEnCurso && <Estado entidad="pago" valor="PENDIENTE" />}
+                        {r.estado === 'PENDIENTE' && (
+                          <span className="text-xs text-meta">
+                            Tolerancia hasta {formatoHora(r.limiteLlegada)}
+                          </span>
+                        )}
+                      </span>
+                    ),
+                  },
+                ]}
+                acciones={(r) => (
+                  <span className="inline-flex flex-wrap justify-end gap-2">
+                    {esActivable(r, ahora) && tienePermiso('reserva.activar') && (
+                      <Boton
+                        variante="tonal"
+                        disabled={activacion.enviando}
+                        onClick={() => activar(r)}
+                      >
+                        Activar mesa
+                      </Boton>
+                    )}
+                    {r.cerrable && tienePermiso('mesa.cerrar') && (
+                      <Boton variante="tonal" disabled={enviando} onClick={() => void cerrar(r)}>
+                        Cerrar mesa
+                      </Boton>
+                    )}
+                    {r.cancelable && tienePermiso('reserva.activar') && (
+                      <Boton
+                        variante="fantasma"
+                        disabled={enviando}
+                        onClick={() => void cancelar(r)}
+                      >
+                        Cancelar
+                      </Boton>
+                    )}
+                  </span>
+                )}
+              />
+            </section>
+          ))}
+        </div>
       )}
     </section>
   );
