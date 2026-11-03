@@ -1,11 +1,6 @@
 // Datos ficticios de prueba. Es idempotente: se puede correr varias veces sin
 // duplicar filas (npm run db:seed -w @pgim/api).
-import {
-  PERMISOS,
-  ROLES_PREDETERMINADOS,
-  type CodigoPermiso,
-  type RolPredeterminado,
-} from '@pgim/shared';
+import { PERMISOS, type CodigoPermiso, type RolPredeterminado } from '@pgim/shared';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -21,6 +16,7 @@ import {
 } from '../src/domain/receta';
 import { produccionService } from '../src/services/produccion.service';
 import { recetaRepository } from '../src/repositories/receta.repository';
+import { crearRolesPredeterminados, upsertRol } from '../src/repositories/roles-predeterminados';
 import { stockRepository } from '../src/repositories/stock.repository';
 import type { UnidadBase, UnidadMedida } from '@pgim/shared';
 
@@ -304,26 +300,6 @@ async function seedSalon(
       create: { sucursalId, numero, ...posicion },
     });
   }
-}
-
-async function seedRol(
-  tx: Prisma.TransactionClient,
-  restauranteId: string,
-  rol: RolPredeterminado,
-  predeterminado: boolean,
-  permisoIds: Map<CodigoPermiso, string>,
-): Promise<string> {
-  const { id } = await tx.rol.upsert({
-    where: { restauranteId_nombre: { restauranteId, nombre: rol.nombre } },
-    update: { arquetipo: rol.arquetipo, predeterminado, activo: true },
-    create: { restauranteId, nombre: rol.nombre, arquetipo: rol.arquetipo, predeterminado },
-  });
-
-  await tx.rolPermiso.deleteMany({ where: { rolId: id } });
-  await tx.rolPermiso.createMany({
-    data: rol.permisos.map((codigo) => ({ rolId: id, permisoId: permisoIds.get(codigo)! })),
-  });
-  return id;
 }
 
 // Reemplaza la receta del dueño (plato o intermedio) por la del seed.
@@ -832,12 +808,9 @@ async function main(): Promise<void> {
       await seedSalon(tx, sucursal.id, SALONES[nombre]);
     }
 
-    const rolIds = new Map<string, string>();
-    for (const rol of ROLES_PREDETERMINADOS) {
-      rolIds.set(rol.nombre, await seedRol(tx, restaurante.id, rol, true, permisoIds));
-    }
+    const rolIds = await crearRolesPredeterminados(tx, restaurante.id);
     for (const rol of ROLES_STAFF) {
-      rolIds.set(rol.nombre, await seedRol(tx, restaurante.id, rol, false, permisoIds));
+      rolIds.set(rol.nombre, await upsertRol(tx, restaurante.id, rol, false, permisoIds));
     }
 
     for (const empleado of EMPLEADOS) {
