@@ -17,41 +17,59 @@ export const horarioServicioSchema = z
 
 export type HorarioServicio = z.infer<typeof horarioServicioSchema>;
 
+const camposSucursal = {
+  nombre: nombreSchema,
+  direccion: z.string().trim().min(1, 'Ingresá la dirección').max(200),
+  horarioApertura: horaSchema,
+  horarioCierre: horaSchema,
+  toleranciaNoShowMin: z.number().int().min(0).max(240),
+  horariosServicio: z.array(horarioServicioSchema).max(FRANJAS.length),
+};
+
+type CamposHorario = Pick<
+  z.infer<z.ZodObject<typeof camposSucursal>>,
+  'horarioApertura' | 'horarioCierre' | 'horariosServicio'
+>;
+
+// Reglas cruzadas de horarios; las comparten el ABM y el registro (CU-11).
+function conReglasDeHorario<S extends z.ZodType<CamposHorario>>(esquema: S) {
+  return esquema
+    .refine((s) => minutosInicio(s.horarioApertura) < minutosFin(s.horarioCierre), {
+      message: 'El cierre tiene que ser posterior a la apertura',
+      path: ['horarioCierre'],
+    })
+    .refine(
+      (s) => new Set(s.horariosServicio.map((h) => h.franja)).size === s.horariosServicio.length,
+      {
+        message: 'Cada franja se carga una sola vez',
+        path: ['horariosServicio'],
+      },
+    )
+    .refine(
+      (s) =>
+        s.horariosServicio.every(
+          (h) =>
+            minutosInicio(h.horaInicio) >= minutosInicio(s.horarioApertura) &&
+            minutosFin(h.horaFin) <= minutosFin(s.horarioCierre),
+        ),
+      {
+        message: 'Los horarios de servicio tienen que estar dentro del horario de la sucursal',
+        path: ['horariosServicio'],
+      },
+    );
+}
+
 // CU-13.
-export const sucursalInputSchema = z
-  .object({
-    nombre: nombreSchema,
-    direccion: z.string().trim().min(1, 'Ingresá la dirección').max(200),
-    horarioApertura: horaSchema,
-    horarioCierre: horaSchema,
-    toleranciaNoShowMin: z.number().int().min(0).max(240),
-    horariosServicio: z.array(horarioServicioSchema).max(FRANJAS.length),
+export const sucursalInputSchema = conReglasDeHorario(
+  z.object({
+    ...camposSucursal,
     menuActivoId: z.uuid().nullish(),
     activa: z.boolean().optional(),
-  })
-  .refine((s) => minutosInicio(s.horarioApertura) < minutosFin(s.horarioCierre), {
-    message: 'El cierre tiene que ser posterior a la apertura',
-    path: ['horarioCierre'],
-  })
-  .refine(
-    (s) => new Set(s.horariosServicio.map((h) => h.franja)).size === s.horariosServicio.length,
-    {
-      message: 'Cada franja se carga una sola vez',
-      path: ['horariosServicio'],
-    },
-  )
-  .refine(
-    (s) =>
-      s.horariosServicio.every(
-        (h) =>
-          minutosInicio(h.horaInicio) >= minutosInicio(s.horarioApertura) &&
-          minutosFin(h.horaFin) <= minutosFin(s.horarioCierre),
-      ),
-    {
-      message: 'Los horarios de servicio tienen que estar dentro del horario de la sucursal',
-      path: ['horariosServicio'],
-    },
-  );
+  }),
+);
+
+// CU-11: la sucursal inicial no tiene menú activo todavía.
+export const sucursalRegistroSchema = conReglasDeHorario(z.object(camposSucursal));
 
 export type SucursalInput = z.infer<typeof sucursalInputSchema>;
 
