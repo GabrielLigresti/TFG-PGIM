@@ -7,7 +7,7 @@ import {
   type TenantSucursal,
 } from '../repositories/apertura.repository';
 
-// Asistente de apertura (CU-12): pronóstico de la semana siguiente de la sucursal de trabajo.
+// Asistente de apertura (CU-09): pronóstico de la semana siguiente de la sucursal de trabajo.
 // `ahora` se inyecta para poder fijar el reloj en los tests.
 export function createAperturaService(repo: AperturaRepository) {
   async function configuracionDe(t: TenantSucursal): Promise<ConfiguracionApertura> {

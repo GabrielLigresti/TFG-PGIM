@@ -4,7 +4,7 @@ import { autenticar, requierePermiso, tenant, validar } from '../middleware/auth
 import { aperturaService } from '../services/apertura.service';
 import { sucursalDeTrabajo } from './reservas';
 
-// Asistente de apertura (CU-12): pronóstico semanal y su configuración.
+// Asistente de apertura (CU-09): pronóstico semanal y su configuración.
 export const aperturaRouter = Router();
 
 aperturaRouter.use(autenticar, tenant, requierePermiso('apertura.consultar'));
