@@ -29,4 +29,12 @@ describe('límite de registros', () => {
     for (let n = 1; n <= 10; n++) expect((await registrar(n)).status).toBe(201);
     expect((await registrar(11)).status).toBe(429);
   });
+
+  it('el registro de restaurantes tiene su propio contador', async () => {
+    const app = createApp();
+    // El de comensales ya está agotado (test anterior); este sigue disponible.
+    expect((await request(app).post('/api/auth/registro').send({})).status).toBe(429);
+    // Cuerpo inválido: pasa el límite y falla en la validación.
+    expect((await request(app).post('/api/auth/registro-restaurante').send({})).status).toBe(400);
+  });
 });

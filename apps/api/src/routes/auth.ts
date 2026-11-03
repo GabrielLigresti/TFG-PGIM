@@ -38,6 +38,16 @@ const limiteRegistro = rateLimit({
   message: { error: 'Demasiados registros desde esta conexión. Probá de nuevo más tarde.' },
 });
 
+// Instancia propia para el alta de restaurantes: no comparte contador con el
+// registro de comensales (cada cuenta de restaurante crea sucursal, menú y más).
+const limiteRegistroRestaurante = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Demasiados registros desde esta conexión. Probá de nuevo más tarde.' },
+});
+
 authRouter.post('/login', limiteLogin, validar(loginRequestSchema), async (req, res) => {
   const { email, password } = req.body as LoginRequest;
   const { token, sesion } = await authService.iniciarSesion(email, password);
@@ -51,7 +61,7 @@ authRouter.post('/registro', limiteRegistro, validar(registroComensalSchema), as
 
 authRouter.post(
   '/registro-restaurante',
-  limiteRegistro,
+  limiteRegistroRestaurante,
   validar(registroRestauranteSchema),
   async (req, res) => {
     const { token, sesion } = await authService.registrarRestaurante(
