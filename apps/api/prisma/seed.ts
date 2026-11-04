@@ -23,6 +23,8 @@ import {
   insumosNecesarios,
   type Componente,
 } from '../src/domain/receta';
+import { iniciosDelDia, sumarDias } from '../src/domain/franjas';
+import { semanaSiguiente } from '../src/domain/pronostico';
 import { produccionService } from '../src/services/produccion.service';
 import { recetaRepository } from '../src/repositories/receta.repository';
 import { crearRolesPredeterminados, upsertRol } from '../src/repositories/roles-predeterminados';
@@ -115,6 +117,38 @@ const EMPLEADOS: {
     nombreCompleto: 'Carla Cocinera',
     rol: 'Cocinero',
     sucursales: ['Palermo'],
+  },
+  // Plantel de Centro para la demo del simulador: cinco mozos y dos cocineros,
+  // lo justo para que la grilla muestre reparto y todavía falte gente en los picos.
+  {
+    email: 'mozo2@demo.pgim.test',
+    nombreCompleto: 'Marta Mozo',
+    rol: 'Mozo',
+    sucursales: ['Centro'],
+  },
+  {
+    email: 'mozo3@demo.pgim.test',
+    nombreCompleto: 'Nicolás Mozo',
+    rol: 'Mozo',
+    sucursales: ['Centro'],
+  },
+  {
+    email: 'mozo4@demo.pgim.test',
+    nombreCompleto: 'Paula Mozo',
+    rol: 'Mozo',
+    sucursales: ['Centro'],
+  },
+  {
+    email: 'mozo5@demo.pgim.test',
+    nombreCompleto: 'Rubén Mozo',
+    rol: 'Mozo',
+    sucursales: ['Centro'],
+  },
+  {
+    email: 'cocinero2@demo.pgim.test',
+    nombreCompleto: 'Silvia Cocinera',
+    rol: 'Cocinero',
+    sucursales: ['Centro'],
   },
 ];
 
@@ -948,6 +982,145 @@ async function seedHistorialVentas(
   return total;
 }
 
+// Faltantes de la demo del simulador en Centro (Hito 7). Se converge a un
+// estado fijo, así que volver a correr el seed no agrega nada:
+// - stock: todo con holgura para la semana, salvo el queso provolone, que no alcanza;
+// - capacidad: reservas pendientes del sábado a la noche de la semana próxima que
+//   superan lo que entra en las mesas (con una mesa reservada dos veces);
+// - plantel: el de EMPLEADOS, que deja un faltante en los picos;
+// - turnos: la semana en curso ya confirmada, para que "Mis turnos" tenga contenido.
+// La planificación en borrador de la semana próxima se descarta para que el
+// asistente la vuelva a armar con estos datos. Las mermas con motivo ya las
+// carga seedProduccionDemo, dentro de los últimos 7 días.
+const STOCK_PROVOLONE_DEMO = 15000;
+const STOCK_HOLGADO = { GRAMO: 150000, MILILITRO: 150000, UNIDAD: 1000 } as const;
+const EMAIL_RESERVAS_DEMO = 'reservas-demo@demo.test';
+
+async function seedFaltantesSimulador(
+  restauranteId: string,
+  sucursalId: string,
+  passwordHash: string,
+): Promise<void> {
+  const empleado = await prisma.usuario.findUniqueOrThrow({
+    where: { email: COCINA_DE.Centro },
+  });
+  const ctx = { restauranteId, sucursalId, empleadoId: empleado.id };
+
+  const catalogo = await recetaRepository.cargarCatalogo(restauranteId);
+  const existencias = await prisma.existencia.findMany({
+    where: { sucursalId, sucursal: { restauranteId } },
+    select: { cantidadActual: true, componente: { select: { id: true, nombre: true } } },
+    orderBy: { componente: { nombre: 'asc' } },
+  });
+  for (const { cantidadActual, componente } of existencias) {
+    const c = catalogo.get(componente.id)!;
+    const escaso = componente.nombre === 'Queso provolone';
+    const objetivo = escaso ? STOCK_PROVOLONE_DEMO : STOCK_HOLGADO[c.unidadBase];
+    if (Number(cantidadActual) === objetivo) continue;
+    await stockRepository.registrarMovimiento(ctx, {
+      tipo: 'AJUSTE',
+      componenteId: componente.id,
+      cantidadContada: objetivo,
+      costoUnitario: redondearCosto(costoUnitario(c)),
+      motivo: escaso ? 'Conteo de la semana' : 'Reposición para la semana',
+    });
+  }
+
+  // Reservas pendientes del sábado a la noche: cuatro turnos de una hora con
+  // todas las mesas llenas y un grupo de cuatro más que los lugares de la mesa más grande.
+  const comensal = await prisma.usuario.upsert({
+    where: { email: EMAIL_RESERVAS_DEMO },
+    update: {},
+    create: { email: EMAIL_RESERVAS_DEMO, passwordHash, tipo: 'COMENSAL', activo: false },
+  });
+  await prisma.comensal.upsert({
+    where: { usuarioId: comensal.id },
+    update: {},
+    create: { usuarioId: comensal.id, nombre: 'Reservas de la demo' },
+  });
+  await prisma.reserva.deleteMany({ where: { comensalId: comensal.id } });
+  const mesas = await prisma.mesa.findMany({
+    where: { sucursalId, sucursal: { restauranteId }, activa: true },
+    select: { id: true, capacidad: true },
+    orderBy: { numero: 'asc' },
+  });
+  const { desde: lunesProximo, fechas } = semanaSiguiente(new Date());
+  const inicios = iniciosDelDia(fechas[5]!, '20:00', '00:00');
+  const grande = mesas.reduce((a, m) => (m.capacidad > a.capacidad ? m : a));
+  const reservas: Prisma.ReservaCreateManyInput[] = inicios.flatMap((inicio) =>
+    mesas.map((m) => ({
+      sucursalId,
+      mesaId: m.id,
+      comensalId: comensal.id,
+      inicio,
+      // La mesa más grande, a las 21, recibe un grupo de cuatro más que sus lugares.
+      cantidadPersonas:
+        m.id === grande.id && inicio.getTime() === inicios[1]!.getTime()
+          ? m.capacidad + 4
+          : m.capacidad,
+      modoAsignacion: 'MANUAL' as const,
+      estado: 'PENDIENTE' as const,
+    })),
+  );
+  await prisma.reserva.createMany({ data: reservas });
+
+  // Semana próxima: se descarta el borrador (nunca uno confirmado). Las alertas
+  // y los turnos se van con la planificación.
+  await prisma.planificacionTurnos.deleteMany({
+    where: { sucursalId, estado: 'BORRADOR', semanaDesde: new Date(`${lunesProximo}T00:00:00Z`) },
+  });
+
+  // Semana en curso, confirmada: los mozos rotan entre almuerzo y cena.
+  const lunesActual = sumarDias(lunesProximo, -7);
+  const semana = new Date(`${lunesActual}T00:00:00Z`);
+  const yaConfirmada = await prisma.planificacionTurnos.count({
+    where: { sucursalId, semanaDesde: semana },
+  });
+  if (yaConfirmada > 0) return;
+  const plantel = async (rol: 'Mozo' | 'Cocinero') =>
+    (
+      await prisma.empleado.findMany({
+        where: { restauranteId, rol: { nombre: rol }, sucursales: { some: { sucursalId } } },
+        select: { usuarioId: true },
+        orderBy: { nombreCompleto: 'asc' },
+      })
+    ).map((e) => e.usuarioId);
+  const mozos = await plantel('Mozo');
+  const cocineros = await plantel('Cocinero');
+  const turnos: Prisma.TurnoCreateManyPlanificacionInput[] = [];
+  for (let d = 0; d < 7; d++) {
+    const fecha = new Date(`${sumarDias(lunesActual, d)}T00:00:00Z`);
+    for (const [franja, desfase] of [
+      ['ALMUERZO', 0],
+      ['CENA', 2],
+    ] as const) {
+      for (let k = 0; k < 2; k++) {
+        turnos.push({
+          empleadoId: mozos[(d + desfase + k) % mozos.length]!,
+          sucursalId,
+          fecha,
+          franja,
+        });
+      }
+      turnos.push({
+        empleadoId: cocineros[(d + desfase / 2) % cocineros.length]!,
+        sucursalId,
+        fecha,
+        franja,
+      });
+    }
+  }
+  await prisma.planificacionTurnos.create({
+    data: {
+      sucursalId,
+      semanaDesde: semana,
+      estado: 'CONFIRMADA',
+      confirmadaEn: new Date(),
+      turnos: { create: turnos },
+    },
+  });
+}
+
 async function main(): Promise<void> {
   const passwordHash = await hashPassword(PASSWORD_DEMO);
 
@@ -1056,6 +1229,7 @@ async function main(): Promise<void> {
   await seedModelosRa(restauranteId);
   await seedProduccionDemo(restauranteId, sucursalIds);
   const reservasHistorial = await seedHistorialVentas(restauranteId, sucursalIds, passwordHash);
+  await seedFaltantesSimulador(restauranteId, sucursalIds.get('Centro')!, passwordHash);
 
   const [permisos, roles, sucursales, usuarios, componentes, platos, movimientos, tandas] =
     await Promise.all([

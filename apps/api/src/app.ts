@@ -21,6 +21,7 @@ import { reservasComensalRouter, reservasPanelRouter } from './routes/reservas';
 import { rolesRouter } from './routes/roles';
 import { salonRouter } from './routes/salon';
 import { sucursalesRouter } from './routes/sucursales';
+import { turnosRouter } from './routes/turnos';
 import { CARPETA_FOTOS, TIPO_FOTO } from './lib/archivos-foto';
 import { CARPETA_MODELOS } from './lib/archivos-modelo';
 import { autenticar, soloTipo } from './middleware/auth';
@@ -89,6 +90,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/pedidos`, pedidosRouter);
   app.use(`${API_PREFIX}/alertas`, alertasRouter);
   app.use(`${API_PREFIX}/apertura`, aperturaRouter);
+  app.use(`${API_PREFIX}/turnos`, turnosRouter);
   app.use(`${API_PREFIX}/fidelizacion`, fidelizacionRouter);
   app.use(`${API_PREFIX}/roles`, rolesRouter);
   app.use(`${API_PREFIX}/personal`, personalRouter);

@@ -6,6 +6,7 @@ import {
   type DotacionFranja,
   type EstadoPlanificacion,
   type Franja,
+  type MiTurno,
   type PlanificacionSemana,
   type TurnoPlanificado,
   type UnidadMedida,
@@ -82,6 +83,9 @@ export interface PlanificacionRepository {
     semanaDesde: string,
     db: Prisma.TransactionClient,
   ): Promise<ContextoPlanificacion>;
+  // Turnos del empleado de hoy en adelante (`desde`, AAAA-MM-DD), solo de
+  // planificaciones confirmadas, con el horario de su franja.
+  turnosDe(restauranteId: string, empleadoId: string, desde: string): Promise<MiTurno[]>;
 }
 
 const TIMEOUT_TX_MS = 15_000;
@@ -352,6 +356,42 @@ export const planificacionRepository: PlanificacionRepository = {
       alertas,
       dotacion: [...dotacion.values()].sort((a, b) => (orden(a) < orden(b) ? -1 : 1)),
     };
+  },
+
+  async turnosDe(restauranteId, empleadoId, desde) {
+    const turnos = await prisma.turno.findMany({
+      where: {
+        empleadoId,
+        fecha: { gte: aFecha(desde) },
+        sucursal: { restauranteId },
+        planificacion: { estado: 'CONFIRMADA', sucursal: { restauranteId } },
+        empleado: { restauranteId },
+      },
+      orderBy: [{ fecha: 'asc' }, { franja: 'asc' }],
+      select: {
+        fecha: true,
+        franja: true,
+        sucursalId: true,
+        sucursal: { select: { nombre: true } },
+      },
+    });
+    const horarios = await prisma.horarioServicio.findMany({
+      where: {
+        sucursalId: { in: [...new Set(turnos.map((t) => t.sucursalId))] },
+        sucursal: { restauranteId },
+      },
+    });
+    const horario = new Map(horarios.map((h) => [`${h.sucursalId}|${h.franja}`, h]));
+    return turnos.map((t) => {
+      const h = horario.get(`${t.sucursalId}|${t.franja}`);
+      return {
+        fecha: deFecha(t.fecha),
+        franja: t.franja as Franja,
+        sucursal: t.sucursal.nombre,
+        horaInicio: h ? aHora(h.horaInicio) : '',
+        horaFin: h ? aHora(h.horaFin) : '',
+      };
+    });
   },
 
   async contexto({ restauranteId, sucursalId }, semanaDesde, db) {

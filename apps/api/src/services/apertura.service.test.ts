@@ -54,6 +54,7 @@ function planFalso() {
     reemplazarYPlanificar: jest.fn().mockResolvedValue(true),
     confirmar: jest.fn().mockResolvedValue({ ...PLAN, estado: 'CONFIRMADA' }),
     deSemana: jest.fn().mockResolvedValue(null),
+    turnosDe: jest.fn(),
     contexto: jest.fn(),
   } satisfies Record<keyof PlanificacionRepository, jest.Mock>;
 }

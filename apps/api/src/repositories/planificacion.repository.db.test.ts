@@ -656,6 +656,43 @@ describe('planificación de turnos', () => {
     expect(alertas[0]!.descripcion).toContain('Gaseosa');
   });
 
+  // 12 semanas hasta ayer: dos servicios por día, con su cuenta cerrada y un pedido entregado.
+  async function cargarHistorial12Semanas() {
+    const mesa = await prisma.mesa.findFirstOrThrow({ where: { sucursalId: e.sucursalId } });
+    const desde = new Date('2026-08-10T00:00:00Z');
+    const reservas = [];
+    for (let d = 0; d < 12 * 7; d++) {
+      for (const h of [15, 23]) {
+        const inicio = new Date(desde.getTime() + d * 86_400_000 + h * 3_600_000);
+        reservas.push({
+          sucursalId: e.sucursalId,
+          mesaId: mesa.id,
+          comensalId: e.comensalId,
+          inicio,
+          cantidadPersonas: 4,
+          modoAsignacion: 'MANUAL' as const,
+          estado: 'FINALIZADA' as const,
+          cuentaMesa: {
+            create: {
+              estado: 'CERRADA' as const,
+              pedidos: {
+                create: {
+                  sucursalId: e.sucursalId,
+                  numero: d * 10 + h,
+                  estado: 'ENTREGADO' as const,
+                  lineas: {
+                    create: [{ itemMenuId: e.pizzaId, cantidad: 2, precioUnitario: 1000 }],
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+    }
+    for (const r of reservas) await prisma.reserva.create({ data: r });
+  }
+
   describe('simulación semanal', () => {
     it('con 12 semanas de historial planifica en 10 segundos o menos', async () => {
       await horarios(e.sucursalId);
@@ -664,41 +701,7 @@ describe('planificación de turnos', () => {
       });
       await empleado(e.restauranteId, [e.sucursalId], 'Ana');
       await empleado(e.restauranteId, [e.sucursalId], 'Beto', 'COCINERO');
-      const mesa = await prisma.mesa.findFirstOrThrow({ where: { sucursalId: e.sucursalId } });
-
-      // 12 semanas hasta ayer: dos servicios por día, con su cuenta cerrada y un pedido entregado.
-      const desde = new Date('2026-08-10T00:00:00Z');
-      const reservas = [];
-      for (let d = 0; d < 12 * 7; d++) {
-        for (const h of [15, 23]) {
-          const inicio = new Date(desde.getTime() + d * 86_400_000 + h * 3_600_000);
-          reservas.push({
-            sucursalId: e.sucursalId,
-            mesaId: mesa.id,
-            comensalId: e.comensalId,
-            inicio,
-            cantidadPersonas: 4,
-            modoAsignacion: 'MANUAL' as const,
-            estado: 'FINALIZADA' as const,
-            cuentaMesa: {
-              create: {
-                estado: 'CERRADA' as const,
-                pedidos: {
-                  create: {
-                    sucursalId: e.sucursalId,
-                    numero: d * 10 + h,
-                    estado: 'ENTREGADO' as const,
-                    lineas: {
-                      create: [{ itemMenuId: e.pizzaId, cantidad: 2, precioUnitario: 1000 }],
-                    },
-                  },
-                },
-              },
-            },
-          });
-        }
-      }
-      for (const r of reservas) await prisma.reserva.create({ data: r });
+      await cargarHistorial12Semanas();
 
       const servicio = createAperturaService(aperturaRepository, planificacionRepository);
       const t0 = Date.now();
@@ -708,6 +711,109 @@ describe('planificación de turnos', () => {
       expect(res.planificacion).not.toBeNull();
       expect(res.planificacion!.turnos.length).toBeGreaterThan(0);
       expect(res.pronosticos.length).toBeGreaterThan(0);
+    }, 120_000);
+  });
+
+  describe('turnos propios', () => {
+    async function planificacionCon(
+      sucursalId: string,
+      semana: string,
+      estado: 'BORRADOR' | 'CONFIRMADA',
+      turnos: { empleadoId: string; fecha: string; franja: 'ALMUERZO' | 'CENA' }[],
+    ) {
+      await prisma.planificacionTurnos.create({
+        data: {
+          sucursalId,
+          semanaDesde: new Date(`${semana}T00:00:00Z`),
+          estado,
+          turnos: {
+            create: turnos.map((t) => ({
+              empleadoId: t.empleadoId,
+              sucursalId,
+              fecha: new Date(`${t.fecha}T00:00:00Z`),
+              franja: t.franja,
+            })),
+          },
+        },
+      });
+    }
+
+    it('devuelve solo turnos confirmados, de hoy en adelante, ordenados por fecha y franja', async () => {
+      await horarios(e.sucursalId);
+      const ana = await empleado(e.restauranteId, [e.sucursalId], 'Ana');
+      await planificacionCon(e.sucursalId, '2026-11-02', 'CONFIRMADA', [
+        { empleadoId: ana, fecha: '2026-11-03', franja: 'CENA' }, // ya pasó
+        { empleadoId: ana, fecha: '2026-11-04', franja: 'CENA' },
+        { empleadoId: ana, fecha: '2026-11-04', franja: 'ALMUERZO' },
+        { empleadoId: ana, fecha: '2026-11-05', franja: 'ALMUERZO' },
+      ]);
+      await planificacionCon(e.sucursalId, '2026-11-09', 'BORRADOR', [
+        { empleadoId: ana, fecha: '2026-11-09', franja: 'CENA' },
+      ]);
+      expect(await planificacionRepository.turnosDe(e.restauranteId, ana, '2026-11-04')).toEqual([
+        {
+          fecha: '2026-11-04',
+          franja: 'ALMUERZO',
+          sucursal: 'Centro',
+          horaInicio: '12:00',
+          horaFin: '16:00',
+        },
+        {
+          fecha: '2026-11-04',
+          franja: 'CENA',
+          sucursal: 'Centro',
+          horaInicio: '20:00',
+          horaFin: '00:00',
+        },
+        {
+          fecha: '2026-11-05',
+          franja: 'ALMUERZO',
+          sucursal: 'Centro',
+          horaInicio: '12:00',
+          horaFin: '16:00',
+        },
+      ]);
+    });
+
+    it('no devuelve turnos de otro empleado ni de otro restaurante', async () => {
+      await horarios(e.sucursalId);
+      const ana = await empleado(e.restauranteId, [e.sucursalId], 'Ana');
+      const beto = await empleado(e.restauranteId, [e.sucursalId], 'Beto');
+      await planificacionCon(e.sucursalId, '2026-11-02', 'CONFIRMADA', [
+        { empleadoId: beto, fecha: '2026-11-05', franja: 'CENA' },
+      ]);
+      expect(await planificacionRepository.turnosDe(e.restauranteId, ana, '2026-11-04')).toEqual(
+        [],
+      );
+      const ajeno = await prisma.restaurante.create({
+        data: { nombre: 'Ajeno', cuit: `30-${Date.now()}-8` },
+      });
+      expect(await planificacionRepository.turnosDe(ajeno.id, beto, '2026-11-04')).toEqual([]);
+    });
+  });
+
+  describe('criterio de control: sin faltantes no hay alertas', () => {
+    it('con stock, mesas y plantel suficientes, el asistente planifica sin alertas', async () => {
+      await horarios(e.sucursalId);
+      await prisma.configuracionApertura.create({
+        data: { sucursalId: e.sucursalId, cubiertosPorMozo: 20, platosPorCocineroHora: 12 },
+      });
+      for (let i = 0; i < 8; i++) {
+        await empleado(e.restauranteId, [e.sucursalId], `Mozo${i}`, 'MOZO');
+        await empleado(e.restauranteId, [e.sucursalId], `Cocinero${i}`, 'COCINERO');
+      }
+      // Stock de sobra para toda la semana.
+      await prisma.existencia.updateMany({
+        where: { sucursalId: e.sucursalId },
+        data: { cantidadActual: 1_000_000 },
+      });
+      await cargarHistorial12Semanas();
+
+      const servicio = createAperturaService(aperturaRepository, planificacionRepository);
+      const res = await servicio.obtenerAsistente(tenant, AHORA);
+      expect(res.planificacion).not.toBeNull();
+      expect(res.planificacion!.turnos.length).toBeGreaterThan(0);
+      expect(res.planificacion!.alertas).toEqual([]);
     }, 120_000);
   });
 });

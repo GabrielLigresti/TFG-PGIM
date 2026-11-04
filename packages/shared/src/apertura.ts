@@ -124,3 +124,12 @@ export interface AsistenteApertura {
   // null si el historial no alcanza todavía.
   planificacion: PlanificacionSemana | null;
 }
+
+// Un turno confirmado del empleado, con el horario de su franja en la sucursal.
+export interface MiTurno {
+  fecha: string; // AAAA-MM-DD
+  franja: Franja;
+  sucursal: string;
+  horaInicio: string; // HH:mm
+  horaFin: string; // HH:mm
+}
