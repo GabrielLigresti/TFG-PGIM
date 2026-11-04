@@ -1,6 +1,6 @@
 import type { Prisma } from '../generated/prisma/client';
 import type { FilaPronostico } from '../domain/pronostico';
-import type { AlertaNueva } from '../domain/verificadores';
+import { crearVerificadorStock, type AlertaNueva } from '../domain/verificadores';
 import { prisma } from '../lib/prisma';
 import { crearEscenario, limpiarBase, type Escenario } from '../test/db-setup';
 import { aperturaRepository } from './apertura.repository';
@@ -606,6 +606,54 @@ describe('planificación de turnos', () => {
       expect([...ctx.recetas.keys()]).toEqual([e.pizzaId]);
       expect(ctx.conReceta.has(e.pizzaId)).toBe(false); // la categoría de la prueba no exige receta
     });
+  });
+
+  it('un plato de reventa cuya demanda supera la existencia genera FALTANTE_STOCK_PREVISTO', async () => {
+    const gaseosa = await prisma.componenteInventario.create({
+      data: {
+        restauranteId: e.restauranteId,
+        tipo: 'INSUMO',
+        nombre: 'Gaseosa',
+        unidadBase: 'UNIDAD',
+      },
+    });
+    await prisma.existencia.create({
+      data: { sucursalId: e.sucursalId, componenteId: gaseosa.id, cantidadActual: 5 },
+    });
+    const categoria = await prisma.categoria.findFirstOrThrow({
+      where: { restauranteId: e.restauranteId },
+    });
+    const reventa = await prisma.itemMenu.create({
+      data: {
+        restauranteId: e.restauranteId,
+        categoriaId: categoria.id,
+        nombre: 'Gaseosa 500',
+        precio: 500,
+        insumoId: gaseosa.id,
+      },
+    });
+    const ctx = await prisma.$transaction((tx) =>
+      planificacionRepository.contexto(tenant, SEMANA, tx),
+    );
+    expect(ctx.recetas.has(reventa.id)).toBe(true);
+    expect(ctx.conReceta.has(reventa.id)).toBe(false);
+    const alertas = crearVerificadorStock({
+      semanaDesde: SEMANA,
+      recetas: ctx.recetas,
+      existencias: ctx.existencias,
+    }).verificar([
+      {
+        id: 'p1',
+        fecha: SEMANA,
+        franja: 'CENA',
+        cubiertosEstimados: 10,
+        demanda: [{ itemMenuId: reventa.id, cantidad: 8 }],
+      },
+    ]);
+    expect(alertas).toEqual([
+      expect.objectContaining({ tipo: 'FALTANTE_STOCK_PREVISTO', cantidad: 3 }),
+    ]);
+    expect(alertas[0]!.descripcion).toContain('Gaseosa');
   });
 
   describe('simulación semanal', () => {

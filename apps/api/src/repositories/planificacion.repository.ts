@@ -375,6 +375,20 @@ export const planificacionRepository: PlanificacionRepository = {
     for (const p of platos) {
       if (p.receta) recetas.set(p.id, armarReceta(aRecetaFila(p.receta), catalogo));
     }
+    // Reventa: sin receta, consume 1 unidad del insumo por porción (como el menú del comensal).
+    const reventa = await db.itemMenu.findMany({
+      where: { restauranteId, activo: true, receta: null, insumoId: { not: null } },
+      select: { id: true, insumoId: true },
+    });
+    for (const r of reventa) {
+      const componente = catalogo.get(r.insumoId!);
+      if (!componente) continue;
+      recetas.set(r.id, {
+        rendimiento: 1,
+        instrucciones: null,
+        lineas: [{ componente, cantidad: 1, unidad: componente.unidadBase, porcentajeMerma: 0 }],
+      });
+    }
     const exigen = await db.itemMenu.findMany({
       where: { restauranteId, categoria: { requiereReceta: true } },
       select: { id: true },
