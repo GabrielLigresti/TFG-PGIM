@@ -118,7 +118,8 @@ const EMPLEADOS: {
     rol: 'Cocinero',
     sucursales: ['Palermo'],
   },
-  // Plantel de Centro para la demo del simulador: cinco mozos y dos cocineros,
+  // Plantel de Centro para la demo del simulador: cinco mozos y dos cocineros
+  // (con la jefa de cocina, que también cuenta como cocinera para los turnos),
   // lo justo para que la grilla muestre reparto y todavía falte gente en los picos.
   {
     email: 'mozo2@demo.pgim.test',
