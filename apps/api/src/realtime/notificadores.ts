@@ -4,7 +4,9 @@ import {
   salaComensal,
   salaPersonal,
   salaSucursal,
+  tiposAlertaVisibles,
   type CambioMesa,
+  type Sesion,
   type ResultadoPago,
   type CambioReserva,
   type CambioSalon,
@@ -13,7 +15,7 @@ import { esEventoReserva, type BusEventos } from '../domain/eventos';
 
 // Oyentes del bus de eventos que avisan por Socket.IO. Son efectos
 // secundarios: si un aviso no llega, la operación ya quedó guardada igual.
-export function registrarNotificadores(io: Pick<Server, 'to'>, bus: BusEventos): () => void {
+export function registrarNotificadores(io: Pick<Server, 'to' | 'in'>, bus: BusEventos): () => void {
   // NotificadorSalon: la mesa cambió de estado en esa franja. La sala de la
   // sucursal la sigue cualquier sesión, así que no lleva datos de pedidos.
   const dejarSalon = bus.suscribir((evento) => {
@@ -72,9 +74,25 @@ export function registrarNotificadores(io: Pick<Server, 'to'>, bus: BusEventos):
       case 'PEDIDO_CANCELADO':
         io.to(salaPersonal(evento.sucursalId)).emit(EVENTOS_SOCKET.pedidoCambio, evento.cambio);
         break;
-      case 'ALERTA_CREADA':
-        io.to(salaPersonal(evento.sucursalId)).emit(EVENTOS_SOCKET.alertaNueva, evento.alerta);
+      // Cada alerta depende de un permiso distinto (stock o reservas), así que no
+      // va a la sala: se emite solo a los sockets de la sucursal cuya sesión la ve.
+      case 'ALERTA_CREADA': {
+        const { sucursalId, alerta } = evento;
+        void io
+          .in(salaSucursal(sucursalId))
+          .fetchSockets()
+          .then((sockets) => {
+            for (const socket of sockets) {
+              const sesion = socket.data.sesion as Sesion | undefined;
+              if (sesion?.usuario.tipo !== 'EMPLEADO') continue;
+              if (sesion.sucursalActiva?.id !== sucursalId) continue;
+              if (!tiposAlertaVisibles(sesion.permisos).includes(alerta.tipo)) continue;
+              socket.emit(EVENTOS_SOCKET.alertaNueva, alerta);
+            }
+          })
+          .catch(() => {}); // efecto secundario: la alerta ya está guardada
         break;
+      }
       // Aviso a toda la sucursal, sin datos: cada empleado consulta sus turnos.
       case 'PLANIFICACION_CONFIRMADA':
         io.to(salaSucursal(evento.sucursalId)).emit(EVENTOS_SOCKET.turnosPublicados);

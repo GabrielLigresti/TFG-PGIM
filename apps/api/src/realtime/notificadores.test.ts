@@ -15,8 +15,15 @@ const evento: EventoReserva = {
 
 function ioFalso() {
   const emit = jest.fn();
-  return { emit, io: { to: jest.fn(() => ({ emit })) } };
+  return { emit, io: { to: jest.fn(() => ({ emit })), in: jest.fn() } };
 }
+
+const sesionDe = (tipo: 'EMPLEADO' | 'COMENSAL', permisos: string[], sucursalId = 'S') => ({
+  usuario: { id: 'U', tipo },
+  permisos,
+  sucursalActiva: { id: sucursalId },
+});
+const socketDe = (sesion?: unknown) => ({ data: { sesion }, emit: jest.fn() });
 
 describe('notificadores', () => {
   it('un RESERVA_CREADA avisa a la sala de la sucursal y a la del comensal', () => {
@@ -72,24 +79,50 @@ describe('notificadores', () => {
     expect(emit).toHaveBeenCalledWith('pedido:cambio', cambio);
   });
 
-  it('una alerta nueva va a la sala del personal', () => {
-    const { io, emit } = ioFalso();
-    const bus = crearBusEventos();
-    registrarNotificadores(io as never, bus);
-    const alerta = {
+  describe('una alerta nueva', () => {
+    const alerta = (tipo: 'PLATO_SIN_RECETA' | 'INASISTENCIA') => ({
       id: 'A',
-      tipo: 'PLATO_SIN_RECETA' as const,
+      tipo,
       severidad: 'ADVERTENCIA' as const,
       descripcion: 'x',
       creadaEn: '2026-10-30T23:00:00.000Z',
       insumo: null,
-      plato: { id: 'I', nombre: 'Agua' },
+      plato: null,
+    });
+    const publicar = async (sockets: ReturnType<typeof socketDe>[], a = alerta('INASISTENCIA')) => {
+      const { io } = ioFalso();
+      io.in.mockReturnValue({ fetchSockets: jest.fn().mockResolvedValue(sockets) });
+      const bus = crearBusEventos();
+      registrarNotificadores(io as never, bus);
+      bus.publicar({ tipo: 'ALERTA_CREADA', sucursalId: 'S', alerta: a });
+      await new Promise((r) => setImmediate(r));
+      expect(io.in).toHaveBeenCalledWith('sucursal:S');
+      expect(io.to).not.toHaveBeenCalled();
+      return a;
     };
 
-    bus.publicar({ tipo: 'ALERTA_CREADA', sucursalId: 'S', alerta });
+    it('llega solo a los sockets de la sucursal cuya sesión ve ese tipo', async () => {
+      const reservas = socketDe(sesionDe('EMPLEADO', ['reserva.ver']));
+      const stock = socketDe(sesionDe('EMPLEADO', ['stock.registrar']));
+      const ambos = socketDe(sesionDe('EMPLEADO', ['stock.registrar', 'reserva.ver']));
+      const otraSucursal = socketDe(sesionDe('EMPLEADO', ['reserva.ver'], 'OTRA'));
+      const comensal = socketDe(sesionDe('COMENSAL', ['reserva.ver']));
+      const sinSesion = socketDe(undefined);
+      const a = await publicar([reservas, stock, ambos, otraSucursal, comensal, sinSesion]);
+      expect(reservas.emit).toHaveBeenCalledWith('alerta:nueva', a);
+      expect(ambos.emit).toHaveBeenCalledWith('alerta:nueva', a);
+      for (const s of [stock, otraSucursal, comensal, sinSesion]) {
+        expect(s.emit).not.toHaveBeenCalled();
+      }
+    });
 
-    expect(io.to).toHaveBeenCalledWith('personal:S');
-    expect(emit).toHaveBeenCalledWith('alerta:nueva', alerta);
+    it('una alerta de stock llega a quien registra stock y no a quien solo ve reservas', async () => {
+      const reservas = socketDe(sesionDe('EMPLEADO', ['reserva.ver']));
+      const stock = socketDe(sesionDe('EMPLEADO', ['stock.registrar']));
+      const a = await publicar([reservas, stock], alerta('PLATO_SIN_RECETA'));
+      expect(stock.emit).toHaveBeenCalledWith('alerta:nueva', a);
+      expect(reservas.emit).not.toHaveBeenCalled();
+    });
   });
 
   it('confirmar la planificación avisa a la sala de la sucursal, sin datos', () => {
