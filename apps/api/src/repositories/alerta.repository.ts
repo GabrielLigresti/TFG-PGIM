@@ -121,17 +121,26 @@ export const alertaRepository: AlertaRepository = {
   },
 
   async crearInasistencia(reserva) {
+    // El restaurante se deriva de la sucursal del evento y filtra mesa y horarios.
+    const { restauranteId } = await prisma.sucursal.findUniqueOrThrow({
+      where: { id: reserva.sucursalId },
+      select: { restauranteId: true },
+    });
     const [comensal, mesa, horarios] = await Promise.all([
       prisma.comensal.findUniqueOrThrow({
         where: { usuarioId: reserva.comensalId },
         select: { nombre: true },
       }),
       prisma.mesa.findFirstOrThrow({
-        where: { id: reserva.mesaId, sucursalId: reserva.sucursalId },
+        where: {
+          id: reserva.mesaId,
+          sucursalId: reserva.sucursalId,
+          sucursal: { restauranteId },
+        },
         select: { numero: true },
       }),
       prisma.horarioServicio.findMany({
-        where: { sucursalId: reserva.sucursalId },
+        where: { sucursalId: reserva.sucursalId, sucursal: { restauranteId } },
         select: { franja: true, horaInicio: true, horaFin: true },
       }),
     ]);

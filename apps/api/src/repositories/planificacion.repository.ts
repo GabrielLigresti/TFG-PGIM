@@ -506,7 +506,10 @@ export const planificacionRepository: PlanificacionRepository = {
       select: { empleadoId: true, fecha: true, franja: true, sucursalId: true },
     });
     const horariosOtros = await db.horarioServicio.findMany({
-      where: { sucursalId: { in: [...new Set(otros.map((t) => t.sucursalId))] } },
+      where: {
+        sucursalId: { in: [...new Set(otros.map((t) => t.sucursalId))] },
+        sucursal: { restauranteId },
+      },
     });
     const duracion = new Map(
       horariosOtros.map((h) => [
