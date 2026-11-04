@@ -117,3 +117,36 @@ describe('ranking por margen', () => {
     });
   });
 });
+
+describe('ocupación', () => {
+  const datos = (reservas: { inicio: Date; cantidadPersonas: number }[]) => [
+    {
+      sucursalId: 's1',
+      horarios: [{ franja: 'ALMUERZO' as const, horaInicio: '12:00', horaFin: '14:00' }],
+      capacidadesMesas: [4],
+      reservas,
+    },
+  ];
+  const consultar = (
+    r: ReturnType<typeof repo>,
+    consulta: Parameters<ReturnType<typeof createMetricaService>['consultar']>[1],
+  ) => createMetricaService(r, apertura()).consultar(ctx(['metrica.ver']), consulta, AHORA);
+
+  it('cuenta la capacidad solo hasta ayer aunque el período llegue a hoy o más', async () => {
+    const r = repo();
+    r.datosDeOcupacion.mockResolvedValue(
+      datos([{ inicio: new Date('2026-11-02T15:30:00Z'), cantidadPersonas: 4 }]),
+    );
+    const corto = await consultar(r, { desde: '2026-11-02', hasta: '2026-11-03' });
+    const largo = await consultar(r, { desde: '2026-11-02', hasta: '2026-11-10' });
+    expect(largo.ocupacion).toEqual(corto.ocupacion);
+    expect(largo.ocupacion.porcentaje).toBeGreaterThan(0);
+  });
+
+  it('si el período empieza hoy, no queda ningún día y la ocupación es null', async () => {
+    const r = repo();
+    r.datosDeOcupacion.mockResolvedValue(datos([]));
+    const m = await consultar(r, { desde: '2026-11-04', hasta: '2026-11-10' });
+    expect(m.ocupacion).toEqual({ porcentaje: null, porFranja: [] });
+  });
+});

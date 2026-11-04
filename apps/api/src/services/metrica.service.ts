@@ -54,8 +54,14 @@ export function createMetricaService(repo: MetricaRepository, apertura: Apertura
     ctx: ContextoMetricas,
     ids: string[],
     desde: string,
-    hasta: string,
+    hastaPedido: string,
+    ahora: Date,
   ): Promise<Metricas['ocupacion']> {
+    // Solo cuentan los días ya cerrados: hoy y el futuro no tienen reservas
+    // finalizadas y bajarían el porcentaje.
+    const ayer = sumarDias(hoyArgentina(ahora), -1);
+    const hasta = hastaPedido < ayer ? hastaPedido : ayer;
+    if (desde > hasta) return { porcentaje: null, porFranja: [] };
     const dias = diasDelPeriodo(desde, hasta);
     const cubiertos = new Map<Franja, number>();
     const capacidad = new Map<Franja, number>();
@@ -201,7 +207,7 @@ export function createMetricaService(repo: MetricaRepository, apertura: Apertura
             .sort((a, b) => b.valor - a.valor),
         },
         ocupacion: ids.length
-          ? await ocupacion(ctx, ids, desde, hasta)
+          ? await ocupacion(ctx, ids, desde, hasta, ahora)
           : { porcentaje: null, porFranja: [] },
         proyeccion: await proyeccion(ctx, seleccion, ahora),
       };
