@@ -173,6 +173,13 @@ describe('verificador de mesas', () => {
     const v = ctx([10], new Map([['2026-11-14|CENA', 50]]));
     const [alerta] = v.verificar([pron('p', '2026-11-14', 'CENA', [], 20)]);
     expect(alerta!.cantidad).toBe(10);
+    expect(alerta!.descripcion).toContain('ya hay 50 cubiertos reservados');
+  });
+
+  it('con estimados mayores que las reservas habla de cubiertos esperados', () => {
+    const v = ctx([10], new Map([['2026-11-14|CENA', 20]]));
+    const [alerta] = v.verificar([pron('p', '2026-11-14', 'CENA', [], 45)]);
+    expect(alerta!.descripcion).toContain('se esperan 45 cubiertos');
   });
 
   it('justo en la capacidad no alerta', () => {

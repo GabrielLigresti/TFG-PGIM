@@ -2,7 +2,6 @@ import { CircleCheck, CircleAlert, TriangleAlert, type LucideIcon } from 'lucide
 import type { AlertaSimulador, PlanificacionSemana, TipoAlertaSimulador } from '@pgim/shared';
 import { Panel } from '../../../components/ui';
 import { formatoHora } from '../../../lib/formato';
-import { NOMBRE_FRANJA, diaLargo } from './semana';
 
 const GRUPOS: { tipo: TipoAlertaSimulador; titulo: string }[] = [
   { tipo: 'FALTANTE_PERSONAL', titulo: 'Personal' },
@@ -26,10 +25,13 @@ function porFecha(a: AlertaSimulador, b: AlertaSimulador) {
   );
 }
 
-const ESTILO: Record<'CRITICA' | 'ADVERTENCIA' | 'INFO', { tono: string; icono: LucideIcon }> = {
-  CRITICA: { tono: 'text-bad', icono: CircleAlert },
-  ADVERTENCIA: { tono: 'text-warn', icono: TriangleAlert },
-  INFO: { tono: 'text-meta', icono: CircleAlert },
+const ESTILO: Record<
+  'CRITICA' | 'ADVERTENCIA' | 'INFO',
+  { tono: string; icono: LucideIcon; texto: string }
+> = {
+  CRITICA: { tono: 'text-bad', icono: CircleAlert, texto: 'Crítica' },
+  ADVERTENCIA: { tono: 'text-warn', icono: TriangleAlert, texto: 'Advertencia' },
+  INFO: { tono: 'text-meta', icono: CircleAlert, texto: 'Aviso' },
 };
 
 function StockVerificado({ generadaEn }: { generadaEn: string }) {
@@ -71,19 +73,13 @@ export function AlertasSemana({ planificacion }: { planificacion: PlanificacionS
               )}
               <ul className="grid gap-1">
                 {filas.map((a) => {
-                  const { tono, icono: Icono } = ESTILO[a.severidad];
+                  const { tono, icono: Icono, texto } = ESTILO[a.severidad];
                   return (
-                    <li key={a.id} className={`flex items-start gap-2 text-sm ${tono}`}>
-                      <Icono aria-hidden className="mt-0.5 size-4 shrink-0" />
-                      <span className="min-w-0">
-                        {a.fecha && (
-                          <span className="font-semibold tabular-nums">
-                            {diaLargo(a.fecha)}
-                            {a.franja ? ` · ${NOMBRE_FRANJA[a.franja]}` : ''}
-                            {': '}
-                          </span>
-                        )}
-                        <span className="[overflow-wrap:anywhere]">{a.descripcion}</span>
+                    <li key={a.id} className="flex items-start gap-2 text-sm text-text">
+                      <Icono aria-hidden className={`mt-0.5 size-4 shrink-0 ${tono}`} />
+                      <span className="min-w-0 [overflow-wrap:anywhere]">
+                        <span className="sr-only">{texto}: </span>
+                        {a.descripcion}
                       </span>
                     </li>
                   );

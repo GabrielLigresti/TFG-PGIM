@@ -127,10 +127,16 @@ export function crearVerificadorMesas(c: ContextoMesas): Verificador {
         const demanda = Math.max(p.cubiertosEstimados, reservados);
         if (demanda <= capacidad) continue;
         const exceso = Math.ceil(demanda - capacidad);
+        const momento = momentoLegible(p.fecha, p.franja);
+        // Las reservas tomadas no son una estimación: se dicen como lo que son.
+        const descripcion =
+          reservados > p.cubiertosEstimados
+            ? `El ${momento} ya hay ${Math.ceil(reservados)} cubiertos reservados y las mesas activas alcanzan para ${capacidad}: ${exceso} quedarían sin lugar.`
+            : `El ${momento} se esperan ${Math.ceil(demanda)} cubiertos y las mesas activas alcanzan para ${capacidad}: ${exceso} quedarían sin lugar.`;
         alertas.push({
           tipo: 'CAPACIDAD_MESAS',
           severidad: 'ADVERTENCIA',
-          descripcion: `El ${momentoLegible(p.fecha, p.franja)} se esperan ${Math.ceil(demanda)} cubiertos y las mesas activas alcanzan para ${capacidad}: ${exceso} quedarían sin lugar.`,
+          descripcion,
           pronosticoId: p.id,
           existenciaId: null,
           fecha: p.fecha,

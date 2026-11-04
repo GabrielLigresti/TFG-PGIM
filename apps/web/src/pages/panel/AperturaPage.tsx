@@ -83,7 +83,7 @@ export function AperturaPage() {
   const editable = puedePlanificar && suficiente && plan?.estado !== 'CONFIRMADA';
 
   return (
-    <section className={editable && plan ? 'pb-20 md:pb-0' : undefined}>
+    <section className={editable && plan ? 'pb-24 md:pb-0' : undefined}>
       <EncabezadoPagina
         titulo="Asistente de apertura"
         descripcion={
@@ -105,7 +105,7 @@ export function AperturaPage() {
               </Boton>
             )}
             {editable && plan && (
-              <Boton className="hidden md:inline-flex" onClick={() => setConfirmando(true)}>
+              <Boton className="max-md:hidden" onClick={() => setConfirmando(true)}>
                 <Check aria-hidden className="size-4" />
                 Confirmar turnos
               </Boton>
