@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import {
   BookOpen,
+  BarChart3,
   Boxes,
   CalendarDays,
   CalendarClock,
@@ -159,6 +160,14 @@ export const SECCIONES: SeccionPanel[] = [
     permisos: ['apertura.consultar'],
     grupo: 'Análisis',
     icono: CalendarRange,
+  },
+  {
+    ruta: 'metricas',
+    titulo: 'Métricas',
+    descripcion: 'Ventas, platos, merma y ocupación',
+    permisos: ['metrica.ver'],
+    grupo: 'Análisis',
+    icono: BarChart3,
   },
 ];
 
