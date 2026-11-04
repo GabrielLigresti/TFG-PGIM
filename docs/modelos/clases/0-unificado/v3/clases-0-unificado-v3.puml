@@ -10,9 +10,10 @@
 ' Menor (26/10): beneficios con duración y relanzamiento (stockInicial, relanzar, devolverStock, stock reservado con el pago PENDIENTE); programa de puntos permanente, 0..1 y sin activo; sin GrupoBeneficios.habilitado.
 ' Menor (28/10): Categoria.admiteObservaciones (aclaraciones solo en las categorías que las admiten).
 ' Menor (28/10): Pago.metodo opcional; lo informa Mercado Pago al aprobarse (el comensal elige el medio en Mercado Pago).
-' PNG a 104 dpi (antes 105, 110 y 125) para no superar 25 MP (límite de imágenes de Google Docs). Para imprimir o hacer zoom, usar el PDF/SVG vectorial.
+' Menor (04/11): Verificador.verificar recibe los pronósticos de la semana; TipoAlerta suma INASISTENCIA (CU-21).
+' PNG a 103 dpi (antes 104, 105, 110 y 125) para no superar 25 MP (límite de imágenes de Google Docs). Para imprimir o hacer zoom, usar el PDF/SVG vectorial.
 top to bottom direction
-skinparam dpi 104
+skinparam dpi 103
 skinparam defaultFontName Calibri
 skinparam defaultFontSize 11
 skinparam shadowing false
@@ -465,7 +466,7 @@ package "5. Simulador de apertura y planificación de turnos" as P5 {
   class NaiveEstacional
   class RegresionConEstacionalidad
   interface Verificador <<interface>> {
-    +verificar(pronostico) : List<Alerta>
+    +verificar(pronosticos : List<Pronostico>) : List<Alerta>
   }
   class VerificadorStock
   class VerificadorMesas
@@ -601,6 +602,7 @@ package "Enumeraciones" as PEN {
     FALTANTE_STOCK_PREVISTO
     FALTANTE_PERSONAL
     CAPACIDAD_MESAS
+    INASISTENCIA
   }
   enum Severidad <<enum>> {
     INFO

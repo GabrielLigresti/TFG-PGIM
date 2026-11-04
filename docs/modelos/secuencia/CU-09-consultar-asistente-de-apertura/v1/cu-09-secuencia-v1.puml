@@ -61,8 +61,8 @@ EP --> AA : Pronostico (valor, rango, MAPE\ne ingreso estimado)
 deactivate EP
 AA -> AA : conserva el método de menor MAPE\ny guarda un Pronostico por franja
 
-note over VE #D5E8D4 : por cada pronóstico (VerificadorStock y VerificadorMesas)
-AA -> VE : verificar(pronostico)
+note over VE #D5E8D4 : una vez por verificador (VerificadorStock y VerificadorMesas),\ncon los pronósticos de la semana
+AA -> VE : verificar(pronosticos)
 activate VE
 VE --> AA : alertas de stock y de capacidad de mesas
 deactivate VE
