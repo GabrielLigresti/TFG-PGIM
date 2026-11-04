@@ -12,6 +12,7 @@ import { insumosRouter } from './routes/insumos';
 import { stockRouter } from './routes/stock';
 import { mesaComensalRouter } from './routes/mesa-comensal';
 import { mesasRouter } from './routes/mesas';
+import { metricasRouter } from './routes/metricas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
 import { pagosWebhookRouter } from './routes/pagos-webhook';
 import { pedidosRouter } from './routes/pedidos';
@@ -91,6 +92,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/alertas`, alertasRouter);
   app.use(`${API_PREFIX}/apertura`, aperturaRouter);
   app.use(`${API_PREFIX}/turnos`, turnosRouter);
+  app.use(`${API_PREFIX}/metricas`, metricasRouter);
   app.use(`${API_PREFIX}/fidelizacion`, fidelizacionRouter);
   app.use(`${API_PREFIX}/roles`, rolesRouter);
   app.use(`${API_PREFIX}/personal`, personalRouter);
