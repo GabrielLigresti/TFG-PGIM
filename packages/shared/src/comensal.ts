@@ -1,3 +1,4 @@
+import type { Barrio } from './barrios';
 import type { Referencia } from './comun';
 import type { ModeloRa } from './menu';
 
@@ -7,6 +8,7 @@ export interface SucursalComensal {
   id: string;
   nombre: string;
   direccion: string;
+  barrio: Barrio;
 }
 
 export interface RestauranteComensal extends Referencia {

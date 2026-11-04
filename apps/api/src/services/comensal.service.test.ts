@@ -46,6 +46,7 @@ function sucursal(
     id: 'centro',
     nombre: 'Centro',
     direccion: 'Calle 1',
+    barrio: 'SAN_NICOLAS',
     restaurante: { id: 'r', nombre: 'Demo' },
     menuActivo: {
       nombre: 'Carta',

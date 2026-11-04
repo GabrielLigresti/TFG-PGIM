@@ -114,6 +114,7 @@ describe('métricas (CU-19)', () => {
         restauranteId: e.restauranteId,
         nombre,
         direccion: 'Otra 1',
+        barrio: 'SAN_NICOLAS',
         horarioApertura: hora('12:00'),
         horarioCierre: hora('00:00'),
         toleranciaNoShowMin: 15,

@@ -201,6 +201,7 @@ describe('reservaRepository.activar', () => {
         restauranteId: e.restauranteId,
         nombre: 'Norte',
         direccion: 'Calle Norte 1',
+        barrio: 'SAN_NICOLAS',
         horarioApertura: new Date('1970-01-01T12:00:00Z'),
         horarioCierre: new Date('1970-01-01T00:00:00Z'),
         toleranciaNoShowMin: 15,

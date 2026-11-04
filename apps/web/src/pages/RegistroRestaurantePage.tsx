@@ -1,5 +1,6 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
+import { BARRIOS, type Barrio } from '@pgim/shared';
 import { ApiError } from '../lib/api';
 import { rutaInicio, useSesion } from '../auth/SesionProvider';
 import { Cargando } from '../components/Cargando';
@@ -45,6 +46,7 @@ export function RegistroRestaurantePage() {
   const [cuit, setCuit] = useState('');
   const [sucursalNombre, setSucursalNombre] = useState('');
   const [direccion, setDireccion] = useState('');
+  const [barrio, setBarrio] = useState<Barrio | ''>('');
   const [apertura, setApertura] = useState('12:00');
   const [cierre, setCierre] = useState('00:00');
   const [tolerancia, setTolerancia] = useState('15');
@@ -82,6 +84,7 @@ export function RegistroRestaurantePage() {
         sucursal: {
           nombre: sucursalNombre,
           direccion,
+          barrio: barrio as Barrio,
           horarioApertura: apertura,
           horarioCierre: cierre,
           toleranciaNoShowMin: aNumero(tolerancia),
@@ -166,6 +169,23 @@ export function RegistroRestaurantePage() {
               onChange={(e) => setDireccion(e.target.value)}
               className={claseInput}
             />
+          </Campo>
+          <Campo etiqueta="Barrio" error={errores['sucursal.barrio']}>
+            <select
+              required
+              value={barrio}
+              onChange={(e) => setBarrio(e.target.value as Barrio)}
+              className={claseInput}
+            >
+              <option value="" disabled>
+                Elegí un barrio
+              </option>
+              {BARRIOS.map((b) => (
+                <option key={b.valor} value={b.valor}>
+                  {b.nombre}
+                </option>
+              ))}
+            </select>
           </Campo>
           <div className="grid gap-4 sm:grid-cols-2">
             <Campo etiqueta="Apertura" error={errores['sucursal.horarioApertura']}>
