@@ -16,12 +16,7 @@ import {
   iniciosDelDia,
   sumarDias,
 } from '../domain/franjas';
-import {
-  estadoDeReserva,
-  limiteDeLlegada,
-  puedeActivarse,
-  puedeCancelarse,
-} from '../domain/reserva';
+import { estadoDeReserva, limiteDeLlegada, puedeCancelarse } from '../domain/reserva';
 import { AppError, esClaveDuplicada } from '../lib/errors';
 import { horaArgentina } from '../lib/hora';
 import {
@@ -31,6 +26,8 @@ import {
   type ReservaRepository,
   type SucursalReservable,
 } from '../repositories/reserva.repository';
+
+import { aReservaPanel as aReservaPanelEn } from './reserva-panel';
 
 const MESA_NO_DISPONIBLE = 'La mesa ya no está disponible';
 
@@ -84,26 +81,7 @@ export function createReservaService(
     };
   }
 
-  function aReservaPanel(fila: FilaReservaPanel): ReservaPanel {
-    const ctx = {
-      inicio: fila.inicio,
-      toleranciaNoShowMin: fila.toleranciaNoShowMin,
-      ahora: ahora(),
-    };
-    return {
-      id: fila.id,
-      comensal: { nombre: fila.comensalNombre, telefono: fila.comensalTelefono },
-      mesa: { id: fila.mesaId, numero: fila.mesaNumero },
-      inicio: fila.inicio.toISOString(),
-      cantidadPersonas: fila.cantidadPersonas,
-      estado: fila.estado,
-      limiteLlegada: limiteDeLlegada(ctx).toISOString(),
-      activable: fila.estado === 'PENDIENTE' && puedeActivarse(ctx),
-      cerrable: fila.estado === 'ACTIVA',
-      pagoEnCurso: fila.estado === 'ACTIVA' && fila.pagoEnCurso,
-      cancelable: fila.estado === 'PENDIENTE' && ctx.ahora <= limiteDeLlegada(ctx),
-    };
-  }
+  const aReservaPanel = (fila: FilaReservaPanel) => aReservaPanelEn(fila, ahora());
 
   // Se publica después de la escritura, ya confirmada en la base.
   function publicar(tipo: TipoEventoReserva, fila: FilaReserva, estado: EstadoReserva) {

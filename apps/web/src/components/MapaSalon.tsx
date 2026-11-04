@@ -87,11 +87,14 @@ function limitar(valor: number, max: number) {
 
 // Plano del salón sobre el lienzo lógico de 100 × 60 (CU-14). Con onMover las
 // mesas se arrastran con mouse o con el dedo y la posición se informa al
-// soltar; con onElegir se pueden tocar las mesas libres (CU-03).
+// soltar; con onElegir se pueden tocar las mesas libres (CU-03), o todas las
+// no dadas de baja con todasElegibles.
 export function MapaSalon({
   mesas,
   seleccionadaId,
   onElegir,
+  todasElegibles,
+  ajustarAncho,
   onMover,
   horaReservada,
 }: {
@@ -100,6 +103,10 @@ export function MapaSalon({
   // Hora que se escribe dentro de las mesas reservadas.
   horaReservada?(mesa: MesaDibujo): string | undefined;
   onElegir?(id: string): void;
+  // Con esta prop toda mesa no dada de baja es elegible, no solo las libres.
+  todasElegibles?: boolean;
+  // En pantallas anchas deja que el plano se achique al ancho de su columna.
+  ajustarAncho?: boolean;
   onMover?(id: string, posX: number, posY: number): void;
 }) {
   const svg = useRef<SVGSVGElement>(null);
@@ -142,8 +149,8 @@ export function MapaSalon({
       <svg
         ref={svg}
         viewBox={`0 0 ${LIENZO_SALON.ancho} ${LIENZO_SALON.alto}`}
-        className={`block w-full min-w-[500px] select-none ${onMover ? 'touch-none' : ''}`}
-        role="img"
+        className={`block w-full min-w-[500px] select-none ${ajustarAncho ? 'lg:min-w-0' : ''} ${onMover ? 'touch-none' : ''}`}
+        role={onElegir ? 'group' : 'img'}
         aria-label="Mapa del salón"
       >
         <defs>
@@ -164,7 +171,8 @@ export function MapaSalon({
           const x = enArrastre?.x ?? mesa.posX;
           const y = enArrastre?.y ?? mesa.posY;
           const estado = mesa.estado ?? 'LIBRE';
-          const elegible = Boolean(onElegir) && estado === 'LIBRE' && !mesa.inactiva;
+          const elegible =
+            Boolean(onElegir) && !mesa.inactiva && (todasElegibles || estado === 'LIBRE');
           const seleccionada = mesa.id === seleccionadaId;
           const hora = estado === 'RESERVADA' ? horaReservada?.(mesa) : undefined;
           const colores = mesa.inactiva
@@ -173,7 +181,9 @@ export function MapaSalon({
           return (
             <g
               key={mesa.id}
-              className={onMover ? 'cursor-grab' : elegible ? 'cursor-pointer' : undefined}
+              className={`group outline-none ${
+                onMover ? 'cursor-grab' : elegible ? 'cursor-pointer' : ''
+              }`}
               onPointerDown={(e) => alApretar(e, mesa)}
               onPointerMove={alMover}
               onPointerUp={() => alSoltar(mesa)}
@@ -208,6 +218,13 @@ export function MapaSalon({
               <circle
                 cx={x}
                 cy={y}
+                r={RADIO + 1.3}
+                strokeWidth={0.6}
+                className="fill-none stroke-accent opacity-0 group-focus-visible:opacity-100"
+              />
+              <circle
+                cx={x}
+                cy={y}
                 r={RADIO}
                 strokeWidth={0.4}
                 className={colores.mesa}
@@ -229,7 +246,7 @@ export function MapaSalon({
                   y={y + 2.2}
                   textAnchor="middle"
                   dominantBaseline="middle"
-                  fontSize={2.4}
+                  fontSize={2}
                   className="fill-meta"
                 >
                   {hora}
@@ -237,7 +254,7 @@ export function MapaSalon({
               )}
               <text
                 x={x}
-                y={y + RADIO + 2.6}
+                y={y + RADIO + 3.4}
                 textAnchor="middle"
                 fontSize={2.4}
                 className="fill-meta"

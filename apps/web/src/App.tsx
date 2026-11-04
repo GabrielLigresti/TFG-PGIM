@@ -32,6 +32,7 @@ import { RecetaEditorPage } from './pages/panel/RecetaEditorPage';
 import { RecetasPage } from './pages/panel/RecetasPage';
 import { ReservasPage } from './pages/panel/ReservasPage';
 import { RolesPage } from './pages/panel/RolesPage';
+import { SalonEnVivoPage } from './pages/panel/SalonEnVivoPage';
 import { SalonPage } from './pages/panel/SalonPage';
 import { StockPage } from './pages/panel/StockPage';
 import { SucursalesPage } from './pages/panel/SucursalesPage';
@@ -86,6 +87,7 @@ export default function App() {
                   }
                 >
                   <Route index element={<PanelPage />} />
+                  <Route path="salon" element={conPermiso('reserva.ver', <SalonEnVivoPage />)} />
                   <Route path="reservas" element={conPermiso('reserva.ver', <ReservasPage />)} />
                   <Route path="cocina" element={conPermiso('pedido.ver', <CocinaPage />)} />
                   <Route

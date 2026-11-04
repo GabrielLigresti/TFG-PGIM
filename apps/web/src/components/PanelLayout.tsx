@@ -7,6 +7,7 @@ import {
   CalendarRange,
   ChefHat,
   Gift,
+  LayoutGrid,
   Star,
   TriangleAlert,
   LogOut,
@@ -38,6 +39,14 @@ const GRUPOS: GrupoPanel[] = ['Operación', 'Menú', 'Stock', 'Gestión', 'Anál
 
 // Cada sección se habilita con su permiso de lectura.
 export const SECCIONES: SeccionPanel[] = [
+  {
+    ruta: 'salon',
+    titulo: 'Salón',
+    descripcion: 'Estado actual de las mesas',
+    permisos: ['reserva.ver'],
+    grupo: 'Operación',
+    icono: LayoutGrid,
+  },
   {
     ruta: 'reservas',
     titulo: 'Reservas',

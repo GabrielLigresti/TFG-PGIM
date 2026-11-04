@@ -19,6 +19,7 @@ import { personalRouter } from './routes/personal';
 import { recetasRouter } from './routes/recetas';
 import { reservasComensalRouter, reservasPanelRouter } from './routes/reservas';
 import { rolesRouter } from './routes/roles';
+import { salonRouter } from './routes/salon';
 import { sucursalesRouter } from './routes/sucursales';
 import { CARPETA_FOTOS, TIPO_FOTO } from './lib/archivos-foto';
 import { CARPETA_MODELOS } from './lib/archivos-modelo';
@@ -83,6 +84,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/sucursales/:sucursalId/mesas`, mesasRouter);
   app.use(`${API_PREFIX}/sucursales`, sucursalesRouter);
   app.use(`${API_PREFIX}/reservas`, reservasPanelRouter);
+  app.use(`${API_PREFIX}/salon`, salonRouter);
   app.use(`${API_PREFIX}/pagos/webhook`, pagosWebhookRouter);
   app.use(`${API_PREFIX}/pedidos`, pedidosRouter);
   app.use(`${API_PREFIX}/alertas`, alertasRouter);

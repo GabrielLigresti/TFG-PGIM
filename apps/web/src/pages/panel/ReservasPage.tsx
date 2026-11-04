@@ -1,11 +1,5 @@
 import { useState } from 'react';
-import {
-  EVENTOS_SOCKET,
-  hoyArgentina,
-  type BloqueoCierre,
-  type Pagina,
-  type ReservaPanel,
-} from '@pgim/shared';
+import { EVENTOS_SOCKET, hoyArgentina, type Pagina, type ReservaPanel } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { useAvisos } from '../../components/AvisoEmergente';
 import { useConfirmar } from '../../components/Confirmacion';
@@ -20,10 +14,11 @@ import {
   claseInput,
 } from '../../components/ui';
 import { ApiError, api } from '../../lib/api';
-import { formatoDiaRelativo, formatoFecha, formatoHora, formatoPesos } from '../../lib/formato';
+import { formatoDiaRelativo, formatoFecha, formatoHora } from '../../lib/formato';
 import { agruparPorDia, esActivable } from '../../lib/reservas';
 import { useEventoSocket } from '../../lib/socket';
 import { useAhora } from '../../lib/useAhora';
+import { useCerrarMesa } from '../../lib/useCerrarMesa';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 
@@ -45,8 +40,9 @@ export function ReservasPage() {
   const hoy = hoyArgentina(new Date(ahora));
   const confirmar = useConfirmar();
   const { avisar } = useAvisos();
-  const [enviando, setEnviando] = useState(false);
-  const [errorAccion, setErrorAccion] = useState<string | null>(null);
+  const [cancelando, setCancelando] = useState(false);
+  const [errorCancelar, setErrorCancelar] = useState<string | null>(null);
+  const cierre = useCerrarMesa(recargar);
   // El personal ya está en la sala de su sucursal: cualquier alta, baja,
   // activación o vencimiento refresca la lista.
   useEventoSocket(EVENTOS_SOCKET.cambioSalon, recargar);
@@ -63,44 +59,6 @@ export function ReservasPage() {
     if (await activacion.enviar(`/reservas/${r.id}/activar`, 'POST')) recargar();
   }
 
-  // Con saldo pendiente la API pide confirmación; con pedidos sin entregar, no cierra.
-  async function cerrar(r: ReservaPanel, confirmarSaldo = false): Promise<void> {
-    setErrorAccion(null);
-    setEnviando(true);
-    try {
-      await api(`/reservas/${r.id}/cerrar`, { method: 'POST', body: { confirmarSaldo } });
-      avisar(`Mesa ${r.mesa.numero} cerrada`);
-      recargar();
-    } catch (e) {
-      const bloqueo = e instanceof ApiError ? (e.detalles as BloqueoCierre | undefined) : undefined;
-      if (bloqueo?.pagoEnRevision && !confirmarSaldo) {
-        setEnviando(false);
-        const ok = await confirmar({
-          mensaje: `Mercado Pago todavía está revisando un pago de la mesa ${r.mesa.numero}. ¿Cerrarla igual?`,
-          detalle:
-            'Si Mercado Pago lo aprueba después, el pago se registra igual y queda para conciliar.',
-          accion: 'Cerrar mesa',
-        });
-        if (ok) await cerrar(r, true);
-        return;
-      }
-      const saldo = bloqueo?.saldoPendiente;
-      if (saldo && !confirmarSaldo) {
-        setEnviando(false);
-        const ok = await confirmar({
-          mensaje: `Queda ${formatoPesos(saldo)} sin pagar. ¿Cerrar la mesa ${r.mesa.numero} igual?`,
-          detalle: 'La visita se registra solo si el cliente pagó.',
-          accion: 'Cerrar mesa',
-        });
-        if (ok) await cerrar(r, true);
-        return;
-      }
-      setErrorAccion(e instanceof ApiError ? e.message : 'No se pudo cerrar la mesa');
-    } finally {
-      setEnviando(false);
-    }
-  }
-
   async function cancelar(r: ReservaPanel) {
     const ok = await confirmar({
       mensaje: `¿Cancelar la reserva de ${r.comensal.nombre} del ${formatoFecha(hoyArgentina(new Date(r.inicio)))} a las ${formatoHora(r.inicio)}?`,
@@ -108,16 +66,17 @@ export function ReservasPage() {
       accion: 'Cancelar reserva',
     });
     if (!ok) return;
-    setErrorAccion(null);
-    setEnviando(true);
+    cierre.limpiarError();
+    setErrorCancelar(null);
+    setCancelando(true);
     try {
       await api(`/reservas/${r.id}/cancelar`, { method: 'POST' });
       avisar(`Reserva de ${r.comensal.nombre} cancelada`);
       recargar();
     } catch (e) {
-      setErrorAccion(e instanceof ApiError ? e.message : 'No se pudo cancelar la reserva');
+      setErrorCancelar(e instanceof ApiError ? e.message : 'No se pudo cancelar la reserva');
     } finally {
-      setEnviando(false);
+      setCancelando(false);
     }
   }
 
@@ -163,7 +122,7 @@ export function ReservasPage() {
       </div>
       <EstadoCarga cargando={cargando && !datos} error={error} />
       <div className="mb-3">
-        <Aviso>{activacion.error ?? errorAccion}</Aviso>
+        <Aviso>{activacion.error ?? cierre.error ?? errorCancelar}</Aviso>
       </div>
       {filas?.length === 0 && <p className="text-sm text-meta">No hay reservas para mostrar.</p>}
       {filas && filas.length > 0 && (
@@ -214,15 +173,22 @@ export function ReservasPage() {
                         Activar mesa
                       </Boton>
                     )}
-                    {r.cerrable && tienePermiso('mesa.cerrar') && (
-                      <Boton variante="tonal" disabled={enviando} onClick={() => void cerrar(r)}>
+                    {r.cerrable && r.id !== cierre.cerradaId && tienePermiso('mesa.cerrar') && (
+                      <Boton
+                        variante="tonal"
+                        disabled={cierre.enviando || cancelando}
+                        onClick={() => {
+                          setErrorCancelar(null);
+                          void cierre.cerrar(r);
+                        }}
+                      >
                         Cerrar mesa
                       </Boton>
                     )}
                     {r.cancelable && tienePermiso('reserva.activar') && (
                       <Boton
                         variante="fantasma"
-                        disabled={enviando}
+                        disabled={cierre.enviando || cancelando}
                         onClick={() => void cancelar(r)}
                       >
                         Cancelar

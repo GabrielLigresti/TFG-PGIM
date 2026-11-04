@@ -13,7 +13,13 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import type { EstadoBeneficio, EstadoPago, EstadoPedido, EstadoReserva } from '@pgim/shared';
+import type {
+  EstadoBeneficio,
+  EstadoMesaSalon,
+  EstadoPago,
+  EstadoPedido,
+  EstadoReserva,
+} from '@pgim/shared';
 
 // Única fuente de etiqueta, tono e ícono de cada estado. Ninguna pantalla
 // elige colores de estado por su cuenta.
@@ -43,6 +49,11 @@ export const ESTADOS = {
     ENTREGADO: { etiqueta: 'Entregado', tono: 'neutro', icono: CheckCheck },
     CANCELADO: { etiqueta: 'Cancelado', tono: 'bad', icono: X },
   } satisfies Record<EstadoPedido, InfoEstado>,
+  mesa: {
+    LIBRE: { etiqueta: 'Libre', tono: 'ok', icono: Circle },
+    RESERVADA: { etiqueta: 'Reservada', tono: 'neutro', icono: Clock },
+    OCUPADA: { etiqueta: 'Ocupada', tono: 'acento', icono: Armchair },
+  } satisfies Record<EstadoMesaSalon, InfoEstado>,
   pago: {
     PENDIENTE: { etiqueta: 'Pago en curso', tono: 'warn', icono: Clock },
     APROBADO: { etiqueta: 'Pagado', tono: 'ok', icono: Check },
