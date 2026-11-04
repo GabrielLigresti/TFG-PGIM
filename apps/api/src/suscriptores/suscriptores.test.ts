@@ -28,7 +28,12 @@ function armarAlertas(crear: AlertaRepository['crearSiNoHay']) {
   const bus = crearBusEventos();
   const eventos: EventoDominio[] = [];
   bus.suscribir((e) => eventos.push(e));
-  const repo = { crearSiNoHay: jest.fn(crear), listarSinResolver: jest.fn(), resolver: jest.fn() };
+  const repo = {
+    crearSiNoHay: jest.fn(crear),
+    crearInasistencia: jest.fn(),
+    listarSinResolver: jest.fn(),
+    resolver: jest.fn(),
+  };
   registrarGeneradorAlertas(bus, repo);
   return { bus, eventos, repo };
 }
@@ -64,6 +69,56 @@ describe('GeneradorAlertas', () => {
     expect(() => bus.publicar(sinStock)).not.toThrow();
     await esperar();
     expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+});
+
+describe('GeneradorAlertas: inasistencia', () => {
+  const vencida: EventoDominio = {
+    tipo: 'RESERVA_VENCIDA',
+    reserva: {
+      id: 'R',
+      sucursalId: 'S',
+      comensalId: 'C',
+      mesaId: 'M',
+      inicio: new Date('2026-11-04T23:00:00Z'),
+      estado: 'VENCIDA',
+    },
+  };
+  const inasistencia: AlertaPanel = {
+    ...alerta,
+    tipo: 'INASISTENCIA',
+    severidad: 'INFO',
+    descripcion: 'Ana no llegó a su reserva de las 20:00 h, mesa 4',
+    insumo: null,
+    plato: null,
+  };
+
+  it('al vencer una reserva crea la alerta y la publica para el personal', async () => {
+    const { bus, eventos, repo } = armarAlertas(async () => null);
+    repo.crearInasistencia.mockResolvedValue(inasistencia);
+
+    bus.publicar(vencida);
+    await esperar();
+
+    expect(repo.crearInasistencia).toHaveBeenCalledWith((vencida as { reserva: unknown }).reserva);
+    expect(eventos).toContainEqual({
+      tipo: 'ALERTA_CREADA',
+      sucursalId: 'S',
+      alerta: inasistencia,
+    });
+  });
+
+  it('si el repositorio falla no propaga el error', async () => {
+    const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const { bus, eventos, repo } = armarAlertas(async () => null);
+    repo.crearInasistencia.mockRejectedValue(new Error('base caída'));
+
+    expect(() => bus.publicar(vencida)).not.toThrow();
+    await esperar();
+
+    expect(error).toHaveBeenCalled();
+    expect(eventos.some((e) => e.tipo === 'ALERTA_CREADA')).toBe(false);
     error.mockRestore();
   });
 });

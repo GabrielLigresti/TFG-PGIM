@@ -33,14 +33,19 @@ export async function sesionDeCookie(cookieHeader: string | undefined): Promise<
 const idSalaSchema = z.uuid();
 
 // Salas a las que entra una sesión al conectarse: el comensal, a la suya; el
-// personal, a la de su sucursal de trabajo y, si opera la cocina o el stock, a
-// la del personal (cola y alertas, con datos que no ve el comensal).
+// personal, a la de su sucursal de trabajo y, si opera la cocina, el stock o
+// las reservas, a la del personal (cola y alertas, con datos que no ve el
+// comensal).
 export function salasDeSesion(sesion: Sesion): string[] {
   if (sesion.usuario.tipo === 'COMENSAL') return [salaComensal(sesion.usuario.id)];
   const sucursal = sesion.sucursalActiva;
   if (!sucursal) return [];
   const salas = [salaSucursal(sucursal.id)];
-  if (sesion.permisos.includes('pedido.ver') || sesion.permisos.includes('stock.registrar')) {
+  if (
+    sesion.permisos.includes('pedido.ver') ||
+    sesion.permisos.includes('stock.registrar') ||
+    sesion.permisos.includes('reserva.ver')
+  ) {
     salas.push(salaPersonal(sucursal.id));
   }
   return salas;

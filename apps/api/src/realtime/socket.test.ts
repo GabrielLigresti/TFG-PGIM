@@ -44,7 +44,11 @@ describe('salasDeSesion', () => {
     expect(salasDeSesion(personal(['stock.registrar']))).toEqual(['sucursal:S', 'personal:S']);
   });
 
+  it('el personal con reserva.ver entra a la sala del personal (alertas de inasistencia)', () => {
+    expect(salasDeSesion(personal(['reserva.ver']))).toEqual(['sucursal:S', 'personal:S']);
+  });
+
   it('el personal sin esos permisos no entra a la sala del personal', () => {
-    expect(salasDeSesion(personal(['reserva.ver']))).toEqual(['sucursal:S']);
+    expect(salasDeSesion(personal(['insumo.ver']))).toEqual(['sucursal:S']);
   });
 });

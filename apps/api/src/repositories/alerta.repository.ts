@@ -1,5 +1,8 @@
-import type { AlertaPanel, TipoAlertaStock } from '@pgim/shared';
+import type { AlertaPanel, TipoAlertaPanel, TipoAlertaStock } from '@pgim/shared';
+import { servicioDeReserva } from '../domain/pronostico';
+import type { ReservaDelEvento } from '../domain/eventos';
 import type { Prisma } from '../generated/prisma/client';
+import { aHora, horaArgentina } from '../lib/hora';
 import { prisma } from '../lib/prisma';
 
 export interface DatosAlertaStock {
@@ -15,11 +18,23 @@ export interface AlertaRepository {
   // existencia o mismo plato); null si ya la había. Si el insumo no tenía
   // existencia en la sucursal, la crea en 0 para poder señalarla.
   crearSiNoHay(datos: DatosAlertaStock): Promise<AlertaPanel | null>;
-  listarSinResolver(restauranteId: string, sucursalId: string): Promise<AlertaPanel[]>;
-  resolver(restauranteId: string, sucursalId: string, id: string): Promise<boolean>;
+  // Alerta INFO de una reserva vencida (CU-21): comensal, mesa y hora en el
+  // texto; fecha y franja del servicio (la franja queda vacía si la hora no
+  // cae en ninguna). No hay duplicados: una reserva vence una sola vez.
+  crearInasistencia(reserva: ReservaDelEvento): Promise<AlertaPanel | null>;
+  listarSinResolver(
+    restauranteId: string,
+    sucursalId: string,
+    tipos: TipoAlertaPanel[],
+  ): Promise<AlertaPanel[]>;
+  // false si no existe, es de otra sucursal o su tipo no está en `tipos`.
+  resolver(
+    restauranteId: string,
+    sucursalId: string,
+    id: string,
+    tipos: TipoAlertaPanel[],
+  ): Promise<boolean>;
 }
-
-const TIPOS: TipoAlertaStock[] = ['STOCK_INSUFICIENTE', 'PLATO_SIN_RECETA'];
 
 const seleccionAlerta = {
   id: true,
@@ -36,7 +51,7 @@ type Fila = Prisma.AlertaGetPayload<{ select: typeof seleccionAlerta }>;
 function aAlertaPanel(fila: Fila): AlertaPanel {
   return {
     id: fila.id,
-    tipo: fila.tipo as TipoAlertaStock,
+    tipo: fila.tipo as TipoAlertaPanel,
     severidad: fila.severidad,
     descripcion: fila.descripcion,
     creadaEn: fila.creadaEn.toISOString(),
@@ -105,18 +120,55 @@ export const alertaRepository: AlertaRepository = {
     });
   },
 
-  async listarSinResolver(restauranteId, sucursalId) {
+  async crearInasistencia(reserva) {
+    const [comensal, mesa, horarios] = await Promise.all([
+      prisma.comensal.findUniqueOrThrow({
+        where: { usuarioId: reserva.comensalId },
+        select: { nombre: true },
+      }),
+      prisma.mesa.findFirstOrThrow({
+        where: { id: reserva.mesaId, sucursalId: reserva.sucursalId },
+        select: { numero: true },
+      }),
+      prisma.horarioServicio.findMany({
+        where: { sucursalId: reserva.sucursalId },
+        select: { franja: true, horaInicio: true, horaFin: true },
+      }),
+    ]);
+    const servicio = servicioDeReserva(
+      reserva.inicio,
+      horarios.map((h) => ({
+        franja: h.franja,
+        horaInicio: aHora(h.horaInicio),
+        horaFin: aHora(h.horaFin),
+      })),
+    );
+    const fila = await prisma.alerta.create({
+      data: {
+        sucursalId: reserva.sucursalId,
+        tipo: 'INASISTENCIA',
+        severidad: 'INFO',
+        fechaServicio: servicio ? new Date(`${servicio.fecha}T00:00:00Z`) : null,
+        franja: servicio?.franja ?? null,
+        descripcion: `${comensal.nombre} no llegó a su reserva de las ${horaArgentina(reserva.inicio)} h, mesa ${mesa.numero}`,
+      },
+      select: seleccionAlerta,
+    });
+    return aAlertaPanel(fila);
+  },
+
+  async listarSinResolver(restauranteId, sucursalId, tipos) {
     const filas = await prisma.alerta.findMany({
-      where: { ...deLaSucursal(restauranteId, sucursalId), tipo: { in: TIPOS }, resuelta: false },
+      where: { ...deLaSucursal(restauranteId, sucursalId), tipo: { in: tipos }, resuelta: false },
       select: seleccionAlerta,
       orderBy: { creadaEn: 'desc' },
     });
     return filas.map(aAlertaPanel);
   },
 
-  async resolver(restauranteId, sucursalId, id) {
+  async resolver(restauranteId, sucursalId, id, tipos) {
     const { count } = await prisma.alerta.updateMany({
-      where: { id, ...deLaSucursal(restauranteId, sucursalId), tipo: { in: TIPOS } },
+      where: { id, ...deLaSucursal(restauranteId, sucursalId), tipo: { in: tipos } },
       data: { resuelta: true },
     });
     return count === 1;

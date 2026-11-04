@@ -94,7 +94,10 @@ export default function App() {
                     path="apertura"
                     element={conPermiso('apertura.consultar', <AperturaPage />)}
                   />
-                  <Route path="alertas" element={conPermiso('stock.registrar', <AlertasPage />)} />
+                  <Route
+                    path="alertas"
+                    element={conAlgunPermiso(['stock.registrar', 'reserva.ver'], <AlertasPage />)}
+                  />
                   <Route
                     path="sucursales"
                     element={conPermiso('sucursal.ver', <SucursalesPage />)}

@@ -98,8 +98,8 @@ export const SECCIONES: SeccionPanel[] = [
   {
     ruta: 'alertas',
     titulo: 'Alertas',
-    descripcion: 'Faltantes de stock y platos sin receta',
-    permisos: ['stock.registrar'],
+    descripcion: 'Faltantes de stock, platos sin receta e inasistencias',
+    permisos: ['stock.registrar', 'reserva.ver'],
     grupo: 'Stock',
     icono: TriangleAlert,
   },
