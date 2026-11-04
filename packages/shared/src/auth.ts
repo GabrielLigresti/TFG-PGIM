@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { CODIGOS_PERMISO, type CodigoPermiso } from './permisos';
 
+export const emailSchema = z.string().trim().toLowerCase().pipe(z.email('Email inválido'));
+export const passwordSchema = z
+  .string()
+  .min(8, 'La contraseña tiene que tener al menos 8 caracteres')
+  .max(100);
+
 export const loginRequestSchema = z.object({
   email: z.string().trim().toLowerCase().pipe(z.email()),
   password: z.string().min(1),

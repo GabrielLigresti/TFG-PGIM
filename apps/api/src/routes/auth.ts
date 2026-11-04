@@ -3,9 +3,11 @@ import { rateLimit } from 'express-rate-limit';
 import {
   loginRequestSchema,
   registroComensalSchema,
+  registroRestauranteSchema,
   seleccionarSucursalSchema,
   type LoginRequest,
   type RegistroComensal,
+  type RegistroRestaurante,
   type SeleccionarSucursalRequest,
 } from '@pgim/shared';
 import { COOKIE_SESION, opcionesCookie } from '../lib/jwt';
@@ -36,6 +38,16 @@ const limiteRegistro = rateLimit({
   message: { error: 'Demasiados registros desde esta conexión. Probá de nuevo más tarde.' },
 });
 
+// Instancia propia para el alta de restaurantes: no comparte contador con el
+// registro de comensales (cada cuenta de restaurante crea sucursal, menú y más).
+const limiteRegistroRestaurante = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Demasiados registros desde esta conexión. Probá de nuevo más tarde.' },
+});
+
 authRouter.post('/login', limiteLogin, validar(loginRequestSchema), async (req, res) => {
   const { email, password } = req.body as LoginRequest;
   const { token, sesion } = await authService.iniciarSesion(email, password);
@@ -46,6 +58,18 @@ authRouter.post('/registro', limiteRegistro, validar(registroComensalSchema), as
   const { token, sesion } = await authService.registrarComensal(req.body as RegistroComensal);
   res.cookie(COOKIE_SESION, token, opcionesCookie(req)).status(201).json(sesion);
 });
+
+authRouter.post(
+  '/registro-restaurante',
+  limiteRegistroRestaurante,
+  validar(registroRestauranteSchema),
+  async (req, res) => {
+    const { token, sesion } = await authService.registrarRestaurante(
+      req.body as RegistroRestaurante,
+    );
+    res.cookie(COOKIE_SESION, token, opcionesCookie(req)).status(201).json(sesion);
+  },
+);
 
 authRouter.post('/sucursal', autenticar, validar(seleccionarSucursalSchema), async (req, res) => {
   const { sucursalId } = req.body as SeleccionarSucursalRequest;

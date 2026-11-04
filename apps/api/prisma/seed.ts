@@ -1,17 +1,21 @@
 // Datos ficticios de prueba. Es idempotente: se puede correr varias veces sin
 // duplicar filas (npm run db:seed -w @pgim/api).
 import {
+  CONFIGURACION_APERTURA_POR_DEFECTO,
   PERMISOS,
-  ROLES_PREDETERMINADOS,
   type CodigoPermiso,
+  type Franja,
   type RolPredeterminado,
 } from '@pgim/shared';
+import { randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { CARPETA_MODELOS, borrarModelo, guardarModelo } from '../src/lib/archivos-modelo';
 import { prisma } from '../src/lib/prisma';
 import { hashPassword } from '../src/lib/password';
+import { aHora } from '../src/lib/hora';
+import { generarReservasHistorial, SEMILLA_HISTORIAL } from '../src/lib/historial-ventas';
 import type { Prisma } from '../src/generated/prisma/client';
 import {
   costoTeorico,
@@ -21,6 +25,7 @@ import {
 } from '../src/domain/receta';
 import { produccionService } from '../src/services/produccion.service';
 import { recetaRepository } from '../src/repositories/receta.repository';
+import { crearRolesPredeterminados, upsertRol } from '../src/repositories/roles-predeterminados';
 import { stockRepository } from '../src/repositories/stock.repository';
 import type { UnidadBase, UnidadMedida } from '@pgim/shared';
 
@@ -306,26 +311,6 @@ async function seedSalon(
   }
 }
 
-async function seedRol(
-  tx: Prisma.TransactionClient,
-  restauranteId: string,
-  rol: RolPredeterminado,
-  predeterminado: boolean,
-  permisoIds: Map<CodigoPermiso, string>,
-): Promise<string> {
-  const { id } = await tx.rol.upsert({
-    where: { restauranteId_nombre: { restauranteId, nombre: rol.nombre } },
-    update: { arquetipo: rol.arquetipo, predeterminado, activo: true },
-    create: { restauranteId, nombre: rol.nombre, arquetipo: rol.arquetipo, predeterminado },
-  });
-
-  await tx.rolPermiso.deleteMany({ where: { rolId: id } });
-  await tx.rolPermiso.createMany({
-    data: rol.permisos.map((codigo) => ({ rolId: id, permisoId: permisoIds.get(codigo)! })),
-  });
-  return id;
-}
-
 // Reemplaza la receta del dueño (plato o intermedio) por la del seed.
 async function seedReceta(
   tx: Prisma.TransactionClient,
@@ -512,7 +497,7 @@ async function seedMenuEInventario(
   return platoIds;
 }
 
-// "Carta principal" queda vigente y activa en Centro; "Menú de invierno" ya
+// "Carta principal" queda vigente y activa en Centro y en Palermo; "Menú de invierno" ya
 // venció, para ver cómo se marca en el panel.
 const MENUS = [
   {
@@ -795,6 +780,174 @@ async function seedProduccionDemo(
   }
 }
 
+// Historial de ventas para el pronóstico (Hito 6B): Centro con 12 semanas y
+// Palermo con 5, para mostrar el progreso. Termina ayer. Va fuera de la
+// transacción de main() por el volumen. Se identifica por 20 comensales
+// ficticios dedicados: se borra todo lo suyo y se vuelve a generar. No crea
+// visitas, puntos, movimientos de stock ni comprobantes.
+const SEMANAS_HISTORIAL: Record<NombreSucursal, number> = { Centro: 12, Palermo: 5 };
+const CANTIDAD_COMENSALES_HISTORIAL = 20;
+const LOTE = 2000;
+
+async function insertarPorLotes<T>(filas: T[], insertar: (lote: T[]) => Promise<unknown>) {
+  for (let i = 0; i < filas.length; i += LOTE) await insertar(filas.slice(i, i + LOTE));
+}
+
+async function seedHistorialVentas(
+  restauranteId: string,
+  sucursalIds: Map<NombreSucursal, string>,
+  passwordHash: string,
+): Promise<number> {
+  const emails = Array.from(
+    { length: CANTIDAD_COMENSALES_HISTORIAL },
+    (_, i) => `historial-${String(i + 1).padStart(2, '0')}@demo.test`,
+  );
+  const comensalIds: string[] = [];
+  for (const [i, email] of emails.entries()) {
+    // Inactivos: no son para iniciar sesión.
+    const usuario = await prisma.usuario.upsert({
+      where: { email },
+      update: {},
+      create: { email, passwordHash, tipo: 'COMENSAL', activo: false },
+    });
+    await prisma.comensal.upsert({
+      where: { usuarioId: usuario.id },
+      update: {},
+      create: { usuarioId: usuario.id, nombre: `Comensal de historial ${i + 1}` },
+    });
+    comensalIds.push(usuario.id);
+  }
+
+  const deHistorial = { in: comensalIds };
+  await prisma.$transaction(async (tx) => {
+    const cuenta = { reserva: { comensalId: deHistorial } };
+    await tx.pago.deleteMany({ where: { comensalId: deHistorial } });
+    await tx.lineaPedido.deleteMany({ where: { pedido: { cuentaMesa: cuenta } } });
+    await tx.pedido.deleteMany({ where: { cuentaMesa: cuenta } });
+    await tx.cuentaMesa.deleteMany({ where: cuenta });
+    await tx.reserva.deleteMany({ where: { comensalId: deHistorial } });
+  });
+
+  const hoy = new Date();
+  let total = 0;
+  for (const [indice, [nombre, sucursalId]] of [...sucursalIds].entries()) {
+    // Lecturas con orden fijo: alimentan al generador pseudoaleatorio y el
+    // historial tiene que salir igual en cada corrida.
+    const mesas = await prisma.mesa.findMany({
+      where: { sucursalId, sucursal: { restauranteId }, activa: true },
+      select: { id: true, numero: true, capacidad: true },
+      orderBy: { numero: 'asc' },
+    });
+    const horarios = await prisma.horarioServicio.findMany({
+      where: { sucursalId, sucursal: { restauranteId } },
+      orderBy: { horaInicio: 'asc' },
+    });
+    // Platos activos del menú activo de la sucursal (misma condición que el
+    // historial que lee el pronóstico).
+    const platos = (
+      await prisma.itemMenu.findMany({
+        where: {
+          restauranteId,
+          activo: true,
+          menus: {
+            some: { menu: { sucursalesActivas: { some: { id: sucursalId, restauranteId } } } },
+          },
+        },
+        select: { id: true, precio: true },
+        orderBy: [{ nombre: 'asc' }, { id: 'asc' }],
+      })
+    ).map((p) => ({ id: p.id, precio: Number(p.precio) }));
+    const ultimo = await prisma.pedido.aggregate({
+      where: { sucursalId },
+      _max: { numero: true },
+    });
+    const reservas = generarReservasHistorial({
+      semilla: SEMILLA_HISTORIAL + indice,
+      hoy,
+      semanas: SEMANAS_HISTORIAL[nombre],
+      mesas,
+      horarios: horarios.map((h) => ({
+        franja: h.franja as Franja,
+        horaInicio: aHora(h.horaInicio),
+        horaFin: aHora(h.horaFin),
+      })),
+      platos,
+    });
+
+    // Los números siguen al máximo que quedó después del borrado.
+    let numero = ultimo._max.numero ?? 0;
+    const filas = {
+      reserva: [] as Prisma.ReservaCreateManyInput[],
+      cuenta: [] as Prisma.CuentaMesaCreateManyInput[],
+      pedido: [] as Prisma.PedidoCreateManyInput[],
+      linea: [] as Prisma.LineaPedidoCreateManyInput[],
+      pago: [] as Prisma.PagoCreateManyInput[],
+    };
+    for (const [i, r] of reservas.entries()) {
+      const comensalId = comensalIds[i % comensalIds.length]!;
+      const reservaId = randomUUID();
+      const cuentaMesaId = randomUUID();
+      const pedidoId = randomUUID();
+      const minutos = (m: number) => new Date(r.inicio.getTime() + m * 60_000);
+      const monto = r.lineas.reduce((s, l) => s + l.cantidad * l.precioUnitario, 0);
+      filas.reserva.push({
+        id: reservaId,
+        sucursalId,
+        mesaId: r.mesaId,
+        comensalId,
+        inicio: r.inicio,
+        cantidadPersonas: r.cantidadPersonas,
+        modoAsignacion: 'AUTOMATICA',
+        estado: 'FINALIZADA',
+      });
+      filas.cuenta.push({
+        id: cuentaMesaId,
+        reservaId,
+        abiertaEn: r.inicio,
+        cerradaEn: minutos(75),
+        estado: 'CERRADA',
+      });
+      filas.pedido.push({
+        id: pedidoId,
+        cuentaMesaId,
+        sucursalId,
+        numero: ++numero,
+        creadoEn: minutos(5),
+        listoEn: minutos(25),
+        estado: 'ENTREGADO',
+      });
+      for (const l of r.lineas) {
+        filas.linea.push({
+          pedidoId,
+          itemMenuId: l.itemMenuId,
+          cantidad: l.cantidad,
+          precioUnitario: l.precioUnitario,
+        });
+      }
+      filas.pago.push({
+        cuentaMesaId,
+        comensalId,
+        monto,
+        metodo: i % 3 === 0 ? 'BILLETERA_VIRTUAL' : 'TARJETA',
+        estado: 'APROBADO',
+        fecha: minutos(70),
+      });
+    }
+    await prisma.$transaction(
+      async (tx) => {
+        await insertarPorLotes(filas.reserva, (data) => tx.reserva.createMany({ data }));
+        await insertarPorLotes(filas.cuenta, (data) => tx.cuentaMesa.createMany({ data }));
+        await insertarPorLotes(filas.pedido, (data) => tx.pedido.createMany({ data }));
+        await insertarPorLotes(filas.linea, (data) => tx.lineaPedido.createMany({ data }));
+        await insertarPorLotes(filas.pago, (data) => tx.pago.createMany({ data }));
+      },
+      { timeout: 60_000 },
+    );
+    total += reservas.length;
+  }
+  return total;
+}
+
 async function main(): Promise<void> {
   const passwordHash = await hashPassword(PASSWORD_DEMO);
 
@@ -830,14 +983,18 @@ async function main(): Promise<void> {
       });
 
       await seedSalon(tx, sucursal.id, SALONES[nombre]);
+
+      // Solo se crea: una configuración editada no se pisa al volver a correr el seed.
+      await tx.configuracionApertura.upsert({
+        where: { sucursalId: sucursal.id },
+        update: {},
+        create: { sucursalId: sucursal.id, ...CONFIGURACION_APERTURA_POR_DEFECTO },
+      });
     }
 
-    const rolIds = new Map<string, string>();
-    for (const rol of ROLES_PREDETERMINADOS) {
-      rolIds.set(rol.nombre, await seedRol(tx, restaurante.id, rol, true, permisoIds));
-    }
+    const rolIds = await crearRolesPredeterminados(tx, restaurante.id);
     for (const rol of ROLES_STAFF) {
-      rolIds.set(rol.nombre, await seedRol(tx, restaurante.id, rol, false, permisoIds));
+      rolIds.set(rol.nombre, await upsertRol(tx, restaurante.id, rol, false, permisoIds));
     }
 
     for (const empleado of EMPLEADOS) {
@@ -875,8 +1032,9 @@ async function main(): Promise<void> {
       admin.id,
     );
     const cartaId = await seedMenus(tx, restaurante.id, platoIds);
-    await tx.sucursal.update({
-      where: { id: sucursalIds.get('Centro')! },
+    // Las dos sucursales usan la carta: el historial de ventas sale de ella.
+    await tx.sucursal.updateMany({
+      where: { id: { in: [...sucursalIds.values()] } },
       data: { menuActivoId: cartaId },
     });
     await seedFidelizacion(tx, restaurante.id, cartaId);
@@ -897,6 +1055,7 @@ async function main(): Promise<void> {
   });
   await seedModelosRa(restauranteId);
   await seedProduccionDemo(restauranteId, sucursalIds);
+  const reservasHistorial = await seedHistorialVentas(restauranteId, sucursalIds, passwordHash);
 
   const [permisos, roles, sucursales, usuarios, componentes, platos, movimientos, tandas] =
     await Promise.all([
@@ -911,7 +1070,7 @@ async function main(): Promise<void> {
     ]);
   console.log(
     `Seed listo: ${permisos} permisos, ${roles} roles, ${sucursales} sucursales, ${usuarios} usuarios, ` +
-      `${componentes} componentes, ${platos} platos, ${movimientos} movimientos, ${tandas} tandas (contraseña: ${PASSWORD_DEMO}).`,
+      `${componentes} componentes, ${platos} platos, ${movimientos} movimientos, ${tandas} tandas, ${reservasHistorial} reservas de historial (contraseña: ${PASSWORD_DEMO}).`,
   );
 }
 

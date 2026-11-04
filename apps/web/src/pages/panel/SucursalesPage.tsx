@@ -1,11 +1,9 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
-  FRANJAS,
   administraModulo,
   estaVigente,
   hoyArgentina,
-  type Franja,
   type Menu,
   type Sucursal,
   type SucursalInput,
@@ -28,13 +26,12 @@ import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
 import { QrMenuModal } from './QrMenuModal';
 import { useConfirmar } from '../../components/Confirmacion';
-
-const NOMBRE_FRANJA: Record<Franja, string> = { ALMUERZO: 'Almuerzo', CENA: 'Cena' };
-
-const HORARIO_POR_DEFECTO: Record<Franja, { horaInicio: string; horaFin: string }> = {
-  ALMUERZO: { horaInicio: '12:00', horaFin: '16:00' },
-  CENA: { horaInicio: '20:00', horaFin: '00:00' },
-};
+import {
+  HorariosServicioEditor,
+  NOMBRE_FRANJA,
+  servicioAEnviar,
+  servicioInicial,
+} from '../../components/HorariosServicioEditor';
 
 function horarios(s: Sucursal) {
   return s.horariosServicio
@@ -173,21 +170,8 @@ function FormularioSucursal({
   const puedeElegirMenu = tienePermiso('menu.ver');
   const menus = useRecurso<Menu[]>(puedeElegirMenu ? '/menus' : null);
   const hoy = hoyArgentina();
-  const [servicio, setServicio] = useState(() =>
-    FRANJAS.map((franja) => {
-      const actual = sucursal?.horariosServicio.find((h) => h.franja === franja);
-      return {
-        franja,
-        habilitada: sucursal ? Boolean(actual) : true,
-        ...(actual ?? HORARIO_POR_DEFECTO[franja]),
-      };
-    }),
-  );
+  const [servicio, setServicio] = useState(() => servicioInicial(sucursal));
   const { enviar, enviando, error } = useGuardar();
-
-  function cambiarServicio(franja: Franja, cambios: Partial<(typeof servicio)[number]>) {
-    setServicio((actual) => actual.map((h) => (h.franja === franja ? { ...h, ...cambios } : h)));
-  }
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -197,9 +181,7 @@ function FormularioSucursal({
       horarioApertura: apertura,
       horarioCierre: cierre,
       toleranciaNoShowMin: aNumero(tolerancia),
-      horariosServicio: servicio
-        .filter((h) => h.habilitada)
-        .map(({ franja, horaInicio, horaFin }) => ({ franja, horaInicio, horaFin })),
+      horariosServicio: servicioAEnviar(servicio),
       ...(puedeElegirMenu && { menuActivoId: menuActivoId || null }),
       ...(sucursal && { activa }),
     };
@@ -261,34 +243,7 @@ function FormularioSucursal({
           />
         </Campo>
 
-        <fieldset className="space-y-2">
-          <legend className="text-sm font-medium text-text">Horarios de servicio</legend>
-          {servicio.map((h) => (
-            <div key={h.franja} className="grid grid-cols-[7rem_1fr_1fr] items-center gap-2">
-              <Casilla
-                etiqueta={NOMBRE_FRANJA[h.franja]}
-                checked={h.habilitada}
-                onChange={(habilitada) => cambiarServicio(h.franja, { habilitada })}
-              />
-              <input
-                type="time"
-                aria-label={`Inicio de ${NOMBRE_FRANJA[h.franja]}`}
-                disabled={!h.habilitada}
-                value={h.horaInicio}
-                onChange={(e) => cambiarServicio(h.franja, { horaInicio: e.target.value })}
-                className={claseInput}
-              />
-              <input
-                type="time"
-                aria-label={`Fin de ${NOMBRE_FRANJA[h.franja]}`}
-                disabled={!h.habilitada}
-                value={h.horaFin}
-                onChange={(e) => cambiarServicio(h.franja, { horaFin: e.target.value })}
-                className={claseInput}
-              />
-            </div>
-          ))}
-        </fieldset>
+        <HorariosServicioEditor servicio={servicio} onChange={setServicio} />
 
         <Campo
           etiqueta="Menú activo"

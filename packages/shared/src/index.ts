@@ -17,3 +17,4 @@ export * from './pedido';
 export * from './alerta';
 export * from './fidelizacion';
 export * from './pago';
+export * from './apertura';

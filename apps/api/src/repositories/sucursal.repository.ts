@@ -1,4 +1,8 @@
-import type { Sucursal, SucursalInput } from '@pgim/shared';
+import {
+  CONFIGURACION_APERTURA_POR_DEFECTO,
+  type Sucursal,
+  type SucursalInput,
+} from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { aHora, deHora } from '../lib/hora';
 import { prisma } from '../lib/prisma';
@@ -46,7 +50,17 @@ function aSucursal(fila: Fila): Sucursal {
   };
 }
 
-function columnas(datos: SucursalInput) {
+export function columnas(
+  datos: Pick<
+    SucursalInput,
+    | 'nombre'
+    | 'direccion'
+    | 'horarioApertura'
+    | 'horarioCierre'
+    | 'toleranciaNoShowMin'
+    | 'menuActivoId'
+  >,
+) {
   return {
     nombre: datos.nombre,
     direccion: datos.direccion,
@@ -58,7 +72,7 @@ function columnas(datos: SucursalInput) {
   };
 }
 
-function horarios(datos: SucursalInput) {
+export function horarios(datos: Pick<SucursalInput, 'horariosServicio'>) {
   return datos.horariosServicio.map((h) => ({
     franja: h.franja,
     horaInicio: deHora(h.horaInicio),
@@ -109,6 +123,8 @@ export const sucursalRepository: SucursalRepository = {
         restauranteId,
         ...columnas(datos),
         horariosServicio: { create: horarios(datos) },
+        // El asistente de apertura necesita una configuración desde el primer día.
+        configuracionApertura: { create: CONFIGURACION_APERTURA_POR_DEFECTO },
         empleados: { create: { empleadoId } },
       },
       select: seleccion,

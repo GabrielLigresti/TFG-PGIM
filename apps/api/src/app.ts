@@ -3,6 +3,7 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import { API_PREFIX } from '@pgim/shared';
 import { alertasRouter } from './routes/alertas';
+import { aperturaRouter } from './routes/apertura';
 import { authRouter } from './routes/auth';
 import { comensalRouter } from './routes/comensal';
 import { fidelizacionRouter } from './routes/fidelizacion';
@@ -87,6 +88,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/pagos/webhook`, pagosWebhookRouter);
   app.use(`${API_PREFIX}/pedidos`, pedidosRouter);
   app.use(`${API_PREFIX}/alertas`, alertasRouter);
+  app.use(`${API_PREFIX}/apertura`, aperturaRouter);
   app.use(`${API_PREFIX}/fidelizacion`, fidelizacionRouter);
   app.use(`${API_PREFIX}/roles`, rolesRouter);
   app.use(`${API_PREFIX}/personal`, personalRouter);
