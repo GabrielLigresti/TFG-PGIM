@@ -93,7 +93,7 @@ activate PT
 PT -> BUS : publicar(PLANIFICACION_CONFIRMADA)
 activate BUS
 deactivate BUS
-note left of BUS : NotificadorStaff envía a cada\nempleado sus turnos
+note left of BUS : NotificadorStaff avisa a la sucursal;\ncada empleado ve sus turnos en Mis turnos
 PT --> AC : planificación CONFIRMADA
 deactivate PT
 AC --> V : planificación confirmada
