@@ -64,7 +64,7 @@ export const ESTADOS = {
     CERRADA: { etiqueta: 'Cerrada', tono: 'neutro', icono: Check },
   } satisfies Record<'ABIERTA' | 'CERRADA', InfoEstado>,
   planificacion: {
-    BORRADOR: { etiqueta: 'Borrador', tono: 'neutro', icono: Pencil },
+    BORRADOR: { etiqueta: 'Sin confirmar', tono: 'warn', icono: Pencil },
     CONFIRMADA: { etiqueta: 'Confirmada', tono: 'ok', icono: Check },
   } satisfies Record<'BORRADOR' | 'CONFIRMADA', InfoEstado>,
   beneficio: {

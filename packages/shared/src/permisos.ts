@@ -112,6 +112,8 @@ export const ROLES_PREDETERMINADOS: readonly RolPredeterminado[] = [
       'pedido.gestionar_cola',
       'pedido.avanzar',
       'apertura.consultar',
+      // El asistente le asigna turnos como cocinera: tiene que poder verlos.
+      'turno.ver',
     ],
   },
 ];

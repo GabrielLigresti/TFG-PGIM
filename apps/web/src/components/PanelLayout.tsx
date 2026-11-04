@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router';
 import {
   BookOpen,
+  BarChart3,
   Boxes,
   CalendarDays,
+  CalendarClock,
   CalendarRange,
   ChefHat,
   Gift,
@@ -40,6 +42,14 @@ const GRUPOS: GrupoPanel[] = ['Operación', 'Menú', 'Stock', 'Gestión', 'Anál
 // Cada sección se habilita con su permiso de lectura.
 export const SECCIONES: SeccionPanel[] = [
   {
+    ruta: 'mis-turnos',
+    titulo: 'Mis turnos',
+    descripcion: 'Tus turnos de las semanas confirmadas',
+    permisos: ['turno.ver'],
+    grupo: 'Operación',
+    icono: CalendarClock,
+  },
+  {
     ruta: 'salon',
     titulo: 'Salón',
     descripcion: 'Estado actual de las mesas',
@@ -62,6 +72,14 @@ export const SECCIONES: SeccionPanel[] = [
     permisos: ['pedido.ver'],
     grupo: 'Operación',
     icono: ChefHat,
+  },
+  {
+    ruta: 'alertas',
+    titulo: 'Alertas',
+    descripcion: 'Faltantes de stock, platos sin receta e inasistencias',
+    permisos: ['stock.registrar', 'reserva.ver'],
+    grupo: 'Operación',
+    icono: TriangleAlert,
   },
   {
     ruta: 'platos',
@@ -94,14 +112,6 @@ export const SECCIONES: SeccionPanel[] = [
     permisos: ['insumo.ver', 'stock.registrar'],
     grupo: 'Stock',
     icono: Boxes,
-  },
-  {
-    ruta: 'alertas',
-    titulo: 'Alertas',
-    descripcion: 'Faltantes de stock y platos sin receta',
-    permisos: ['stock.registrar'],
-    grupo: 'Stock',
-    icono: TriangleAlert,
   },
   {
     ruta: 'programa-puntos',
@@ -150,6 +160,14 @@ export const SECCIONES: SeccionPanel[] = [
     permisos: ['apertura.consultar'],
     grupo: 'Análisis',
     icono: CalendarRange,
+  },
+  {
+    ruta: 'metricas',
+    titulo: 'Métricas',
+    descripcion: 'Ventas, platos, merma y ocupación',
+    permisos: ['metrica.ver'],
+    grupo: 'Análisis',
+    icono: BarChart3,
   },
 ];
 

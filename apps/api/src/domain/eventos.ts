@@ -58,7 +58,9 @@ export type EventoDominio =
   // Secuencia de CU-04, 5a y 5b: las guarda GeneradorAlertas.
   | { tipo: 'STOCK_INSUFICIENTE'; sucursalId: string; componenteId: string; itemMenuId: string }
   | { tipo: 'PLATO_SIN_RECETA'; sucursalId: string; itemMenuId: string }
-  | { tipo: 'ALERTA_CREADA'; sucursalId: string; alerta: AlertaPanel };
+  | { tipo: 'ALERTA_CREADA'; sucursalId: string; alerta: AlertaPanel }
+  // CU-09: el gerente confirmó los turnos de la semana.
+  | { tipo: 'PLANIFICACION_CONFIRMADA'; sucursalId: string; planificacionId: string };
 
 export type OyenteEventos = (evento: EventoDominio) => void;
 

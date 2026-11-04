@@ -61,8 +61,8 @@ EP --> AA : Pronostico (valor, rango, MAPE\ne ingreso estimado)
 deactivate EP
 AA -> AA : conserva el método de menor MAPE\ny guarda un Pronostico por franja
 
-note over VE #D5E8D4 : por cada pronóstico (VerificadorStock y VerificadorMesas)
-AA -> VE : verificar(pronostico)
+note over VE #D5E8D4 : una vez por verificador (VerificadorStock y VerificadorMesas),\ncon los pronósticos de la semana
+AA -> VE : verificar(pronosticos)
 activate VE
 VE --> AA : alertas de stock y de capacidad de mesas
 deactivate VE
@@ -93,7 +93,7 @@ activate PT
 PT -> BUS : publicar(PLANIFICACION_CONFIRMADA)
 activate BUS
 deactivate BUS
-note left of BUS : NotificadorStaff envía a cada\nempleado sus turnos
+note left of BUS : NotificadorStaff avisa a la sucursal;\ncada empleado ve sus turnos en Mis turnos
 PT --> AC : planificación CONFIRMADA
 deactivate PT
 AC --> V : planificación confirmada

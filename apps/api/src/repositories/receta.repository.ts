@@ -37,7 +37,7 @@ export type Catalogo = Map<string, Componente>;
 
 export interface RecetaRepository {
   // Todos los componentes del restaurante con sus recetas resueltas (Composite).
-  cargarCatalogo(restauranteId: string): Promise<Catalogo>;
+  cargarCatalogo(restauranteId: string, db?: Prisma.TransactionClient): Promise<Catalogo>;
   listarPlatos(restauranteId: string): Promise<PlatoConReceta[]>;
   buscarPlato(restauranteId: string, itemId: string): Promise<PlatoConReceta | null>;
   guardarRecetaPlato(restauranteId: string, itemId: string, receta: Receta): Promise<void>;
@@ -204,8 +204,8 @@ async function sinExistencias(
 }
 
 export const recetaRepository: RecetaRepository = {
-  async cargarCatalogo(restauranteId) {
-    const filas = await prisma.componenteInventario.findMany({
+  async cargarCatalogo(restauranteId, db = prisma) {
+    const filas = await db.componenteInventario.findMany({
       where: { restauranteId },
       select: {
         id: true,

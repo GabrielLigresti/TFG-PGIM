@@ -18,3 +18,4 @@ export * from './alerta';
 export * from './fidelizacion';
 export * from './pago';
 export * from './apertura';
+export * from './metrica';

@@ -1,5 +1,6 @@
 import request from 'supertest';
 import { createApp } from '../app';
+import { alertaRepository } from '../repositories/alerta.repository';
 import { cookieConPermisos } from '../test/sesion-falsa';
 
 jest.mock('../repositories/usuario.repository', () => ({
@@ -19,7 +20,7 @@ const ALERTA = '01900000-0000-7000-8000-000000000091';
 describe('/api/alertas', () => {
   const app = createApp();
 
-  it('sin stock.registrar responde 403', async () => {
+  it('sin stock.registrar ni reserva.ver responde 403', async () => {
     await request(app)
       .get('/api/alertas')
       .set('Cookie', cookieConPermisos(['pedido.ver']))
@@ -31,6 +32,30 @@ describe('/api/alertas', () => {
       .get('/api/alertas')
       .set('Cookie', cookieConPermisos(['stock.registrar']))
       .expect(200, []);
+  });
+
+  it('con reserva.ver lista solo las inasistencias', async () => {
+    await request(app)
+      .get('/api/alertas')
+      .set('Cookie', cookieConPermisos(['reserva.ver']))
+      .expect(200, []);
+    expect(alertaRepository.listarSinResolver).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(String),
+      ['INASISTENCIA'],
+    );
+  });
+
+  it('con ambos permisos lista los tres tipos', async () => {
+    await request(app)
+      .get('/api/alertas')
+      .set('Cookie', cookieConPermisos(['stock.registrar', 'reserva.ver']))
+      .expect(200);
+    expect(alertaRepository.listarSinResolver).toHaveBeenLastCalledWith(
+      expect.any(String),
+      expect.any(String),
+      ['STOCK_INSUFICIENTE', 'PLATO_SIN_RECETA', 'INASISTENCIA'],
+    );
   });
 
   it('resolver una alerta de otra sucursal responde 404', async () => {

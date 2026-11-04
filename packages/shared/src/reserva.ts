@@ -82,6 +82,7 @@ export const EVENTOS_SOCKET = {
   mesaCambio: 'mesa:cambio',
   pagoResultado: 'pago:resultado',
   alertaNueva: 'alerta:nueva',
+  turnosPublicados: 'turnos:publicados',
 } as const;
 
 export interface CambioSalon {

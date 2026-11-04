@@ -16,12 +16,25 @@ jest.mock('../repositories/apertura.repository', () => ({
     actualizarConfiguracion: jest.fn(),
     historial: jest.fn(),
     pronosticosDeSemana: jest.fn(),
-    generarSiFalta: jest.fn(),
-    reemplazarSemana: jest.fn(),
+  },
+}));
+
+jest.mock('../repositories/planificacion.repository', () => ({
+  planificacionRepository: {
+    planificar: jest.fn(),
+    reemplazarYPlanificar: jest.fn(),
+    confirmar: jest.fn(),
+    confirmarSemana: jest.fn(),
+    deSemana: jest.fn(),
+    contexto: jest.fn(),
   },
 }));
 
 const repo = jest.requireMock('../repositories/apertura.repository').aperturaRepository;
+const planRepo = jest.requireMock(
+  '../repositories/planificacion.repository',
+).planificacionRepository;
+const ID = '0190b4b0-0000-7000-8000-000000000001';
 
 describe('/api/apertura', () => {
   const app = createApp();
@@ -58,15 +71,62 @@ describe('/api/apertura', () => {
       .expect(200);
     expect(res.body.progreso).toMatchObject({ semanas: 0, minimo: 8, suficiente: false });
     expect(res.body.pronosticos).toEqual([]);
-    expect(repo.generarSiFalta).not.toHaveBeenCalled();
+    expect(res.body.planificacion).toBeNull();
+    expect(planRepo.planificar).not.toHaveBeenCalled();
   });
 
   it('POST /pronostico/regenerar con poco historial no escribe', async () => {
     await request(app)
       .post('/api/apertura/pronostico/regenerar')
-      .set('Cookie', cookie())
+      .set('Cookie', cookieConPermisos(['turno.planificar']))
       .expect(200);
-    expect(repo.reemplazarSemana).not.toHaveBeenCalled();
+    expect(planRepo.reemplazarYPlanificar).not.toHaveBeenCalled();
+  });
+
+  it('regenerar pide turno.planificar: apertura.consultar no alcanza', async () => {
+    await request(app)
+      .post('/api/apertura/pronostico/regenerar')
+      .set('Cookie', cookie())
+      .expect(403);
+    expect(planRepo.reemplazarYPlanificar).not.toHaveBeenCalled();
+  });
+
+  it('GET /pronostico sigue pidiendo apertura.consultar', async () => {
+    await request(app)
+      .get('/api/apertura/pronostico')
+      .set('Cookie', cookieConPermisos(['turno.planificar']))
+      .expect(403);
+  });
+
+  it('confirmar pide turno.planificar', async () => {
+    await request(app)
+      .post(`/api/apertura/planificacion/${ID}/confirmar`)
+      .set('Cookie', cookie())
+      .expect(403);
+    expect(planRepo.confirmarSemana).not.toHaveBeenCalled();
+  });
+
+  it('confirmar con un id que no es uuid responde 400', async () => {
+    await request(app)
+      .post('/api/apertura/planificacion/abc/confirmar')
+      .set('Cookie', cookieConPermisos(['turno.planificar']))
+      .expect(400);
+    expect(planRepo.confirmarSemana).not.toHaveBeenCalled();
+  });
+
+  it('confirmar devuelve la planificación confirmada de la sucursal de trabajo', async () => {
+    planRepo.confirmarSemana.mockResolvedValue('2026-11-09');
+    planRepo.deSemana.mockResolvedValue({ id: ID, estado: 'CONFIRMADA' });
+    const res = await request(app)
+      .post(`/api/apertura/planificacion/${ID}/confirmar`)
+      .set('Cookie', cookieConPermisos(['turno.planificar']))
+      .expect(200);
+    expect(res.body).toMatchObject({ id: ID, estado: 'CONFIRMADA' });
+    expect(planRepo.confirmarSemana).toHaveBeenCalledWith(
+      { restauranteId: IDS.restaurante, sucursalId: IDS.centro },
+      ID,
+      expect.any(Date),
+    );
   });
 
   it('GET /configuracion devuelve la configuración', async () => {

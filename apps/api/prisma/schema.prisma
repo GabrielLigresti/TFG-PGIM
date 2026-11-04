@@ -181,6 +181,7 @@ enum TipoAlerta {
   FALTANTE_STOCK_PREVISTO
   FALTANTE_PERSONAL
   CAPACIDAD_MESAS
+  INASISTENCIA
 
   @@map("tipo_alerta")
 }

@@ -13,13 +13,15 @@ import {
   configuracionAperturaSchema,
   type AsistenteApertura,
   type ConfiguracionApertura,
-  type Franja,
+  type PlanificacionSemana,
   type PronosticoFranja,
 } from '@pgim/shared';
+import { useSesion } from '../../auth/SesionProvider';
 import {
   Aviso,
   Boton,
   Campo,
+  Estado,
   Etiqueta,
   EncabezadoPagina,
   EstadoCarga,
@@ -31,29 +33,20 @@ import {
   propsDecimal,
 } from '../../components/ui';
 import type { Tono } from '../../lib/estados';
-import { api } from '../../lib/api';
+import { ApiError, api } from '../../lib/api';
 import { aNumero, formatoPesosEnteros, sumarDias } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
-
-const NOMBRE_FRANJA: Record<Franja, string> = { ALMUERZO: 'Almuerzo', CENA: 'Cena' };
-const ORDEN_FRANJA: Franja[] = ['ALMUERZO', 'CENA'];
-const DIAS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
-
-// "AAAA-MM-DD" → índice de día de la semana, sin zona horaria (0 = domingo).
-function diaDeSemana(fecha: string): number {
-  const [a, m, d] = fecha.split('-').map(Number) as [number, number, number];
-  return new Date(Date.UTC(a, m - 1, d)).getUTCDay();
-}
-
-const diaMes = (fecha: string) => fecha.slice(8, 10) + '/' + fecha.slice(5, 7);
-const nombreDia = (fecha: string) => DIAS[diaDeSemana(fecha)]!;
-const diaLargo = (fecha: string) => `${nombreDia(fecha)} ${diaMes(fecha)}`;
-const diaCorto = (fecha: string) => `${nombreDia(fecha).slice(0, 3)} ${diaMes(fecha)}`;
-const diaMinuscula = (fecha: string) =>
-  `${nombreDia(fecha).slice(0, 3).toLowerCase()} ${diaMes(fecha)}`;
-
-const clave = (p: { fecha: string; franja: Franja }) => `${p.fecha}|${p.franja}`;
+import { AlertasSemana } from './apertura/AlertasSemana';
+import { GrillaTurnos, cantidadFaltantes } from './apertura/GrillaTurnos';
+import {
+  NOMBRE_FRANJA,
+  ORDEN_FRANJA,
+  clave,
+  diaCorto,
+  diaLargo,
+  diaMinuscula,
+} from './apertura/semana';
 
 const cubiertos = (n: number) => `${n} ${n === 1 ? 'cubierto' : 'cubiertos'}`;
 const porciones = (n: number) => `${n} ${n === 1 ? 'porción' : 'porciones'}`;
@@ -76,15 +69,35 @@ export function AperturaPage() {
   const recurso = useRecurso<AsistenteApertura>('/apertura/pronostico');
   const [configurando, setConfigurando] = useState(false);
   const [regenerando, setRegenerando] = useState(false);
+  const [confirmando, setConfirmando] = useState(false);
+  const { sesion } = useSesion();
+  const puedePlanificar = sesion?.permisos.includes('turno.planificar') ?? false;
   const [aviso, setAviso] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState<AsistenteApertura | null>(null);
   const asistente = nuevo ?? recurso.datos;
 
   const suficiente = asistente?.progreso.suficiente ?? false;
   const fin = asistente ? sumarDias(asistente.semanaDesde, 6) : null;
+  const plan = asistente?.planificacion ?? null;
+  // Con la semana confirmada la pantalla queda en modo lectura.
+  const editable = puedePlanificar && suficiente && plan?.estado !== 'CONFIRMADA';
+  const confirmada = plan?.estado === 'CONFIRMADA';
+
+  // Otra sesión confirmó o regeneró la semana (409) o la planificación ya no
+  // existe (404): se cierra el modal y se recarga lo vigente.
+  async function alCambiarLaSemana() {
+    setConfirmando(false);
+    setRegenerando(false);
+    try {
+      setNuevo(await api<AsistenteApertura>('/apertura/pronostico'));
+    } catch {
+      recurso.recargar();
+    }
+    setAviso('La semana cambió. Revisala antes de confirmar.');
+  }
 
   return (
-    <section>
+    <section className={editable && plan ? 'pb-24 md:pb-0' : undefined}>
       <EncabezadoPagina
         titulo="Asistente de apertura"
         descripcion={
@@ -93,15 +106,22 @@ export function AperturaPage() {
             : 'Pronóstico de la semana siguiente'
         }
         accion={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {plan && suficiente && <Estado entidad="planificacion" valor={plan.estado} />}
             <Boton variante="secundario" onClick={() => setConfigurando(true)}>
               <Settings2 aria-hidden className="size-4" />
               Configuración
             </Boton>
-            {suficiente && (
-              <Boton variante="tonal" onClick={() => setRegenerando(true)}>
+            {editable && (
+              <Boton variante="secundario" onClick={() => setRegenerando(true)}>
                 <RefreshCw aria-hidden className="size-4" />
                 Regenerar
+              </Boton>
+            )}
+            {editable && plan && (
+              <Boton className="max-md:hidden" onClick={() => setConfirmando(true)}>
+                <Check aria-hidden className="size-4" />
+                Confirmar turnos
               </Boton>
             )}
           </div>
@@ -116,12 +136,34 @@ export function AperturaPage() {
           <Aviso tono="ok">{aviso}</Aviso>
         </div>
       )}
-      {asistente && !suficiente && <Progreso asistente={asistente} />}
-      {asistente && suficiente && <Pronostico asistente={asistente} />}
+      {asistente && !suficiente && !plan && <Progreso asistente={asistente} />}
+      {asistente && (suficiente || plan) && <Pronostico asistente={asistente} />}
+      {editable && plan && (
+        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface p-3 md:hidden">
+          <Boton densidad="comensal" className="w-full" onClick={() => setConfirmando(true)}>
+            <Check aria-hidden className="size-4" />
+            Confirmar turnos
+          </Boton>
+        </div>
+      )}
+
+      {confirmando && plan && (
+        <ModalConfirmar
+          plan={plan}
+          onCerrar={() => setConfirmando(false)}
+          onCambio={() => void alCambiarLaSemana()}
+          onConfirmada={(datos) => {
+            setNuevo(datos);
+            setAviso('Turnos confirmados.');
+            setConfirmando(false);
+          }}
+        />
+      )}
 
       {regenerando && (
         <ModalRegenerar
           onCerrar={() => setRegenerando(false)}
+          onCambio={() => void alCambiarLaSemana()}
           onRegenerado={(datos) => {
             setNuevo(datos);
             setAviso(null);
@@ -131,6 +173,7 @@ export function AperturaPage() {
       )}
       {configurando && (
         <ModalConfiguracion
+          confirmada={confirmada}
           onCerrar={() => setConfigurando(false)}
           onGuardado={(minimoCambio) => {
             setConfigurando(false);
@@ -186,7 +229,7 @@ function Progreso({ asistente }: { asistente: AsistenteApertura }) {
 }
 
 function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
-  const { pronosticos, semanaDesde } = asistente;
+  const { pronosticos, semanaDesde, planificacion } = asistente;
   const [elegida, setElegida] = useState<string | null>(null);
 
   if (pronosticos.length === 0) {
@@ -229,6 +272,8 @@ function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
           detalle={cubiertos(diaMayor.total)}
         />
       </div>
+
+      {planificacion && <AlertasSemana planificacion={planificacion} />}
 
       <div className="grid gap-4">
         <div className="min-w-0">
@@ -320,6 +365,8 @@ function Pronostico({ asistente }: { asistente: AsistenteApertura }) {
 
         <Detalle p={seleccionada} />
       </div>
+
+      {planificacion && <GrillaTurnos plan={planificacion} fechas={fechas} franjas={franjas} />}
     </div>
   );
 }
@@ -427,23 +474,36 @@ function Detalle({ p }: { p: PronosticoFranja }) {
 
 function ModalRegenerar({
   onCerrar,
+  onCambio,
   onRegenerado,
 }: {
   onCerrar(): void;
+  onCambio(): void;
   onRegenerado(datos: AsistenteApertura): void;
 }) {
-  const { enviar, enviando, error } = useGuardar();
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function confirmar() {
-    const r = await enviar<AsistenteApertura>('/apertura/pronostico/regenerar', 'POST');
-    if (r) onRegenerado(r.datos);
+    setEnviando(true);
+    setError(null);
+    try {
+      onRegenerado(
+        await api<AsistenteApertura>('/apertura/pronostico/regenerar', { method: 'POST' }),
+      );
+    } catch (e) {
+      // 409: otra sesión ya confirmó la semana, que ya no se puede regenerar.
+      if (e instanceof ApiError && e.status === 409) onCambio();
+      else setError(e instanceof ApiError ? e.message : 'No se pudo regenerar');
+      setEnviando(false);
+    }
   }
 
   return (
-    <Modal titulo="¿Regenerar el pronóstico?" onCerrar={onCerrar} ancho="max-w-md">
+    <Modal titulo="¿Regenerar la semana?" onCerrar={onCerrar} ancho="max-w-md">
       <p className="text-sm text-text">
-        Se vuelve a calcular la semana con el historial y la configuración actuales, y se reemplaza
-        el pronóstico guardado.
+        Se vuelve a calcular el pronóstico con el historial y la configuración actuales, y se
+        rehacen los turnos y las alertas de la semana. Lo que había quedado guardado se reemplaza.
       </p>
       <div className="mt-3">
         <Aviso>{error}</Aviso>
@@ -460,12 +520,79 @@ function ModalRegenerar({
   );
 }
 
+function ModalConfirmar({
+  plan,
+  onCerrar,
+  onCambio,
+  onConfirmada,
+}: {
+  plan: PlanificacionSemana;
+  onCerrar(): void;
+  onCambio(): void;
+  onConfirmada(datos: AsistenteApertura): void;
+}) {
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const faltan = cantidadFaltantes(plan);
+
+  async function confirmar() {
+    setEnviando(true);
+    setError(null);
+    try {
+      await api(`/apertura/planificacion/${plan.id}/confirmar`, { method: 'POST' });
+    } catch (e) {
+      // 404: otra sesión regeneró la semana y esta planificación ya no existe;
+      // 409: otra sesión la confirmó. En los dos casos hay que revisar lo vigente.
+      if (e instanceof ApiError && (e.status === 404 || e.status === 409)) {
+        onCambio();
+      } else {
+        setError(e instanceof ApiError ? e.message : 'No se pudo confirmar');
+        setEnviando(false);
+      }
+      return;
+    }
+    try {
+      onConfirmada(await api<AsistenteApertura>('/apertura/pronostico'));
+    } catch {
+      onCerrar();
+    }
+    setEnviando(false);
+  }
+
+  return (
+    <Modal titulo="¿Confirmar los turnos?" onCerrar={onCerrar} ancho="max-w-md">
+      <p className="text-sm text-text">
+        Los empleados asignados van a ver sus turnos de la semana. Después de confirmar no se pueden
+        regenerar.
+      </p>
+      {faltan > 0 && (
+        <p className="mt-2 text-sm font-semibold text-warn">
+          Todavía falta cubrir {faltan} {faltan === 1 ? 'puesto' : 'puestos'}.
+        </p>
+      )}
+      <div className="mt-3">
+        <Aviso>{error}</Aviso>
+      </div>
+      <div className="mt-4 flex justify-end gap-2">
+        <Boton variante="secundario" onClick={onCerrar} disabled={enviando}>
+          Cancelar
+        </Boton>
+        <Boton onClick={() => void confirmar()} disabled={enviando}>
+          {enviando ? 'Confirmando…' : 'Confirmar turnos'}
+        </Boton>
+      </div>
+    </Modal>
+  );
+}
+
 type CampoConfiguracion = keyof ConfiguracionApertura;
 
 function ModalConfiguracion({
+  confirmada,
   onCerrar,
   onGuardado,
 }: {
+  confirmada: boolean;
   onCerrar(): void;
   onGuardado(minimoCambio: boolean): void;
 }) {
@@ -475,6 +602,7 @@ function ModalConfiguracion({
       <EstadoCarga cargando={config.cargando && !config.datos} error={config.error} />
       {config.datos && (
         <FormularioConfiguracion
+          confirmada={confirmada}
           inicial={config.datos}
           onCerrar={onCerrar}
           onGuardado={onGuardado}
@@ -485,10 +613,12 @@ function ModalConfiguracion({
 }
 
 function FormularioConfiguracion({
+  confirmada,
   inicial,
   onCerrar,
   onGuardado,
 }: {
+  confirmada: boolean;
   inicial: ConfiguracionApertura;
   onCerrar(): void;
   onGuardado(minimoCambio: boolean): void;
@@ -527,6 +657,11 @@ function FormularioConfiguracion({
 
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-4">
+      {confirmada && (
+        <p className="text-sm text-meta">
+          Los cambios se aplican desde la próxima semana planificada; esta ya está confirmada.
+        </p>
+      )}
       <Campo
         etiqueta="Semanas mínimas de historial"
         ayuda="Entre 5 y 52. Con menos semanas de reservas atendidas no se pronostica."

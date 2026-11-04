@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BellOff, CircleAlert, TriangleAlert } from 'lucide-react';
-import { EVENTOS_SOCKET, type AlertaPanel } from '@pgim/shared';
+import { EVENTOS_SOCKET, tiposAlertaVisibles, type AlertaPanel } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { useAvisos } from '../../components/AvisoEmergente';
 import { Aviso, Boton, EncabezadoPagina, EstadoCarga, Vacio } from '../../components/ui';
@@ -15,20 +15,31 @@ const SEVERIDAD = {
   INFO: { icono: CircleAlert, clase: 'text-meta', texto: 'Aviso' },
 } as const;
 
-// Alertas de stock de la sucursal de trabajo: pedidos rechazados por falta de
-// un insumo y platos que se pidieron sin receta. Llegan en vivo.
+const CONTEXTO: Record<AlertaPanel['tipo'], string> = {
+  STOCK_INSUFICIENTE: 'Se rechazó un pedido por falta de stock',
+  PLATO_SIN_RECETA: 'El pedido se confirmó sin descontar stock',
+  INASISTENCIA: 'Reserva vencida',
+};
+
+// Alertas de la sucursal de trabajo: pedidos rechazados por falta de un
+// insumo, platos que se pidieron sin receta (con stock.registrar) y reservas a
+// las que el comensal no llegó (con reserva.ver). Llegan en vivo.
 export function AlertasPage() {
   const { sesion } = useSesion();
   const { avisar } = useAvisos();
   const recurso = useRecurso<AlertaPanel[]>('/alertas');
   const [alertas, setAlertas] = useState<AlertaPanel[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const tipos = tiposAlertaVisibles(sesion?.permisos ?? []);
+  const veStock = tipos.includes('STOCK_INSUFICIENTE');
+  const veInasistencias = tipos.includes('INASISTENCIA');
 
   useEffect(() => {
     if (recurso.datos) setAlertas(recurso.datos);
   }, [recurso.datos]);
 
   useEventoSocket<AlertaPanel>(EVENTOS_SOCKET.alertaNueva, (alerta) => {
+    if (!tipos.includes(alerta.tipo)) return;
     setAlertas((lista) => (lista.some((a) => a.id === alerta.id) ? lista : [alerta, ...lista]));
     avisar(alerta.descripcion);
   });
@@ -47,7 +58,13 @@ export function AlertasPage() {
     <section>
       <EncabezadoPagina
         titulo="Alertas"
-        descripcion={`Faltantes de stock y platos sin receta en ${sesion?.sucursalActiva?.nombre ?? 'la sucursal'}.`}
+        descripcion={`${
+          veStock && veInasistencias
+            ? 'Faltantes de stock, platos sin receta e inasistencias'
+            : veStock
+              ? 'Faltantes de stock y platos sin receta'
+              : 'Reservas a las que el comensal no llegó'
+        } en ${sesion?.sucursalActiva?.nombre ?? 'la sucursal'}.`}
       />
       <EstadoCarga cargando={recurso.cargando && !recurso.datos} error={recurso.error} />
       <div className="mb-3">
@@ -56,8 +73,14 @@ export function AlertasPage() {
       {recurso.datos && alertas.length === 0 && (
         <Vacio
           icono={BellOff}
-          titulo="No hay alertas de stock."
-          texto="Si un pedido no se puede confirmar por falta de un insumo, o se pide un plato sin receta, aparece acá."
+          titulo={veStock ? 'No hay alertas.' : 'No hay inasistencias.'}
+          texto={
+            veStock && veInasistencias
+              ? 'Si un pedido no se puede confirmar por falta de un insumo, se pide un plato sin receta o un comensal no llega a su reserva, aparece acá.'
+              : veStock
+                ? 'Si un pedido no se puede confirmar por falta de un insumo, o se pide un plato sin receta, aparece acá.'
+                : 'Si un comensal no llega a su reserva, aparece acá.'
+          }
         />
       )}
       {alertas.length > 0 && (
@@ -73,10 +96,7 @@ export function AlertasPage() {
                     {a.descripcion}
                   </p>
                   <p className="text-sm text-meta">
-                    {a.tipo === 'STOCK_INSUFICIENTE'
-                      ? 'Se rechazó un pedido por falta de stock'
-                      : 'El pedido se confirmó sin descontar stock'}{' '}
-                    · {formatoHora(a.creadaEn)} h
+                    {CONTEXTO[a.tipo]} · {formatoHora(a.creadaEn)} h
                   </p>
                 </div>
                 <Boton variante="tonal" onClick={() => void resolver(a)}>

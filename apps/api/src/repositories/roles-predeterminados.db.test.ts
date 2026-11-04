@@ -33,6 +33,14 @@ describe('crearRolesPredeterminados', () => {
     }
   });
 
+  it('los roles que reciben turnos en la planificación pueden verlos', () => {
+    const conTurnos = ROLES_PREDETERMINADOS.filter((r) =>
+      ['MOZO', 'COCINERO'].includes(r.arquetipo),
+    );
+    expect(conTurnos.length).toBeGreaterThan(0);
+    for (const rol of conTurnos) expect(rol.permisos).toContain('turno.ver');
+  });
+
   it('es idempotente: repetirla no duplica roles ni permisos', async () => {
     await cargarCatalogo();
     const { id: restauranteId } = await nuevoRestaurante();

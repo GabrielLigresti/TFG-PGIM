@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import { emailSchema, passwordSchema } from './auth';
 import { nombreSchema } from './comun';
+import type { Severidad } from './alerta';
+import type { Arquetipo } from './permisos';
 import { sucursalRegistroSchema, type Franja } from './sucursal';
 
 // Debe coincidir con el enum MetodoPronostico de Prisma.
@@ -70,8 +72,64 @@ export interface PronosticoFranja {
   demanda: { itemMenuId: string; nombre: string; cantidad: number }[];
 }
 
+// Tipos de alerta que genera el simulador de apertura; coinciden con los
+// valores de TipoAlerta de Prisma.
+export type TipoAlertaSimulador =
+  'FALTANTE_STOCK_PREVISTO' | 'CAPACIDAD_MESAS' | 'FALTANTE_PERSONAL';
+
+// Debe coincidir con el enum EstadoPlanificacion de Prisma.
+export type EstadoPlanificacion = 'BORRADOR' | 'CONFIRMADA';
+
+export interface AlertaSimulador {
+  id: string;
+  tipo: TipoAlertaSimulador;
+  severidad: Severidad;
+  descripcion: string;
+  fecha: string | null; // AAAA-MM-DD
+  franja: Franja | null;
+  arquetipo: Arquetipo | null;
+  cantidad: number | null;
+}
+
+export interface TurnoPlanificado {
+  fecha: string; // AAAA-MM-DD
+  franja: Franja;
+  empleadoId: string;
+  nombre: string;
+  arquetipo: Arquetipo;
+}
+
+export interface DotacionFranja {
+  fecha: string; // AAAA-MM-DD
+  franja: Franja;
+  arquetipo: 'MOZO' | 'COCINERO';
+  cantidad: number;
+}
+
+export interface PlanificacionSemana {
+  id: string;
+  estado: EstadoPlanificacion;
+  semanaDesde: string; // AAAA-MM-DD
+  generadaEn: string;
+  confirmadaEn: string | null;
+  turnos: TurnoPlanificado[];
+  alertas: AlertaSimulador[];
+  dotacion: DotacionFranja[];
+}
+
 export interface AsistenteApertura {
   semanaDesde: string; // AAAA-MM-DD
   progreso: ProgresoDatos;
   pronosticos: PronosticoFranja[];
+  // null si el historial no alcanza todavía.
+  planificacion: PlanificacionSemana | null;
+}
+
+// Un turno confirmado del empleado, con el horario de su franja en la sucursal.
+export interface MiTurno {
+  fecha: string; // AAAA-MM-DD
+  franja: Franja;
+  sucursal: string;
+  horaInicio: string; // HH:mm; vacío si la franja ya no tiene horario
+  horaFin: string; // HH:mm
 }
