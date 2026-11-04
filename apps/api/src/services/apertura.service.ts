@@ -7,6 +7,7 @@ import type {
 import { busEventos, type BusEventos } from '../domain/eventos';
 import { horasDeFranja } from '../domain/capacidad';
 import { pronosticarSemana, servicioDeReserva } from '../domain/pronostico';
+import { estadoDePlanificacion } from '../domain/planificacion';
 import { asignacionGolosaBalanceada, calcularDotacion, faltantes } from '../domain/turnos';
 import {
   crearVerificadorMesas,
@@ -106,7 +107,7 @@ export function createAperturaService(
     existente?: PlanificacionSemana | null,
   ): Promise<AsistenteApertura> {
     const progreso = fresco ?? progresoAfuera;
-    if (!progreso.suficiente)
+    if (!progreso.suficiente && !existente)
       return { semanaDesde, progreso, pronosticos: [], planificacion: null };
     const pronosticos = await repo.pronosticosDeSemana(t.restauranteId, t.sucursalId, semanaDesde);
     const planificacion = existente ?? (await plan.deSemana(t, semanaDesde));
@@ -120,27 +121,31 @@ export function createAperturaService(
       const config = await configuracionDe(t);
       const historial = await repo.historial(t.restauranteId, t.sucursalId);
       const { semanaDesde, progreso } = pronosticarSemana(historial, config, ahora);
+
+      // Una semana ya planificada se devuelve aunque el historial ya no alcance
+      // (los datos de la semana quedaron guardados).
+      const existente = await plan.deSemana(t, semanaDesde);
+      if (existente) return responder(t, semanaDesde, progreso, undefined, existente);
       if (!progreso.suficiente) {
         return { semanaDesde, progreso, pronosticos: [], planificacion: null };
       }
-
-      const existente = await plan.deSemana(t, semanaDesde);
-      if (existente) return responder(t, semanaDesde, progreso, undefined, existente);
 
       const { fases, ultimo } = fasesDe(t, semanaDesde, ahora);
       await plan.planificar(t, semanaDesde, fases);
       return responder(t, semanaDesde, progreso, ultimo.progreso);
     },
 
-    // Con historial insuficiente no escribe y responde el progreso (200, sin
-    // pronósticos), igual que el GET: la pantalla ya sabe mostrarlo. Una semana
-    // confirmada se rechaza con 409 dentro del lock.
+    // Una semana confirmada se rechaza con 409 aunque el historial ya no alcance
+    // (y de nuevo dentro del lock). Con historial insuficiente no escribe y
+    // responde como el GET: el progreso, o la planificación en borrador si la hay.
     async regenerar(t: TenantSucursal, ahora: Date): Promise<AsistenteApertura> {
       const config = await configuracionDe(t);
       const historial = await repo.historial(t.restauranteId, t.sucursalId);
       const { semanaDesde, progreso } = pronosticarSemana(historial, config, ahora);
+      const existente = await plan.deSemana(t, semanaDesde);
+      if (existente) estadoDePlanificacion(existente.estado).regenerar();
       if (!progreso.suficiente) {
-        return { semanaDesde, progreso, pronosticos: [], planificacion: null };
+        return responder(t, semanaDesde, progreso, undefined, existente);
       }
 
       const { fases, ultimo } = fasesDe(t, semanaDesde, ahora);
@@ -148,15 +153,17 @@ export function createAperturaService(
       return responder(t, semanaDesde, progreso, ultimo.progreso);
     },
 
-    // El aviso a la sucursal sale después del commit: si el repositorio falla, no se publica.
+    // El aviso a la sucursal sale apenas se hace el commit, antes de releer la
+    // planificación: si el commit falla no se publica, y si falla la relectura
+    // el aviso ya salió (la semana quedó confirmada igual).
     async confirmar(t: TenantSucursal, id: string, ahora: Date): Promise<PlanificacionSemana> {
-      const confirmada = await plan.confirmar(t, id, ahora);
+      const semanaDesde = await plan.confirmarSemana(t, id, ahora);
       bus.publicar({
         tipo: 'PLANIFICACION_CONFIRMADA',
         sucursalId: t.sucursalId,
         planificacionId: id,
       });
-      return confirmada;
+      return (await plan.deSemana(t, semanaDesde))!;
     },
 
     obtenerConfiguracion: (t: TenantSucursal) => configuracionDe(t),

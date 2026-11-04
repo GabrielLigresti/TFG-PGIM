@@ -53,6 +53,7 @@ function planFalso() {
     planificar: jest.fn().mockResolvedValue(true),
     reemplazarYPlanificar: jest.fn().mockResolvedValue(true),
     confirmar: jest.fn().mockResolvedValue({ ...PLAN, estado: 'CONFIRMADA' }),
+    confirmarSemana: jest.fn().mockResolvedValue(SEMANA),
     deSemana: jest.fn().mockResolvedValue(null),
     turnosDe: jest.fn(),
     contexto: jest.fn(),
@@ -96,7 +97,18 @@ describe('aperturaService', () => {
       planificacion: null,
     });
     expect(plan.planificar).not.toHaveBeenCalled();
-    expect(plan.deSemana).not.toHaveBeenCalled();
+  });
+
+  it('una semana ya planificada se devuelve con sus pronósticos aunque el historial no alcance', async () => {
+    const repo = repoFalso(INSUFICIENTE);
+    repo.pronosticosDeSemana.mockResolvedValue([{ fecha: SEMANA }]);
+    const { servicio, plan } = armar(repo);
+    plan.deSemana.mockResolvedValue(PLAN);
+    const res = await servicio.obtenerAsistente(T, AHORA);
+    expect(res.progreso.suficiente).toBe(false);
+    expect(res.pronosticos).toEqual([{ fecha: SEMANA }]);
+    expect(res.planificacion).toEqual(PLAN);
+    expect(plan.planificar).not.toHaveBeenCalled();
   });
 
   it('con historial suficiente planifica si falta y devuelve pronósticos y planificación', async () => {
@@ -248,6 +260,13 @@ describe('aperturaService', () => {
     expect(plan.reemplazarYPlanificar).not.toHaveBeenCalled();
   });
 
+  it('regenerar sobre una semana confirmada responde 409 aunque el historial no alcance', async () => {
+    const { servicio, plan } = armar(repoFalso(INSUFICIENTE));
+    plan.deSemana.mockResolvedValue({ ...PLAN, estado: 'CONFIRMADA' });
+    await expect(servicio.regenerar(T, AHORA)).rejects.toMatchObject({ status: 409 });
+    expect(plan.reemplazarYPlanificar).not.toHaveBeenCalled();
+  });
+
   it('regenerar propaga el 409 de una planificación confirmada', async () => {
     const { servicio, plan } = armar(repoFalso(SUFICIENTE));
     plan.reemplazarYPlanificar.mockRejectedValue(Object.assign(new Error('x'), { status: 409 }));
@@ -255,16 +274,17 @@ describe('aperturaService', () => {
   });
 
   describe('confirmar', () => {
-    it('publica PLANIFICACION_CONFIRMADA después de que el repositorio resolvió', async () => {
+    it('publica PLANIFICACION_CONFIRMADA apenas se hace el commit, antes de releer', async () => {
       const { servicio, plan, bus } = armar(repoFalso(SUFICIENTE));
-      let resolver!: (p: PlanificacionSemana) => void;
-      plan.confirmar.mockReturnValue(new Promise((r) => (resolver = r)));
+      let resolver!: (semana: string) => void;
+      plan.confirmarSemana.mockReturnValue(new Promise((r) => (resolver = r)));
+      plan.deSemana.mockResolvedValue({ ...PLAN, estado: 'CONFIRMADA' });
       const promesa = servicio.confirmar(T, 'pl1', AHORA);
       await Promise.resolve();
       expect(bus.publicar).not.toHaveBeenCalled();
-      resolver({ ...PLAN, estado: 'CONFIRMADA' });
+      resolver(SEMANA);
       const res = await promesa;
-      expect(plan.confirmar).toHaveBeenCalledWith(T, 'pl1', AHORA);
+      expect(plan.confirmarSemana).toHaveBeenCalledWith(T, 'pl1', AHORA);
       expect(bus.publicar).toHaveBeenCalledWith({
         tipo: 'PLANIFICACION_CONFIRMADA',
         sucursalId: 's1',
@@ -273,9 +293,16 @@ describe('aperturaService', () => {
       expect(res.estado).toBe('CONFIRMADA');
     });
 
-    it('si el repositorio falla, no publica', async () => {
+    it('si falla la relectura, el aviso ya salió', async () => {
       const { servicio, plan, bus } = armar(repoFalso(SUFICIENTE));
-      plan.confirmar.mockRejectedValue(Object.assign(new Error('x'), { status: 409 }));
+      plan.deSemana.mockRejectedValue(new Error('base caída'));
+      await expect(servicio.confirmar(T, 'pl1', AHORA)).rejects.toThrow('base caída');
+      expect(bus.publicar).toHaveBeenCalledTimes(1);
+    });
+
+    it('si el commit falla, no publica', async () => {
+      const { servicio, plan, bus } = armar(repoFalso(SUFICIENTE));
+      plan.confirmarSemana.mockRejectedValue(Object.assign(new Error('x'), { status: 409 }));
       await expect(servicio.confirmar(T, 'pl1', AHORA)).rejects.toMatchObject({ status: 409 });
       expect(bus.publicar).not.toHaveBeenCalled();
     });

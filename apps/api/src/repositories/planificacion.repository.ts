@@ -77,6 +77,9 @@ export interface PlanificacionRepository {
   ): Promise<boolean>;
   // 404 si no existe en la sucursal, 409 si ya estaba confirmada.
   confirmar(tenant: TenantSucursal, id: string, ahora: Date): Promise<PlanificacionSemana>;
+  // Solo el commit de la confirmación: devuelve la semana confirmada, sin releerla.
+  // Permite avisar apenas se confirma, aunque después falle la lectura.
+  confirmarSemana(tenant: TenantSucursal, id: string, ahora: Date): Promise<string>;
   deSemana(tenant: TenantSucursal, semanaDesde: string): Promise<PlanificacionSemana | null>;
   contexto(
     tenant: TenantSucursal,
@@ -261,7 +264,12 @@ export const planificacionRepository: PlanificacionRepository = {
     ejecutar(tenant, semanaDesde, fases, 'reemplazar'),
 
   async confirmar(tenant, id, ahora) {
-    const semanaDesde = await prisma.$transaction(
+    const semanaDesde = await planificacionRepository.confirmarSemana(tenant, id, ahora);
+    return (await planificacionRepository.deSemana(tenant, semanaDesde))!;
+  },
+
+  async confirmarSemana(tenant, id, ahora) {
+    return prisma.$transaction(
       async (tx) => {
         await bloquearSucursal(tx, 'apertura', tenant.sucursalId);
         const plan = await tx.planificacionTurnos.findFirst({
@@ -283,7 +291,6 @@ export const planificacionRepository: PlanificacionRepository = {
       },
       { timeout: TIMEOUT_TX_MS },
     );
-    return (await planificacionRepository.deSemana(tenant, semanaDesde))!;
   },
 
   async deSemana({ restauranteId, sucursalId }, semanaDesde) {
