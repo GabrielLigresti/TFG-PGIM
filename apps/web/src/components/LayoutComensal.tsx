@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 import type { MiMesa } from '@pgim/shared';
-import { CalendarDays, ChevronLeft, House, LogOut, Receipt, Star } from 'lucide-react';
+import { CalendarDays, ChevronLeft, House, LogOut, Receipt, Star, UserRound } from 'lucide-react';
 import { rutaInicio, useSesion } from '../auth/SesionProvider';
 import { useMiMesa } from '../lib/miMesa';
 
@@ -69,14 +69,23 @@ export function LayoutComensal({
               Ingresar
             </Link>
           ) : esComensal ? (
-            <button
-              type="button"
-              onClick={logout}
-              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-control px-2 text-sm text-meta hover:bg-panel hover:text-text"
-            >
-              <LogOut aria-hidden className="size-4" />
-              Salir
-            </button>
+            <div className="flex shrink-0 items-center">
+              <Link
+                to="/cuenta"
+                aria-label="Mi cuenta"
+                className="inline-flex size-11 items-center justify-center rounded-control text-meta hover:bg-panel hover:text-text"
+              >
+                <UserRound aria-hidden className="size-5" />
+              </Link>
+              <button
+                type="button"
+                onClick={logout}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-control px-2 text-sm text-meta hover:bg-panel hover:text-text"
+              >
+                <LogOut aria-hidden className="size-4" />
+                Salir
+              </button>
+            </div>
           ) : (
             <Link
               to={rutaInicio(sesion)}
