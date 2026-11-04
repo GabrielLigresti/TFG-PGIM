@@ -92,6 +92,18 @@ describe('notificadores', () => {
     expect(emit).toHaveBeenCalledWith('alerta:nueva', alerta);
   });
 
+  it('confirmar la planificación avisa a la sala de la sucursal, sin datos', () => {
+    const { io, emit } = ioFalso();
+    const bus = crearBusEventos();
+    registrarNotificadores(io as never, bus);
+
+    bus.publicar({ tipo: 'PLANIFICACION_CONFIRMADA', sucursalId: 'S', planificacionId: 'PL' });
+
+    expect(io.to).toHaveBeenCalledTimes(1);
+    expect(io.to).toHaveBeenCalledWith('sucursal:S');
+    expect(emit).toHaveBeenCalledWith('turnos:publicados');
+  });
+
   it('el cierre de la mesa avisa al titular', () => {
     const { io, emit } = ioFalso();
     const bus = crearBusEventos();

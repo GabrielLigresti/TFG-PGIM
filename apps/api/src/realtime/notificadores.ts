@@ -75,6 +75,10 @@ export function registrarNotificadores(io: Pick<Server, 'to'>, bus: BusEventos):
       case 'ALERTA_CREADA':
         io.to(salaPersonal(evento.sucursalId)).emit(EVENTOS_SOCKET.alertaNueva, evento.alerta);
         break;
+      // Aviso a toda la sucursal, sin datos: cada empleado consulta sus turnos.
+      case 'PLANIFICACION_CONFIRMADA':
+        io.to(salaSucursal(evento.sucursalId)).emit(EVENTOS_SOCKET.turnosPublicados);
+        break;
     }
   });
 
