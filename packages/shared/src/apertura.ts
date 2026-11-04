@@ -75,3 +75,8 @@ export interface AsistenteApertura {
   progreso: ProgresoDatos;
   pronosticos: PronosticoFranja[];
 }
+
+// Tipos de alerta que genera el simulador de apertura; coinciden con los
+// valores de TipoAlerta de Prisma.
+export type TipoAlertaSimulador =
+  'FALTANTE_STOCK_PREVISTO' | 'CAPACIDAD_MESAS' | 'FALTANTE_PERSONAL';
