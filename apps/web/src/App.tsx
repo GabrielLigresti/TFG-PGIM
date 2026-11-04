@@ -22,6 +22,7 @@ import { ReservarPage } from './pages/comensal/ReservarPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
 import { BeneficiosPage } from './pages/panel/BeneficiosPage';
 import { ProgramaPuntosPage } from './pages/panel/ProgramaPuntosPage';
+import { MisTurnosPage } from './pages/panel/MisTurnosPage';
 import { AperturaPage } from './pages/panel/AperturaPage';
 import { AlertasPage } from './pages/panel/AlertasPage';
 import { CocinaPage } from './pages/panel/CocinaPage';
@@ -94,6 +95,7 @@ export default function App() {
                     path="apertura"
                     element={conPermiso('apertura.consultar', <AperturaPage />)}
                   />
+                  <Route path="mis-turnos" element={conPermiso('turno.ver', <MisTurnosPage />)} />
                   <Route
                     path="alertas"
                     element={conAlgunPermiso(['stock.registrar', 'reserva.ver'], <AlertasPage />)}

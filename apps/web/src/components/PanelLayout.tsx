@@ -4,6 +4,7 @@ import {
   BookOpen,
   Boxes,
   CalendarDays,
+  CalendarClock,
   CalendarRange,
   ChefHat,
   Gift,
@@ -39,6 +40,14 @@ const GRUPOS: GrupoPanel[] = ['Operación', 'Menú', 'Stock', 'Gestión', 'Anál
 
 // Cada sección se habilita con su permiso de lectura.
 export const SECCIONES: SeccionPanel[] = [
+  {
+    ruta: 'mis-turnos',
+    titulo: 'Mis turnos',
+    descripcion: 'Tus turnos de las semanas confirmadas',
+    permisos: ['turno.ver'],
+    grupo: 'Operación',
+    icono: CalendarClock,
+  },
   {
     ruta: 'salon',
     titulo: 'Salón',
