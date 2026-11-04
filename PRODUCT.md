@@ -43,7 +43,7 @@ Dos diferenciales:
 
 ## Brand Commitments
 
-- En las pantallas del comensal manda la marca del restaurante: su nombre y la sucursal. "PGIM" es un nombre provisorio y solo aparece en el panel del restaurante.
+- La landing pública (`/`, el buscador entre restaurantes) lleva la marca "PGIM" (nombre provisorio). Desde que el comensal entra a una sucursal (carta, plato, reserva, mesa), manda la marca del restaurante: su nombre y la sucursal. En el restaurante, "PGIM" solo aparece en el panel.
 - Voz: clara, directa y amable, como un buen mozo; sin tecnicismos.
 
 ## Evidence on Hand
