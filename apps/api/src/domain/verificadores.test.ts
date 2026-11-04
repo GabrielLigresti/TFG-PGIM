@@ -122,6 +122,42 @@ describe('verificador de stock', () => {
     expect(alerta).toMatchObject({ existenciaId: null, cantidad: 100 });
     expect(alerta!.descripcion).toContain('Harina');
     expect(alerta!.descripcion).toContain('jueves a la noche');
+    expect(alerta!.descripcion).toContain('faltan 100 g para la semana');
+  });
+
+  it('un insumo sin Existencia toma la unidad de su unidad base', () => {
+    const leche = insumo('l', 'Leche', { unidadBase: 'MILILITRO' });
+    const v = crearVerificadorStock({
+      semanaDesde,
+      recetas: new Map([['flan', receta([[leche, 250]])]]),
+      existencias: new Map(),
+    });
+    const [alerta] = v.verificar([
+      pron('p', '2026-11-12', 'CENA', [{ itemMenuId: 'flan', cantidad: 1 }]),
+    ]);
+    expect(alerta!.descripcion).toContain('faltan 250 ml');
+  });
+
+  it('desde 1000 pasa los gramos a kg y los mililitros a l, con hasta un decimal', () => {
+    const casos: [string, 'GRAMO' | 'MILILITRO', number, string, number][] = [
+      ['Harina', 'GRAMO', 27_600, '27,6 kg', 27_600],
+      ['Harina', 'GRAMO', 1000, '1 kg', 1000],
+      ['Harina', 'GRAMO', 999, '999 g', 999],
+      ['Leche', 'MILILITRO', 2_340, '2,3 l', 2_340],
+    ];
+    for (const [nombre, base, cantidad, texto, esperada] of casos) {
+      const componente = insumo('x', nombre, { unidadBase: base });
+      const v = crearVerificadorStock({
+        semanaDesde,
+        recetas: new Map([['plato', receta([[componente, cantidad]])]]),
+        existencias: new Map(),
+      });
+      const [alerta] = v.verificar([
+        pron('p', '2026-11-12', 'CENA', [{ itemMenuId: 'plato', cantidad: 1 }]),
+      ]);
+      expect(alerta!.descripcion).toContain(`faltan ${texto} para la semana`);
+      expect(alerta!.cantidad).toBe(esperada);
+    }
   });
 
   it('un plato sin receta no aporta consumo ni lanza error', () => {

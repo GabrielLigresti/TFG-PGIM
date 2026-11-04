@@ -1,4 +1,10 @@
-import type { Arquetipo, Franja, Severidad, TipoAlertaSimulador } from '@pgim/shared';
+import {
+  ETIQUETA_UNIDAD,
+  type Arquetipo,
+  type Franja,
+  type Severidad,
+  type TipoAlertaSimulador,
+} from '@pgim/shared';
 import { capacidadDeFranja } from './capacidad';
 import { insumosNecesarios, type Componente, type Receta } from './receta';
 
@@ -60,23 +66,33 @@ function diasDesde(desde: string, fecha: string): number {
   );
 }
 
-// Nombres de los componentes de las recetas, para nombrar un insumo que no
-// tiene Existencia en la sucursal.
-function nombresDe(recetas: Map<string, Receta>): Map<string, string> {
-  const nombres = new Map<string, string>();
+// Nombre y unidad de los componentes de las recetas, para describir un insumo
+// que no tiene Existencia en la sucursal.
+function datosDe(recetas: Map<string, Receta>): Map<string, { nombre: string; unidad: string }> {
+  const nombres = new Map<string, { nombre: string; unidad: string }>();
   const visitar = (c: Componente) => {
     if (nombres.has(c.id)) return;
-    nombres.set(c.id, c.nombre);
+    nombres.set(c.id, { nombre: c.nombre, unidad: ETIQUETA_UNIDAD[c.unidadBase] });
     c.receta?.lineas.forEach((l) => visitar(l.componente));
   };
   for (const r of recetas.values()) r.lineas.forEach((l) => visitar(l.componente));
   return nombres;
 }
 
+const numeroLegible = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 1 });
+
+// "27,6 kg": desde 1000 los gramos pasan a kg y los mililitros a l.
+function cantidadLegible(cantidad: number, unidad: string): string {
+  const mayor = unidad === 'g' ? 'kg' : unidad === 'ml' ? 'l' : null;
+  const [valor, etiqueta] =
+    mayor && cantidad >= 1000 ? [cantidad / 1000, mayor] : [cantidad, unidad];
+  return `${numeroLegible.format(valor)}${etiqueta ? ` ${etiqueta}` : ''}`;
+}
+
 export function crearVerificadorStock(c: ContextoStock): Verificador {
   return {
     verificar(pronosticos) {
-      const nombres = nombresDe(c.recetas);
+      const datos = datosDe(c.recetas);
       const acumulado = new Map<string, number>();
       const primera = new Map<string, PronosticoAVerificar>();
       const disponible = (id: string) => c.existencias.get(id)?.cantidad ?? 0;
@@ -97,13 +113,13 @@ export function crearVerificadorStock(c: ContextoStock): Verificador {
       const alertas: AlertaNueva[] = [];
       for (const [id, p] of primera) {
         const existencia = c.existencias.get(id);
-        const nombre = existencia?.nombre ?? nombres.get(id) ?? 'un insumo';
+        const nombre = existencia?.nombre ?? datos.get(id)?.nombre ?? 'un insumo';
+        const unidad = existencia?.unidad ?? datos.get(id)?.unidad ?? '';
         const faltante = Math.ceil(acumulado.get(id)! - disponible(id) - EPSILON);
-        const unidad = existencia?.unidad ? ` ${existencia.unidad}` : '';
         alertas.push({
           tipo: 'FALTANTE_STOCK_PREVISTO',
           severidad: diasDesde(c.semanaDesde, p.fecha) < 2 ? 'CRITICA' : 'ADVERTENCIA',
-          descripcion: `Con el stock de hoy, no alcanza ${nombre} desde el ${momentoLegible(p.fecha, p.franja)}: faltan ${faltante}${unidad} para la semana.`,
+          descripcion: `Con el stock de hoy, no alcanza ${nombre} desde el ${momentoLegible(p.fecha, p.franja)}: faltan ${cantidadLegible(faltante, unidad)} para la semana.`,
           pronosticoId: p.id,
           existenciaId: existencia?.existenciaId ?? null,
           fecha: p.fecha,
