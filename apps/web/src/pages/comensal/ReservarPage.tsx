@@ -9,7 +9,7 @@ import {
   type FranjaDisponible,
   type MapaDeFranja,
   type ReservaComensal,
-  type RestauranteComensal,
+  type ResultadoBusqueda,
 } from '@pgim/shared';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { LeyendaSalon, MapaSalon } from '../../components/MapaSalon';
@@ -32,10 +32,8 @@ export function ReservarPage() {
   const { enviar, enviando, error, setError } = useGuardar();
 
   const base = `/comensal/sucursales/${sucursalId}`;
-  const restaurantes = useRecurso<RestauranteComensal[]>('/comensal/sucursales');
-  const sucursal = restaurantes.datos
-    ?.flatMap((r) => r.sucursales)
-    .find((s) => s.id === sucursalId);
+  const resultados = useRecurso<ResultadoBusqueda[]>('/publico/buscar');
+  const sucursal = resultados.datos?.find((r) => r.sucursal.id === sucursalId)?.sucursal;
   const franjas = useRecurso<FranjaDisponible[]>(
     fecha ? `${base}/franjas?fecha=${fecha}&personas=${personas}` : null,
   );

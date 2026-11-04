@@ -16,7 +16,7 @@ import { useRecurso } from '../../lib/useRecurso';
 export function PlatoPage() {
   const { sucursalId, id } = useParams();
   const { datos, cargando, error } = useRecurso<DetallePlato>(
-    `/comensal/sucursales/${sucursalId}/platos/${id}`,
+    `/publico/sucursales/${sucursalId}/platos/${id}`,
   );
   const plato = datos?.plato;
   const mesa = useMiMesa(sucursalId ?? null).datos;

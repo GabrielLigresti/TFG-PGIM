@@ -13,7 +13,7 @@ import { useRecurso } from '../../lib/useRecurso';
 export function MenuSucursalPage() {
   const { sucursalId } = useParams();
   const { datos, cargando, error } = useRecurso<MenuSucursal>(
-    `/comensal/sucursales/${sucursalId}/menu`,
+    `/publico/sucursales/${sucursalId}/menu`,
   );
   // null = todas las categorías.
   const [categoria, setCategoria] = useState<string | null>(null);
