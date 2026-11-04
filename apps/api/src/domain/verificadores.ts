@@ -130,7 +130,7 @@ export function crearVerificadorMesas(c: ContextoMesas): Verificador {
         alertas.push({
           tipo: 'CAPACIDAD_MESAS',
           severidad: 'ADVERTENCIA',
-          descripcion: `El ${momentoLegible(p.fecha, p.franja)} se esperan ${Math.ceil(demanda)} cubiertos y las mesas activas alcanzan para ${capacidad}: sobran ${exceso}.`,
+          descripcion: `El ${momentoLegible(p.fecha, p.franja)} se esperan ${Math.ceil(demanda)} cubiertos y las mesas activas alcanzan para ${capacidad}: ${exceso} quedarían sin lugar.`,
           pronosticoId: p.id,
           existenciaId: null,
           fecha: p.fecha,
