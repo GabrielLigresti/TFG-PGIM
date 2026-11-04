@@ -24,6 +24,7 @@ jest.mock('../repositories/planificacion.repository', () => ({
     planificar: jest.fn(),
     reemplazarYPlanificar: jest.fn(),
     confirmar: jest.fn(),
+    confirmarSemana: jest.fn(),
     deSemana: jest.fn(),
     contexto: jest.fn(),
   },
@@ -102,7 +103,7 @@ describe('/api/apertura', () => {
       .post(`/api/apertura/planificacion/${ID}/confirmar`)
       .set('Cookie', cookie())
       .expect(403);
-    expect(planRepo.confirmar).not.toHaveBeenCalled();
+    expect(planRepo.confirmarSemana).not.toHaveBeenCalled();
   });
 
   it('confirmar con un id que no es uuid responde 400', async () => {
@@ -110,17 +111,18 @@ describe('/api/apertura', () => {
       .post('/api/apertura/planificacion/abc/confirmar')
       .set('Cookie', cookieConPermisos(['turno.planificar']))
       .expect(400);
-    expect(planRepo.confirmar).not.toHaveBeenCalled();
+    expect(planRepo.confirmarSemana).not.toHaveBeenCalled();
   });
 
   it('confirmar devuelve la planificación confirmada de la sucursal de trabajo', async () => {
-    planRepo.confirmar.mockResolvedValue({ id: ID, estado: 'CONFIRMADA' });
+    planRepo.confirmarSemana.mockResolvedValue('2026-11-09');
+    planRepo.deSemana.mockResolvedValue({ id: ID, estado: 'CONFIRMADA' });
     const res = await request(app)
       .post(`/api/apertura/planificacion/${ID}/confirmar`)
       .set('Cookie', cookieConPermisos(['turno.planificar']))
       .expect(200);
     expect(res.body).toMatchObject({ id: ID, estado: 'CONFIRMADA' });
-    expect(planRepo.confirmar).toHaveBeenCalledWith(
+    expect(planRepo.confirmarSemana).toHaveBeenCalledWith(
       { restauranteId: IDS.restaurante, sucursalId: IDS.centro },
       ID,
       expect.any(Date),
