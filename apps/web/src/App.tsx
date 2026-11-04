@@ -7,11 +7,11 @@ import { ProveedorAvisos } from './components/AvisoEmergente';
 import { ProveedorConfirmacion } from './components/Confirmacion';
 import { PanelLayout } from './components/PanelLayout';
 import { ProveedorCarrito } from './lib/carrito';
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/PanelPage';
 import { RegistroPage } from './pages/RegistroPage';
 import { RegistroRestaurantePage } from './pages/RegistroRestaurantePage';
-import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
 import { MisPuntosPage } from './pages/comensal/MisPuntosPage';
 import { MiMesaPage } from './pages/comensal/MiMesaPage';
@@ -69,6 +69,7 @@ export default function App() {
           <BrowserRouter>
             <ProveedorConfirmacion>
               <Routes>
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/registro" element={<RegistroPage />} />
                 <Route path="/registrar-restaurante" element={<RegistroRestaurantePage />} />
@@ -133,15 +134,15 @@ export default function App() {
                   <Route path="platos" element={conPermiso('menu.ver', <PlatosPage />)} />
                   <Route path="menus" element={conPermiso('menu.ver', <MenusPage />)} />
                 </Route>
-                <Route path="/inicio" element={paraComensal(<InicioComensalPage />)} />
-                <Route path="/s/:sucursalId/menu" element={paraComensal(<MenuSucursalPage />)} />
-                <Route path="/s/:sucursalId/platos/:id" element={paraComensal(<PlatoPage />)} />
+                <Route path="/inicio" element={<Navigate to="/" replace />} />
+                <Route path="/s/:sucursalId/menu" element={<MenuSucursalPage />} />
+                <Route path="/s/:sucursalId/platos/:id" element={<PlatoPage />} />
                 <Route path="/s/:sucursalId/reservar" element={paraComensal(<ReservarPage />)} />
                 <Route path="/s/:sucursalId/pedido" element={paraComensal(<PedidoPage />)} />
                 <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
                 <Route path="/mesa" element={paraComensal(<MiMesaPage />)} />
                 <Route path="/puntos" element={paraComensal(<MisPuntosPage />)} />
-                <Route path="*" element={<Navigate to="/login" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </ProveedorConfirmacion>
           </BrowserRouter>

@@ -2,11 +2,11 @@ import type { ReactNode } from 'react';
 import { Link, NavLink } from 'react-router';
 import type { MiMesa } from '@pgim/shared';
 import { CalendarDays, ChevronLeft, House, LogOut, Receipt, Star } from 'lucide-react';
-import { useSesion } from '../auth/SesionProvider';
+import { rutaInicio, useSesion } from '../auth/SesionProvider';
 import { useMiMesa } from '../lib/miMesa';
 
 const PESTANIAS = [
-  { a: '/inicio', texto: 'Inicio', icono: House },
+  { a: '/', texto: 'Inicio', icono: House },
   { a: '/reservas', texto: 'Reservas', icono: CalendarDays },
   { a: '/puntos', texto: 'Mis puntos', icono: Star },
 ];
@@ -36,7 +36,9 @@ export function LayoutComensal({
 }) {
   const { sesion, logout } = useSesion();
   // "Mi mesa" aparece solo mientras el comensal tiene una mesa activa.
-  const consultada = useMiMesa(null, mesaActiva === undefined).datos;
+  // Sin sesión de comensal no la consulta: sería un 401 (o 403) en la consola.
+  const esComensal = sesion?.usuario.tipo === 'COMENSAL';
+  const consultada = useMiMesa(null, mesaActiva === undefined && esComensal).datos;
   const mesa = mesaActiva === undefined ? consultada : mesaActiva;
   const pestanias = mesa
     ? [...PESTANIAS, { a: '/mesa', texto: 'Mi mesa', icono: Receipt }]
@@ -56,21 +58,39 @@ export function LayoutComensal({
             </Link>
           ) : (
             <span className="truncate text-sm font-medium text-text">
-              Hola, {sesion?.usuario.nombre}
+              {sesion ? `Hola, ${sesion.usuario.nombre}` : 'PGIM'}
             </span>
           )}
-          <button
-            type="button"
-            onClick={logout}
-            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-control px-2 text-sm text-meta hover:bg-panel hover:text-text"
-          >
-            <LogOut aria-hidden className="size-4" />
-            Salir
-          </button>
+          {!sesion ? (
+            <Link
+              to="/login"
+              className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-meta hover:bg-panel hover:text-text"
+            >
+              Ingresar
+            </Link>
+          ) : esComensal ? (
+            <button
+              type="button"
+              onClick={logout}
+              className="inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-control px-2 text-sm text-meta hover:bg-panel hover:text-text"
+            >
+              <LogOut aria-hidden className="size-4" />
+              Salir
+            </button>
+          ) : (
+            <Link
+              to={rutaInicio(sesion)}
+              className="inline-flex min-h-11 shrink-0 items-center rounded-control border border-accent/20 bg-accent-soft px-3 text-sm font-semibold text-accent-ink hover:bg-accent/15"
+            >
+              Ir al panel
+            </Link>
+          )}
         </div>
       </header>
 
-      <main className={`mx-auto max-w-[480px] px-4 pt-5 ${accionFija ? 'pb-40' : 'pb-24'}`}>
+      <main
+        className={`mx-auto max-w-[480px] px-4 pt-5 ${esComensal ? (accionFija ? 'pb-40' : 'pb-24') : accionFija ? 'pb-24' : 'pb-8'}`}
+      >
         {children}
       </main>
 
@@ -80,29 +100,32 @@ export function LayoutComensal({
             <div className="mx-auto flex max-w-[480px] flex-wrap gap-2 px-4 py-2">{accionFija}</div>
           </div>
         )}
-        <nav
-          aria-label="Secciones"
-          className="border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
-        >
-          <div
-            className={`mx-auto grid h-14 max-w-[480px] ${mesa ? 'grid-cols-4' : 'grid-cols-3'}`}
+        {esComensal && (
+          <nav
+            aria-label="Secciones"
+            className="border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
           >
-            {pestanias.map(({ a, texto, icono: Icono }) => (
-              <NavLink
-                key={a}
-                to={a}
-                className={({ isActive }) =>
-                  `grid content-center justify-items-center gap-0.5 text-xs ${
-                    isActive ? 'font-semibold text-accent-ink' : 'text-meta'
-                  }`
-                }
-              >
-                <Icono aria-hidden className="size-5" />
-                {texto}
-              </NavLink>
-            ))}
-          </div>
-        </nav>
+            <div
+              className={`mx-auto grid h-14 max-w-[480px] ${mesa ? 'grid-cols-4' : 'grid-cols-3'}`}
+            >
+              {pestanias.map(({ a, texto, icono: Icono }) => (
+                <NavLink
+                  key={a}
+                  to={a}
+                  end
+                  className={({ isActive }) =>
+                    `grid content-center justify-items-center gap-0.5 text-xs ${
+                      isActive ? 'font-semibold text-accent-ink' : 'text-meta'
+                    }`
+                  }
+                >
+                  <Icono aria-hidden className="size-5" />
+                  {texto}
+                </NavLink>
+              ))}
+            </div>
+          </nav>
+        )}
       </div>
     </div>
   );

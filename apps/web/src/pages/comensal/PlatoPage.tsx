@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
 import type { DetallePlato } from '@pgim/shared';
+import { useSesion } from '../../auth/SesionProvider';
 import { useAvisos } from '../../components/AvisoEmergente';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { SelectorCantidad } from '../../components/SelectorCantidad';
@@ -19,7 +20,8 @@ export function PlatoPage() {
     `/publico/sucursales/${sucursalId}/platos/${id}`,
   );
   const plato = datos?.plato;
-  const mesa = useMiMesa(sucursalId ?? null).datos;
+  const { sesion } = useSesion();
+  const mesa = useMiMesa(sucursalId ?? null, sesion?.usuario.tipo === 'COMENSAL').datos;
   const carrito = useCarrito(mesa?.cuentaMesaId ?? null);
   const { avisar } = useAvisos();
   const [cantidad, setCantidad] = useState(1);
