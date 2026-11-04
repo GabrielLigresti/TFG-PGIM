@@ -5,6 +5,7 @@ import { API_PREFIX } from '@pgim/shared';
 import { alertasRouter } from './routes/alertas';
 import { aperturaRouter } from './routes/apertura';
 import { authRouter } from './routes/auth';
+import { cuentaRouter } from './routes/cuenta';
 import { fidelizacionRouter } from './routes/fidelizacion';
 import { healthRouter } from './routes/health';
 import { insumosRouter } from './routes/insumos';
@@ -83,6 +84,7 @@ export function createApp() {
 
   app.use(`${API_PREFIX}/health`, healthRouter);
   app.use(`${API_PREFIX}/auth`, authRouter);
+  app.use(`${API_PREFIX}/cuenta`, cuentaRouter);
   app.use(`${API_PREFIX}/sucursales/:sucursalId/mesas`, mesasRouter);
   app.use(`${API_PREFIX}/sucursales`, sucursalesRouter);
   app.use(`${API_PREFIX}/reservas`, reservasPanelRouter);
