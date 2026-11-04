@@ -13,7 +13,7 @@ import { NOMBRE_FRANJA } from './apertura/semana';
 import { BarrasHorizontales } from './metricas/BarrasHorizontales';
 import { completarDias } from './metricas/diasPeriodo';
 import { GraficoVentas } from './metricas/GraficoVentas';
-import { VerComoTabla } from './metricas/VerComoTabla';
+import { VerComoTabla, useVerComoTabla } from './metricas/VerComoTabla';
 
 const SIN_DATO = 'Sin dato';
 const celda = 'px-2 py-2 text-right tabular-nums';
@@ -33,6 +33,8 @@ export function MetricasPage() {
   const [desde, setDesde] = useState(inicial.desde);
   const [hasta, setHasta] = useState(inicial.hasta);
   const [sucursalId, setSucursalId] = useState('');
+  // El período por defecto termina ayer, y la ocupación solo cuenta días ya cerrados.
+  const ayer = inicial.hasta;
 
   const errorPeriodo = !desde || !hasta ? 'Elegí las dos fechas' : errorDePeriodo(desde, hasta);
   const q = new URLSearchParams({ desde, hasta });
@@ -62,6 +64,7 @@ export function MetricasPage() {
             type="date"
             className={claseInput}
             value={hasta}
+            max={ayer}
             onChange={(e) => setHasta(e.target.value)}
           />
         </Campo>
@@ -92,6 +95,9 @@ export function MetricasPage() {
 function Contenido({ m, actualizando }: { m: Metricas; actualizando: boolean }) {
   const dias = completarDias(m.periodo.desde, m.periodo.hasta, m.ventas.porDia);
   const hayVentas = m.ventas.total > 0;
+  const tablaVentas = useVerComoTabla();
+  const tablaPlatos = useVerComoTabla();
+  const tablaMerma = useVerComoTabla();
   const mejorDia = dias.reduce((a, d) => (d.monto > a.monto ? d : a), dias[0]!);
 
   const platos = [...m.platosMasPedidos].sort((a, b) => b.unidades - a.unidades);
@@ -144,9 +150,14 @@ function Contenido({ m, actualizando }: { m: Metricas; actualizando: boolean }) 
         </p>
       )}
 
-      <Panel titulo="Ventas por día" className="min-w-0">
+      <Panel
+        titulo="Ventas por día"
+        accion={hayVentas ? tablaVentas.boton : undefined}
+        className="min-w-0"
+      >
         {hayVentas ? (
           <VerComoTabla
+            tabular={tablaVentas.tabular}
             resumen={`Ventas por día del ${formatoFecha(m.periodo.desde)} al ${formatoFecha(m.periodo.hasta)}: total ${formatoPesosEnteros(m.ventas.total)}, el mejor día fue el ${formatoFecha(mejorDia.fecha)} con ${formatoPesosEnteros(mejorDia.monto)}.`}
             grafico={<GraficoVentas dias={dias} />}
             tabla={
@@ -178,9 +189,14 @@ function Contenido({ m, actualizando }: { m: Metricas; actualizando: boolean }) 
       </Panel>
 
       <div className="grid grid-cols-[minmax(0,1fr)] gap-4 lg:grid-cols-2">
-        <Panel titulo="Platos más pedidos" className="min-w-0">
+        <Panel
+          titulo="Platos más pedidos"
+          accion={platos.length > 0 ? tablaPlatos.boton : undefined}
+          className="min-w-0"
+        >
           {platos.length > 0 ? (
             <VerComoTabla
+              tabular={tablaPlatos.tabular}
               resumen={`Platos más pedidos: ${platos.map((p) => `${p.nombre}, ${unidades(p.unidades)} unidades`).join('; ')}.`}
               grafico={
                 <BarrasHorizontales
@@ -219,9 +235,14 @@ function Contenido({ m, actualizando }: { m: Metricas; actualizando: boolean }) 
           )}
         </Panel>
 
-        <Panel titulo="Merma por motivo" className="min-w-0">
+        <Panel
+          titulo="Merma por motivo"
+          accion={motivos.length > 0 ? tablaMerma.boton : undefined}
+          className="min-w-0"
+        >
           {motivos.length > 0 ? (
             <VerComoTabla
+              tabular={tablaMerma.tabular}
               resumen={`Merma por motivo, total ${formatoPesosEnteros(m.merma.total)}: ${motivos.map((x) => `${ETIQUETA_MOTIVO_MERMA[x.motivo]}, ${formatoPesosEnteros(x.valor)}`).join('; ')}.`}
               grafico={
                 <BarrasHorizontales
