@@ -77,7 +77,8 @@ describe('métricas (CU-19)', () => {
       data: {
         existenciaId: existencia.id,
         tipo,
-        cantidad,
+        // Como el stock real: una merma resta, así que se guarda con signo negativo.
+        cantidad: tipo === 'MERMA' ? -cantidad : cantidad,
         costoUnitario,
         fecha: new Date(fecha),
         motivoMerma: tipo === 'MERMA' ? motivo : null,
@@ -258,6 +259,36 @@ describe('métricas (CU-19)', () => {
           margenTotal: null,
         },
       ]);
+    });
+
+    it('un plato de reventa sin costo cargado queda sin dato', async () => {
+      const categoria = await prisma.categoria.findFirstOrThrow({
+        where: { restauranteId: e.restauranteId },
+      });
+      const insumo = await prisma.componenteInventario.create({
+        data: {
+          restauranteId: e.restauranteId,
+          tipo: 'INSUMO',
+          nombre: 'Alfajor',
+          unidadBase: 'UNIDAD',
+        },
+      });
+      const alfajor = await prisma.itemMenu.create({
+        data: {
+          restauranteId: e.restauranteId,
+          categoriaId: categoria.id,
+          nombre: 'Alfajor',
+          precio: 200,
+          insumoId: insumo.id,
+        },
+      });
+      await pedido([{ itemMenuId: alfajor.id, cantidad: 3, precioUnitario: 200 }]);
+      const { margenPorPlato } = await consultar();
+      expect(margenPorPlato[0]).toMatchObject({
+        costo: null,
+        margenUnitario: null,
+        margenTotal: null,
+      });
     });
 
     it('los platos más pedidos son 10', async () => {

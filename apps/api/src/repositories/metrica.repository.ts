@@ -136,7 +136,11 @@ export const metricaRepository: MetricaRepository = {
         costos.set(plato.id, costoTotal(receta) / receta.rendimiento);
       } else if (plato.insumoId) {
         const insumo = catalogo.get(plato.insumoId);
-        costos.set(plato.id, insumo ? costoUnitario(insumo) : null);
+        // Sin costo cargado es "sin dato": un 0 inflaría el margen.
+        costos.set(
+          plato.id,
+          insumo && insumo.costoCompraVigente !== null ? costoUnitario(insumo) : null,
+        );
       } else {
         costos.set(plato.id, null);
       }
@@ -156,9 +160,10 @@ export const metricaRepository: MetricaRepository = {
     const porMotivo = new Map<MotivoMerma, number>();
     for (const f of filas) {
       const motivo = (f.motivoMerma ?? 'OTRO') as MotivoMerma;
+      // La merma se guarda con cantidad negativa (resta stock).
       porMotivo.set(
         motivo,
-        (porMotivo.get(motivo) ?? 0) + Number(f.cantidad) * Number(f.costoUnitario),
+        (porMotivo.get(motivo) ?? 0) + Math.abs(Number(f.cantidad)) * Number(f.costoUnitario),
       );
     }
     return [...porMotivo].map(([motivo, valor]) => ({ motivo, valor }));
