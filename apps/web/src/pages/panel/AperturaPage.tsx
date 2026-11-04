@@ -81,6 +81,20 @@ export function AperturaPage() {
   const plan = asistente?.planificacion ?? null;
   // Con la semana confirmada la pantalla queda en modo lectura.
   const editable = puedePlanificar && suficiente && plan?.estado !== 'CONFIRMADA';
+  const confirmada = plan?.estado === 'CONFIRMADA';
+
+  // Otra sesión confirmó o regeneró la semana (409) o la planificación ya no
+  // existe (404): se cierra el modal y se recarga lo vigente.
+  async function alCambiarLaSemana() {
+    setConfirmando(false);
+    setRegenerando(false);
+    try {
+      setNuevo(await api<AsistenteApertura>('/apertura/pronostico'));
+    } catch {
+      recurso.recargar();
+    }
+    setAviso('La semana cambió. Revisala antes de confirmar.');
+  }
 
   return (
     <section className={editable && plan ? 'pb-24 md:pb-0' : undefined}>
@@ -122,8 +136,8 @@ export function AperturaPage() {
           <Aviso tono="ok">{aviso}</Aviso>
         </div>
       )}
-      {asistente && !suficiente && <Progreso asistente={asistente} />}
-      {asistente && suficiente && <Pronostico asistente={asistente} />}
+      {asistente && !suficiente && !plan && <Progreso asistente={asistente} />}
+      {asistente && (suficiente || plan) && <Pronostico asistente={asistente} />}
       {editable && plan && (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-surface p-3 md:hidden">
           <Boton densidad="comensal" className="w-full" onClick={() => setConfirmando(true)}>
@@ -137,6 +151,7 @@ export function AperturaPage() {
         <ModalConfirmar
           plan={plan}
           onCerrar={() => setConfirmando(false)}
+          onCambio={() => void alCambiarLaSemana()}
           onConfirmada={(datos) => {
             setNuevo(datos);
             setAviso('Turnos confirmados.');
@@ -148,6 +163,7 @@ export function AperturaPage() {
       {regenerando && (
         <ModalRegenerar
           onCerrar={() => setRegenerando(false)}
+          onCambio={() => void alCambiarLaSemana()}
           onRegenerado={(datos) => {
             setNuevo(datos);
             setAviso(null);
@@ -157,6 +173,7 @@ export function AperturaPage() {
       )}
       {configurando && (
         <ModalConfiguracion
+          confirmada={confirmada}
           onCerrar={() => setConfigurando(false)}
           onGuardado={(minimoCambio) => {
             setConfigurando(false);
@@ -457,16 +474,29 @@ function Detalle({ p }: { p: PronosticoFranja }) {
 
 function ModalRegenerar({
   onCerrar,
+  onCambio,
   onRegenerado,
 }: {
   onCerrar(): void;
+  onCambio(): void;
   onRegenerado(datos: AsistenteApertura): void;
 }) {
-  const { enviar, enviando, error } = useGuardar();
+  const [enviando, setEnviando] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function confirmar() {
-    const r = await enviar<AsistenteApertura>('/apertura/pronostico/regenerar', 'POST');
-    if (r) onRegenerado(r.datos);
+    setEnviando(true);
+    setError(null);
+    try {
+      onRegenerado(
+        await api<AsistenteApertura>('/apertura/pronostico/regenerar', { method: 'POST' }),
+      );
+    } catch (e) {
+      // 409: otra sesión ya confirmó la semana, que ya no se puede regenerar.
+      if (e instanceof ApiError && e.status === 409) onCambio();
+      else setError(e instanceof ApiError ? e.message : 'No se pudo regenerar');
+      setEnviando(false);
+    }
   }
 
   return (
@@ -493,10 +523,12 @@ function ModalRegenerar({
 function ModalConfirmar({
   plan,
   onCerrar,
+  onCambio,
   onConfirmada,
 }: {
   plan: PlanificacionSemana;
   onCerrar(): void;
+  onCambio(): void;
   onConfirmada(datos: AsistenteApertura): void;
 }) {
   const [enviando, setEnviando] = useState(false);
@@ -509,13 +541,15 @@ function ModalConfirmar({
     try {
       await api(`/apertura/planificacion/${plan.id}/confirmar`, { method: 'POST' });
     } catch (e) {
-      // 409: otra sesión confirmó o regeneró a la vez. Se recarga lo vigente, que
-      // queda en modo lectura si ya estaba confirmada.
-      if (!(e instanceof ApiError && e.status === 409)) {
+      // 404: otra sesión regeneró la semana y esta planificación ya no existe;
+      // 409: otra sesión la confirmó. En los dos casos hay que revisar lo vigente.
+      if (e instanceof ApiError && (e.status === 404 || e.status === 409)) {
+        onCambio();
+      } else {
         setError(e instanceof ApiError ? e.message : 'No se pudo confirmar');
         setEnviando(false);
-        return;
       }
+      return;
     }
     try {
       onConfirmada(await api<AsistenteApertura>('/apertura/pronostico'));
@@ -533,9 +567,7 @@ function ModalConfirmar({
       </p>
       {faltan > 0 && (
         <p className="mt-2 text-sm font-semibold text-warn">
-          {faltan === 1
-            ? 'Todavía falta cubrir 1 puesto.'
-            : `Todavía faltan cubrir ${faltan} puestos.`}
+          Todavía falta cubrir {faltan} {faltan === 1 ? 'puesto' : 'puestos'}.
         </p>
       )}
       <div className="mt-3">
@@ -556,9 +588,11 @@ function ModalConfirmar({
 type CampoConfiguracion = keyof ConfiguracionApertura;
 
 function ModalConfiguracion({
+  confirmada,
   onCerrar,
   onGuardado,
 }: {
+  confirmada: boolean;
   onCerrar(): void;
   onGuardado(minimoCambio: boolean): void;
 }) {
@@ -568,6 +602,7 @@ function ModalConfiguracion({
       <EstadoCarga cargando={config.cargando && !config.datos} error={config.error} />
       {config.datos && (
         <FormularioConfiguracion
+          confirmada={confirmada}
           inicial={config.datos}
           onCerrar={onCerrar}
           onGuardado={onGuardado}
@@ -578,10 +613,12 @@ function ModalConfiguracion({
 }
 
 function FormularioConfiguracion({
+  confirmada,
   inicial,
   onCerrar,
   onGuardado,
 }: {
+  confirmada: boolean;
   inicial: ConfiguracionApertura;
   onCerrar(): void;
   onGuardado(minimoCambio: boolean): void;
@@ -620,6 +657,11 @@ function FormularioConfiguracion({
 
   return (
     <form onSubmit={onSubmit} noValidate className="grid gap-4">
+      {confirmada && (
+        <p className="text-sm text-meta">
+          Los cambios se aplican desde la próxima semana planificada; esta ya está confirmada.
+        </p>
+      )}
       <Campo
         etiqueta="Semanas mínimas de historial"
         ayuda="Entre 5 y 52. Con menos semanas de reservas atendidas no se pronostica."

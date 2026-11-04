@@ -60,7 +60,13 @@ export function AlertasSemana({ planificacion }: { planificacion: PlanificacionS
   }
 
   return (
-    <Panel titulo="Para revisar antes de confirmar">
+    <Panel
+      titulo={
+        planificacion.estado === 'CONFIRMADA'
+          ? 'Alertas de la semana'
+          : 'Para revisar antes de confirmar'
+      }
+    >
       <div className="grid gap-4">
         {GRUPOS.map(({ tipo, titulo }) => {
           const filas = alertas.filter((a) => a.tipo === tipo).sort(porFecha);
