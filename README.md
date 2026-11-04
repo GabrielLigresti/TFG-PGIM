@@ -40,6 +40,7 @@ La cámara (realidad aumentada) solo funciona con HTTPS. Con `npm run dev` corri
 | `npm run tunnel` | Publica la web por HTTPS con un quick tunnel de Cloudflare |
 | `npm run build` | Compila los tres paquetes |
 | `npm test` | Corre los tests (Jest y Supertest) |
+| `npm run test:e2e` | Prueba integral con Playwright: resetea la base `pgim_e2e`, levanta la API y la web, y recorre el camino principal (no entra en `npm test`) |
 | `npm run typecheck` | Verifica tipos en todo el monorepo |
 | `npm run format` | Formatea con Prettier |
 | `npm run db:up` / `db:down` | Levanta o baja PostgreSQL en Docker |
