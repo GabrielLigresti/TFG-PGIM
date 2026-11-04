@@ -74,6 +74,14 @@ export const SECCIONES: SeccionPanel[] = [
     icono: ChefHat,
   },
   {
+    ruta: 'alertas',
+    titulo: 'Alertas',
+    descripcion: 'Faltantes de stock, platos sin receta e inasistencias',
+    permisos: ['stock.registrar', 'reserva.ver'],
+    grupo: 'Operación',
+    icono: TriangleAlert,
+  },
+  {
     ruta: 'platos',
     titulo: 'Platos',
     descripcion: 'Platos y categorías del menú',
@@ -104,14 +112,6 @@ export const SECCIONES: SeccionPanel[] = [
     permisos: ['insumo.ver', 'stock.registrar'],
     grupo: 'Stock',
     icono: Boxes,
-  },
-  {
-    ruta: 'alertas',
-    titulo: 'Alertas',
-    descripcion: 'Faltantes de stock, platos sin receta e inasistencias',
-    permisos: ['stock.registrar', 'reserva.ver'],
-    grupo: 'Stock',
-    icono: TriangleAlert,
   },
   {
     ruta: 'programa-puntos',
