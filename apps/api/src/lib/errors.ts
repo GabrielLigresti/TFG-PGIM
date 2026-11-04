@@ -23,3 +23,16 @@ export function esClaveDuplicada(err: unknown): boolean {
 export function esRegistroInexistente(err: unknown): boolean {
   return typeof err === 'object' && err !== null && 'code' in err && err.code === 'P2025';
 }
+
+// Campos de la violación única de un P2002. Según el adaptador, Prisma los
+// informa en `meta.target` (lista de campos o nombre de la restricción) o en
+// `meta.driverAdapterError.cause.constraint` (`fields` o `index`). Devuelve
+// los fragmentos de texto en minúscula para buscar en ellos el nombre del campo.
+export function camposDeClaveDuplicada(err: unknown): string[] {
+  if (!esClaveDuplicada(err)) return [];
+  const meta = (err as { meta?: Record<string, unknown> }).meta ?? {};
+  const constraint = (meta.driverAdapterError as { cause?: { constraint?: unknown } } | undefined)
+    ?.cause?.constraint as { fields?: unknown; index?: unknown } | undefined;
+  const candidatos = [meta.target, constraint?.fields, constraint?.index].flat();
+  return candidatos.filter((c): c is string => typeof c === 'string').map((c) => c.toLowerCase());
+}

@@ -1,7 +1,11 @@
-import type { RegistroComensal, Sesion } from '@pgim/shared';
-import { AppError, esClaveDuplicada } from '../lib/errors';
+import type { RegistroComensal, RegistroRestaurante, Sesion } from '@pgim/shared';
+import { AppError, camposDeClaveDuplicada, esClaveDuplicada } from '../lib/errors';
 import { firmarToken, type TokenSesion } from '../lib/jwt';
 import { hashPassword, verifyPassword } from '../lib/password';
+import {
+  restauranteRepository,
+  type RestauranteRepository,
+} from '../repositories/restaurante.repository';
 import {
   usuarioRepository,
   type UsuarioRepository,
@@ -38,7 +42,10 @@ function construirSesion(usuario: UsuarioSesion, sucursalId: string | null): Ses
   };
 }
 
-export function createAuthService(repo: UsuarioRepository) {
+export function createAuthService(
+  repo: UsuarioRepository,
+  restaurantes: RestauranteRepository = restauranteRepository,
+) {
   async function cargarActivo(usuarioId: string): Promise<UsuarioSesion | null> {
     const usuario = await repo.findSesionById(usuarioId);
     return usuario?.activo ? usuario : null;
@@ -86,6 +93,42 @@ export function createAuthService(repo: UsuarioRepository) {
       return {
         token: firmarToken({ usuarioId, sucursalId: null }),
         sesion: construirSesion(usuario, null),
+      };
+    },
+
+    // CU-11: alta del restaurante con su sucursal y su administrador. Queda con
+    // la sesión iniciada en la sucursal nueva, como después del login.
+    async registrarRestaurante(datos: RegistroRestaurante): Promise<SesionIniciada> {
+      let alta: { usuarioId: string; sucursalId: string };
+      try {
+        alta = await restaurantes.registrar({
+          restaurante: datos.restaurante,
+          sucursal: datos.sucursal,
+          administrador: {
+            nombreCompleto: datos.administrador.nombreCompleto,
+            email: datos.administrador.email,
+            passwordHash: await hashPassword(datos.administrador.password),
+          },
+        });
+      } catch (err) {
+        if (esClaveDuplicada(err)) {
+          const campos = camposDeClaveDuplicada(err).join(' ');
+          if (campos.includes('cuit')) {
+            throw new AppError(409, 'Ya hay un restaurante registrado con ese CUIT', {
+              campo: 'cuit',
+            });
+          }
+          if (campos.includes('email')) {
+            throw new AppError(409, 'Ya existe una cuenta con ese email', { campo: 'email' });
+          }
+        }
+        throw err;
+      }
+      const usuario = await cargarActivo(alta.usuarioId);
+      if (!usuario) throw new AppError(500, 'No se pudo iniciar la sesión');
+      return {
+        token: firmarToken({ usuarioId: alta.usuarioId, sucursalId: alta.sucursalId }),
+        sesion: construirSesion(usuario, alta.sucursalId),
       };
     },
 

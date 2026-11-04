@@ -88,6 +88,15 @@ export function LoginPage() {
             Registrate
           </Link>
         </p>
+        <p className="text-center text-sm text-meta">
+          ¿Tenés un restaurante?{' '}
+          <Link
+            to="/registrar-restaurante"
+            className="font-medium text-accent-ink underline underline-offset-2"
+          >
+            Registralo
+          </Link>
+        </p>
       </form>
     </main>
   );

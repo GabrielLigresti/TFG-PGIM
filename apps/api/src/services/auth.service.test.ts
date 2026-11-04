@@ -105,3 +105,65 @@ describe('registrarComensal', () => {
     });
   });
 });
+
+describe('registrarRestaurante', () => {
+  const datos = {
+    restaurante: { nombre: 'Restaurante nuevo', cuit: '30712345678' },
+    sucursal: {
+      nombre: 'Casa central',
+      direccion: 'Calle Falsa 123',
+      horarioApertura: '12:00',
+      horarioCierre: '23:30',
+      toleranciaNoShowMin: 15,
+      horariosServicio: [],
+    },
+    administrador: { nombreCompleto: 'Ana Pérez', email: 'ana@demo.test', password: 'clave1234' },
+  };
+
+  async function armar(registrar: jest.Mock) {
+    return createAuthService(await crearRepositorioFalso(), { registrar });
+  }
+
+  it('crea el alta con el hash de la contraseña y abre la sesión en la sucursal nueva', async () => {
+    const registrar = jest
+      .fn()
+      .mockResolvedValue({ usuarioId: IDS.admin, sucursalId: IDS.palermo });
+
+    const { token, sesion } = await (await armar(registrar)).registrarRestaurante(datos);
+
+    const recibido = registrar.mock.calls[0]![0];
+    expect(recibido.administrador.passwordHash.startsWith('scrypt$')).toBe(true);
+    expect(JSON.stringify(recibido)).not.toContain('clave1234');
+    expect(recibido).toMatchObject({
+      restaurante: datos.restaurante,
+      sucursal: datos.sucursal,
+      administrador: { nombreCompleto: 'Ana Pérez', email: 'ana@demo.test' },
+    });
+    expect(sesion.sucursalActiva?.id).toBe(IDS.palermo);
+    expect(verificarToken(token)).toEqual({ usuarioId: IDS.admin, sucursalId: IDS.palermo });
+  });
+
+  it.each([
+    ['target como lista de campos', { target: ['cuit'] }, 'cuit'],
+    ['target como nombre de restricción', { target: 'restaurante_cuit_key' }, 'cuit'],
+    [
+      'campos en el error del adaptador',
+      { driverAdapterError: { cause: { constraint: { fields: ['email'] } } } },
+      'email',
+    ],
+  ])('un P2002 con %s responde 409 con el campo', async (_caso, meta, campo) => {
+    const registrar = jest.fn().mockRejectedValue({ code: 'P2002', meta });
+
+    await expect((await armar(registrar)).registrarRestaurante(datos)).rejects.toMatchObject({
+      status: 409,
+      detalles: { campo },
+    });
+  });
+
+  it('un P2002 de otra restricción no se traduce: se propaga', async () => {
+    const error = { code: 'P2002', meta: { target: ['otra'] } };
+    const registrar = jest.fn().mockRejectedValue(error);
+
+    await expect((await armar(registrar)).registrarRestaurante(datos)).rejects.toBe(error);
+  });
+});

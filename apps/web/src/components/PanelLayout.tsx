@@ -4,6 +4,7 @@ import {
   BookOpen,
   Boxes,
   CalendarDays,
+  CalendarRange,
   ChefHat,
   Gift,
   Star,
@@ -132,6 +133,14 @@ export const SECCIONES: SeccionPanel[] = [
     permisos: ['sucursal.ver'],
     grupo: 'Gestión',
     icono: MapPin,
+  },
+  {
+    ruta: 'apertura',
+    titulo: 'Asistente de apertura',
+    descripcion: 'Pronóstico de la semana siguiente',
+    permisos: ['apertura.consultar'],
+    grupo: 'Análisis',
+    icono: CalendarRange,
   },
 ];
 
