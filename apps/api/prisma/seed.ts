@@ -226,8 +226,8 @@ const CHIMICHURRI: RecetaSeed = {
 };
 
 // Las fotos están en apps/web/public/fotos-demo (licencias en su LICENCIA.md).
-// "Milanesa con puré" queda sin receta a propósito: es un principal y la
-// categoría la exige, así que la pantalla de platos lo marca.
+// Todos los platos con receta llevan costo cargado, así el ranking por margen de
+// las métricas no sale con "Sin dato".
 const PLATOS: {
   nombre: string;
   categoria: NombreCategoria;
@@ -260,6 +260,16 @@ const PLATOS: {
     precio: 2500,
     descripcion: 'Cortada a cuchillo, al horno.',
     foto: 'empanada-de-carne.jpg',
+    receta: {
+      rendimiento: 1,
+      instrucciones: 'Rehogar la cebolla, cocinar la carne, rellenar y hornear.',
+      lineas: [
+        ['Carne vacuna', 60, 'GRAMO', 10],
+        ['Cebolla', 30, 'GRAMO', 10],
+        ['Aceite de oliva', 5, 'MILILITRO'],
+        ['Sal', 1, 'GRAMO'],
+      ],
+    },
   },
   {
     nombre: 'Bife de chorizo con papas',
@@ -285,6 +295,18 @@ const PLATOS: {
     precio: 14000,
     descripcion: 'Milanesa de ternera con puré de papas.',
     foto: 'milanesa-con-pure.jpg',
+    receta: {
+      rendimiento: 1,
+      instrucciones: 'Empanar la milanesa y freírla; hervir las papas y pisarlas con leche.',
+      lineas: [
+        ['Carne vacuna', 250, 'GRAMO', 10],
+        ['Huevo', 1, 'UNIDAD'],
+        ['Papa', 250, 'GRAMO', 15],
+        ['Leche', 50, 'MILILITRO'],
+        ['Aceite de oliva', 40, 'MILILITRO'],
+        ['Sal', 3, 'GRAMO'],
+      ],
+    },
   },
   {
     nombre: 'Flan casero',
@@ -987,7 +1009,8 @@ async function seedHistorialVentas(
 // estado fijo, así que volver a correr el seed no agrega nada:
 // - stock: todo con holgura para la semana, salvo el queso provolone, que no alcanza;
 // - capacidad: reservas pendientes del sábado a la noche de la semana próxima que
-//   superan lo que entra en las mesas (con una mesa reservada dos veces);
+//   superan lo que entra en las mesas (todas llenas en cuatro turnos y la mesa
+//   más grande con un grupo que no entra);
 // - plantel: el de EMPLEADOS, que deja un faltante en los picos;
 // - turnos: la semana en curso ya confirmada, para que "Mis turnos" tenga contenido.
 // La planificación en borrador de la semana próxima se descarta para que el
@@ -996,6 +1019,31 @@ async function seedHistorialVentas(
 const STOCK_PROVOLONE_DEMO = 15000;
 const STOCK_HOLGADO = { GRAMO: 150000, MILILITRO: 150000, UNIDAD: 1000 } as const;
 const EMAIL_RESERVAS_DEMO = 'reservas-demo@demo.test';
+
+// Borra las reservas del comensal de la demo y todo lo que cuelga de ellas, para
+// que el seed se pueda repetir aunque alguien activó una (cuenta, pedidos, pagos).
+// Los movimientos de stock de sus pedidos se conservan, sin la línea de pedido.
+async function borrarReservasDeDemo(comensalId: string): Promise<void> {
+  await prisma.$transaction(async (tx) => {
+    const reservas = { comensalId };
+    const cuentas = { reserva: reservas };
+    const pedidos = { cuentaMesa: cuentas };
+    const pagos = { cuentaMesa: cuentas };
+    await tx.movimientoStock.updateMany({
+      where: { lineaPedido: { pedido: pedidos } },
+      data: { lineaPedidoId: null },
+    });
+    await tx.movimientoPuntos.deleteMany({ where: { pago: pagos } });
+    await tx.beneficioAplicado.deleteMany({ where: { pago: pagos } });
+    await tx.comprobante.deleteMany({ where: { pago: pagos } });
+    await tx.pago.deleteMany({ where: pagos });
+    await tx.visita.deleteMany({ where: { cuentaMesa: cuentas } });
+    await tx.lineaPedido.deleteMany({ where: { pedido: pedidos } });
+    await tx.pedido.deleteMany({ where: pedidos });
+    await tx.cuentaMesa.deleteMany({ where: cuentas });
+    await tx.reserva.deleteMany({ where: reservas });
+  });
+}
 
 async function seedFaltantesSimulador(
   restauranteId: string,
@@ -1039,7 +1087,7 @@ async function seedFaltantesSimulador(
     update: {},
     create: { usuarioId: comensal.id, nombre: 'Reservas de la demo' },
   });
-  await prisma.reserva.deleteMany({ where: { comensalId: comensal.id } });
+  await borrarReservasDeDemo(comensal.id);
   const mesas = await prisma.mesa.findMany({
     where: { sucursalId, sucursal: { restauranteId }, activa: true },
     select: { id: true, capacidad: true },
