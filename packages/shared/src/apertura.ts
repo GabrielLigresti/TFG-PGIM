@@ -130,6 +130,6 @@ export interface MiTurno {
   fecha: string; // AAAA-MM-DD
   franja: Franja;
   sucursal: string;
-  horaInicio: string; // HH:mm
+  horaInicio: string; // HH:mm; vacío si la franja ya no tiene horario
   horaFin: string; // HH:mm
 }

@@ -77,9 +77,11 @@ export function MisTurnosPage() {
                   </div>
                   <p className="text-sm text-ink">
                     <span className="font-medium">{NOMBRE_FRANJA[t.franja]}</span>{' '}
-                    <span className="tabular-nums text-meta">
-                      {t.horaInicio} a {t.horaFin} h
-                    </span>
+                    {t.horaInicio && t.horaFin && (
+                      <span className="tabular-nums text-meta">
+                        {t.horaInicio} a {t.horaFin} h
+                      </span>
+                    )}
                     <span className="text-meta sm:hidden"> · {t.sucursal}</span>
                   </p>
                 </li>

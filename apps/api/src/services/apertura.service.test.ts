@@ -241,6 +241,29 @@ describe('aperturaService', () => {
     });
   });
 
+  it('al planificar ignora los pronósticos de una franja que ya no tiene horario', async () => {
+    const repo = repoFalso(SUFICIENTE);
+    const plan = planFalso();
+    await armar(repo, plan).servicio.obtenerAsistente(T, AHORA);
+    const fases = plan.planificar.mock.calls[0]![2] as FasesPlanificacion;
+    plan.contexto.mockResolvedValue({
+      horarios, // solo ALMUERZO
+      recetas: new Map(),
+      existencias: new Map(),
+      conReceta: new Set<string>(),
+      capacidadMesas: [4],
+      reservas: [],
+      empleados: [],
+    });
+    const resultado = await fases.planificar({} as never, [
+      { id: 'a', fecha: SEMANA, franja: 'ALMUERZO', cubiertosEstimados: 10, demanda: [] },
+      { id: 'c', fecha: SEMANA, franja: 'CENA', cubiertosEstimados: 80, demanda: [] },
+    ]);
+    // La cena (80 cubiertos) ni alerta capacidad ni pide mozos.
+    expect(resultado.alertas.filter((a) => a.franja === 'CENA')).toEqual([]);
+    expect(resultado.alertas.some((a) => a.franja === 'ALMUERZO')).toBe(true);
+  });
+
   it('regenerar reemplaza y planifica', async () => {
     const repo = repoFalso(SUFICIENTE);
     const { servicio, plan } = armar(repo);

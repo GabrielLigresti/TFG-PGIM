@@ -60,9 +60,13 @@ export function createAperturaService(
         return { suficiente: progreso.suficiente, filas };
       },
 
-      async planificar(tx, pronosticos) {
+      async planificar(tx, todos) {
         const config = await configuracionDe(t, tx);
         const ctx = await plan.contexto(t, semanaDesde, tx);
+        // Una franja que la sucursal ya no atiende (se le quitó el horario) no
+        // se verifica ni pide personal, aunque haya quedado un pronóstico viejo.
+        const franjasActivas = new Set(ctx.horarios.map((h) => h.franja));
+        const pronosticos = todos.filter((p) => franjasActivas.has(p.franja));
         const horasPorFranja = new Map<Franja, number>(
           ctx.horarios.map((h) => [h.franja, horasDeFranja(h)]),
         );
