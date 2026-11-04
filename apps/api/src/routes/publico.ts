@@ -8,7 +8,8 @@ import { publicoService } from '../services/publico.service';
 // Lo que ve cualquier visitante: sin sesión. Solo lectura de datos públicos.
 export const publicoRouter = Router();
 
-// La búsqueda cruza restaurantes y no pide sesión: se limita por IP.
+// La búsqueda cruza restaurantes y no pide sesión: se limita por IP. La carta y
+// la ficha no, porque varias mesas comparten la IP del wifi del restaurante.
 const limitePublico = rateLimit({
   windowMs: 60 * 1000,
   limit: 60,
@@ -17,9 +18,7 @@ const limitePublico = rateLimit({
   message: { error: 'Demasiadas solicitudes. Probá de nuevo en un minuto.' },
 });
 
-publicoRouter.use(limitePublico);
-
-publicoRouter.get('/buscar', async (req, res) => {
+publicoRouter.get('/buscar', limitePublico, async (req, res) => {
   const { q, barrio } = busquedaQuerySchema.parse(req.query);
   res.json(await publicoService.buscar(q, barrio));
 });
