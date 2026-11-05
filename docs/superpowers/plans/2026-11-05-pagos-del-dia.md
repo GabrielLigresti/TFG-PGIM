@@ -183,6 +183,28 @@
 - Consumes: `GET /pagos/hoy` → `PagosDelDia`, y `EVENTOS_SOCKET.pagosCambio`.
 
 - [ ] **Step 1:** Opus corre `npx impeccable context --target apps/web/src/pages/panel/PagosDelDiaPage.tsx` y lee `CocinaPage.tsx`, que es la referencia de pantalla en vivo. Con `/impeccable` define la dirección visual de la cabecera de totales, la lista y el resaltado del pago nuevo, y la agrega al brief del implementador.
+**Dirección visual** (definida por Opus con el contexto de `impeccable`; registro "El buen mozo"):
+
+- **Pregunta que responde:** "¿llegó el pago de la mesa 4?". Se tiene que poder contestar de un vistazo, de pie y con el celular o la tablet en la mano. La lista de pagos es el contenido principal; los totales la acompañan.
+- **Encabezado:** `EncabezadoPagina` con el título "Pagos del día", la descripción `Pagos de ${sucursal}, los más nuevos arriba.` y, como acción, `<IndicadorConexion estado={conexion} />`, igual que Cocina.
+- **Totales:** una fila de `Kpi` en `grid grid-cols-2 gap-3 lg:grid-cols-4`, en este orden:
+  1. "Cobrado hoy": `formatoPesos(cobrado)`, con el detalle `${aprobados} pagados`. Si `SIN_METODO > 0`, se agrega ` · ${formatoPesos(SIN_METODO)} sin cobro`.
+  2. "Tarjeta": `formatoPesos(porMetodo.TARJETA)`.
+  3. "Billetera virtual": `formatoPesos(porMetodo.BILLETERA_VIRTUAL)`.
+  4. "No aprobados": la cantidad de rechazados, con `tono="warn"` cuando es mayor que 0 y el detalle "Mercado Pago no los aprobó".
+- **Lista:** un `Panel` sin título con un `<ul>` y divisores `divide-y divide-line`. Cada fila es un `<li>` con `flex items-start justify-between gap-3 py-3`.
+  - **Izquierda:** "Mesa {n}" en `text-lg font-semibold text-ink tabular-nums`. Debajo, en `text-sm text-meta`, `{comensal} · {formatoHora(fecha)}` y, si hay comprobante, ` · N.º {numero}`.
+  - **Derecha**, alineada a la derecha: el monto con `formatoPesos`, en `text-lg font-semibold tabular-nums`. Va en `text-ink` si está aprobado y en `text-meta` si fue rechazado, para que no parezca cobrado. Debajo van `<Estado entidad="pago" valor={estado} />` y el método en `text-sm text-meta` ("Tarjeta", "Billetera virtual" o "Sin cobro" si es null).
+  - Las filas no se tocan: no son botones ni llevan hover.
+- **Estados:** usar los textos que ya tiene `lib/estados.ts` para `pago` ("Pagado" y "No aprobado"), no textos propios. Es la única fuente de estados según `DESIGN.md`.
+- **Pago nuevo:**
+  - Al recargar después de un `pagos:cambio`, comparar los IDs con la carga anterior; en la primera carga no se resalta nada.
+  - Cada ID nuevo se resalta con `ring-2 ring-accent rounded-panel` durante `RESALTADO_MS = 6000`, el mismo patrón de `setTimeout` que Cocina.
+  - Además se avisa con `useAvisos().avisar`: "Pago recibido: mesa {n}, {monto}" si está aprobado, y "Pago no aprobado: mesa {n}" si fue rechazado.
+- **Vacío:** `<Vacio icono={Wallet} titulo="Todavía no hay pagos hoy" texto="Cuando Mercado Pago apruebe o rechace un pago de esta sucursal, aparece acá al instante." />`.
+- **Carga y error:** `<EstadoCarga cargando={cargando && !datos} error={error} />`. Mientras recarga se siguen mostrando los datos anteriores, sin spinner.
+- Sin colores elegidos a mano, sin sombras y sin verde fuera de lo que indica `DESIGN.md`.
+
 - [ ] **Step 2:** Agregar la sección a `SECCIONES`, después de Cocina:
   - `ruta: 'pagos'`
   - `titulo: 'Pagos del día'`
