@@ -2,9 +2,9 @@ import type { MotivoMerma, Referencia } from '@pgim/shared';
 import { costoTotal, costoUnitario } from '../domain/receta';
 import type { HorarioServicioDatos } from '../domain/pronostico';
 import { sumarDias } from '../domain/franjas';
+import { inicioDeDiaArgentina } from '../lib/dia-argentina';
 import { aHora } from '../lib/hora';
 import { prisma } from '../lib/prisma';
-import { aFecha } from './apertura.repository';
 import { aRecetaFila, armarReceta, recetaRepository, seleccionReceta } from './receta.repository';
 
 // Consultas de solo lectura de CU-19. Todas reciben el restaurante y la lista
@@ -60,8 +60,7 @@ export interface MetricaRepository {
   ): Promise<DatosOcupacion[]>;
 }
 
-// Instante en que arranca el día `fecha` en Argentina.
-const inicioDeDia = (fecha: string) => new Date(aFecha(fecha).getTime() + 3 * 3_600_000);
+const inicioDeDia = inicioDeDiaArgentina;
 
 export const metricaRepository: MetricaRepository = {
   async sucursalesActivas(restauranteId) {
