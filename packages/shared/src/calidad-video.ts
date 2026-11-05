@@ -1,8 +1,8 @@
 import { z } from 'zod';
 
 // Verificación de calidad del video de un escaneo. Todo son funciones puras
-// sobre muestras de luminancia: el navegador extrae los cuadros y la API repite
-// la evaluación con los mismos criterios.
+// sobre muestras de luminancia: el navegador extrae los cuadros y evalúa; la API
+// solo revalida el formato (duración y resolución leídas del MP4).
 
 export type NivelCalidad = 'OK' | 'ADVERTENCIA' | 'RECHAZO';
 export type CriterioId = 'FORMATO' | 'NITIDEZ' | 'EXPOSICION' | 'BRILLOS' | 'RECORRIDO';
