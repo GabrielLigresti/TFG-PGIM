@@ -35,3 +35,6 @@ docs/modelos/?/
 # Prueba integral (Playwright)
 apps/e2e/test-results/
 apps/e2e/playwright-report/
+
+# Specs y planes de trabajo de las sesiones: se guardan en la wiki, no en el repo
+docs/superpowers/
