@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { Search, SearchX } from 'lucide-react';
+import { Search, SearchX, X } from 'lucide-react';
 import { nombreBarrio, type BarrioConSucursales, type ResultadoBusqueda } from '@pgim/shared';
 import { useRecurso } from '../lib/useRecurso';
 import { Aviso, Boton, EstadoCarga, Vacio, claseInput } from './ui';
@@ -65,8 +65,18 @@ export function BuscadorSucursales() {
               value={texto}
               maxLength={100}
               onChange={(e) => setTexto(e.target.value)}
-              className={`${claseInput} min-h-11 pl-10 sm:min-h-11 sm:text-[16px]`}
+              className={`${claseInput} min-h-11 pl-10 sm:min-h-11 sm:text-[16px] [&::-webkit-search-cancel-button]:appearance-none ${texto ? 'pr-11' : ''}`}
             />
+            {texto && (
+              <button
+                type="button"
+                aria-label="Borrar búsqueda"
+                onClick={() => setTexto('')}
+                className="absolute top-0 right-0 inline-flex size-11 items-center justify-center rounded-control text-meta hover:text-text"
+              >
+                <X aria-hidden className="size-5" />
+              </button>
+            )}
           </div>
           <select
             aria-label="Barrio"
@@ -124,13 +134,19 @@ export function BuscadorSucursales() {
   );
 }
 
+// Compara sin tildes ni mayúsculas.
+const mismoTexto = (a: string, b: string) =>
+  a.localeCompare(b, 'es', { sensitivity: 'base' }) === 0;
+
 function TarjetaResultado({ r }: { r: ResultadoBusqueda }) {
   const { sucursal, restaurante, platosCoincidentes } = r;
   return (
     <li className="flex flex-col gap-1 rounded-panel border border-line bg-surface p-4">
       <p className="font-semibold text-ink">{restaurante.nombre}</p>
       <p className="text-sm text-text">
-        {sucursal.nombre} · {nombreBarrio(sucursal.barrio)}
+        {mismoTexto(sucursal.nombre, nombreBarrio(sucursal.barrio))
+          ? sucursal.nombre
+          : `${sucursal.nombre} · ${nombreBarrio(sucursal.barrio)}`}
       </p>
       <p className="text-sm text-meta">{sucursal.direccion}</p>
       {platosCoincidentes.length > 0 && (
