@@ -44,7 +44,7 @@ describe('/api/pagos/hoy', () => {
     cookieConPermisos(['pago.ver']);
     await request(app)
       .get('/api/pagos/hoy')
-      .set('Cookie', `sesion=${firmarToken({ usuarioId: IDS.admin })}`)
+      .set('Cookie', `sesion=${firmarToken({ usuarioId: IDS.admin, sucursalId: null })}`)
       .expect(409);
   });
 
