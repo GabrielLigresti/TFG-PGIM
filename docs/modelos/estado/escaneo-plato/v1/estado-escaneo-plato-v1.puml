@@ -1,0 +1,45 @@
+@startuml estado-escaneo-plato-v1
+' Diagrama de estado (UML). Paleta alineada con CU y secuencias formato Vialia.
+' Transiciones: evento (quién) [condición] / efecto
+skinparam dpi 300
+skinparam defaultFontName DejaVu Sans
+skinparam defaultFontSize 12
+skinparam shadowing false
+skinparam ArrowColor #000000
+skinparam state {
+  BackgroundColor #DAE8FC
+  BorderColor #000000
+  FontSize 13
+  FontStyle bold
+  StartColor #000000
+  EndColor #000000
+}
+skinparam note {
+  BackgroundColor #FFF59D
+  BorderColor #BFA800
+}
+hide empty description
+title Escaneo de plato
+
+state PENDIENTE
+state PROCESANDO
+state EN_REVISION
+state PUBLICADO
+state DESCARTADO
+state FALLIDO
+[*] --> PENDIENTE : subir video (permiso "editar menú")\n[informe de calidad sin rechazos\ny formato MP4/MOV válido]\n/ guarda el video
+PENDIENTE --> PROCESANDO : enviar (tarea periódica)\n/ el proveedor devuelve el id de la tarea
+PENDIENTE --> FALLIDO : fallar (tarea periódica)\n[error al enviar]\n/ borra el video
+PROCESANDO --> EN_REVISION : completar (tarea periódica)\n[proveedor listo y .glb válido]\n/ guarda el modelo y borra el video
+PROCESANDO --> FALLIDO : fallar (tarea periódica)\n[proveedor falla, .glb inválido\no más de 30 min]\n/ borra el video
+EN_REVISION --> PUBLICADO : publicar (permiso "editar menú")\n[diámetro y porción]\n/ crea o reemplaza el modelo RA del plato
+EN_REVISION --> DESCARTADO : descartar (permiso "editar menú")\n/ borra el modelo generado
+PUBLICADO --> [*]
+DESCARTADO --> [*]
+FALLIDO --> [*]
+note right of EN_REVISION
+  Un solo escaneo activo por plato
+  (PENDIENTE, PROCESANDO o EN_REVISION).
+  Para reintentar se crea uno nuevo.
+end note
+@enduml
