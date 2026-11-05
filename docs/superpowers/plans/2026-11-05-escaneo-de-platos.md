@@ -390,3 +390,29 @@ Por cada fila de `repo.enCurso()`, con `proveedor = deps.proveedores.buscar(fila
 - [ ] **Step 3:** presentarle a Gabriel los hallazgos de las dos revisiones, con severidad, antes de arreglarlos.
 - [ ] **Step 4:** `verificador` con typecheck, tests, build y `format:check`; push a `claude/ra-module-dishes-expansion-1qovom`.
 - [ ] **Step 5:** ofrecer registrar en la wiki las decisiones nuevas: el escaneo reemplaza la subida manual, el proveedor simulado con interfaz `Proveedor3D`, la verificación de calidad en el navegador con la red de seguridad del servidor, y que se conserva `url_modelo_ios`.
+
+---
+
+## Dirección visual (Tarea 10)
+
+Registro "El buen mozo" del panel: densidad compacta (36 px en escritorio, 44 px en celular), un solo botón principal por vista, la acción siguiente siempre escrita. Todo dentro del `Modal` existente (título "Modelo 3D: {plato}"; nunca "RA").
+
+**Estados del escaneo en `lib/estados.ts`** (única fuente de tono e ícono; nada de colores a mano). Entidad nueva `escaneo`:
+- `PENDIENTE` y `PROCESANDO` → "Generando", tono `acento`, ícono `Loader` (girando con `motion-safe:animate-spin`).
+- `EN_REVISION` → "Para revisar", tono `warn`, ícono `Eye`.
+- `PUBLICADO` → "Con modelo", tono `ok`, ícono `Check`.
+- `DESCARTADO` → "Descartado", tono `neutro`, ícono `X`.
+- `FALLIDO` → "Falló", tono `bad`, ícono `TriangleAlert`.
+La columna "Modelo" de Platos usa `<Estado entidad="escaneo" …>`; "Con modelo" sin escaneo en curso usa el mismo `ok`/`Check`.
+
+**Vistas (una por estado, mismo ancho de modal):**
+1. **Sin escaneo activo.** Arriba la vista previa (`model-viewer`, 16rem de alto, fondo Gris Bandeja, radio 10 px). Sin modelo: estado vacío con borde punteado, ícono `Box` en Gris Nota y el texto "Este plato todavía no tiene modelo 3D". Debajo, la grilla de 2 columnas "Diámetro del plato (cm)" y "Porción (g)" solo si hay modelo. Si el último escaneo falló, `Aviso tono="bad"` con el motivo antes de las acciones. Pie: "Quitar modelo" (peligro, a la izquierda), "Guardar" (secundario) y **"Escanear plato"** (principal, ícono `Video`). Sin modelo, "Escanear plato" es el único botón además de Cerrar.
+2. **Grabar o elegir video.** Lista numerada corta (máx. 3 ítems, texto Body): "Poné el plato sobre una mesa, con luz pareja y sin flash", "Grabá una vuelta lenta y completa alrededor, de 30 a 60 segundos", "Mantené el plato entero en cuadro". El selector es una zona grande con borde punteado Línea Firme, radio 16 px, ícono `Video` y el texto "Grabar o elegir un video" con la ayuda "MP4 o MOV, hasta 100 MB" en Gris Nota; el `<input type="file">` va dentro, accesible por teclado (label que lo envuelve, foco visible). Pie: "Volver" (secundario).
+3. **Revisando el video.** Texto "Revisando el video…" (Title) y una barra de progreso fina (4 px, Línea Suave con relleno Verde Albahaca, `role="progressbar"` con `aria-valuenow`) y "12 de 30" en cifras tabulares, Gris Nota.
+4. **Informe de calidad.** Encabezado de una línea según el nivel global: "El video está listo para enviar" / "Podés enviarlo, pero revisá esto" / "Hay que grabarlo de nuevo". Debajo, una lista sin bordes internos, una fila por criterio: ícono de 16 px + nombre del criterio (Label 500) a la izquierda y, si hay mensaje, el mensaje en Body debajo, en Gris Nota. Íconos y tonos: OK → `Check` azul (ok), Advertencia → `TriangleAlert` amarillo (warn), Rechazo → `X` rojo (bad); el texto del nivel ("Bien", "Atención", "No sirve") va como etiqueta en píldora a la derecha, con el tono. Nombres: Formato → "Duración y calidad", Nitidez → "Nitidez", Exposición → "Luz", Brillos → "Reflejos", Recorrido → "Vuelta al plato". Pie según nivel: rechazo → solo "Grabar de nuevo" (principal); advertencia → "Grabar de nuevo" (secundario) y "Enviar igual" (principal); todo OK → "Elegir otro" (fantasma) y "Enviar" (principal). Mientras sube: el principal dice "Enviando…" y se deshabilita.
+5. **Generando.** Centrado verticalmente en el área de la vista previa: `Loader` girando en Verde Albahaca (es "en curso"), "Estamos armando el modelo" (Title) y "Puede tardar unos minutos. Podés cerrar esta ventana: el plato queda como Generando hasta que esté listo." (Body, Gris Nota, máx. 45ch). Pie: "Cerrar" (secundario). `aria-live="polite"` en el contenedor para anunciar el cambio a "Para revisar".
+6. **Para revisar.** Vista previa del borrador arriba (igual que la 1) con una etiqueta "Borrador" (tono warn) superpuesta arriba a la izquierda. Debajo, una línea en Gris Nota: "Indicá el diámetro del plato para que se vea en su tamaño real." y la grilla "Diámetro del plato (cm)" + "Porción (g)". Pie: "Descartar" (peligro, a la izquierda, con confirmación vía `useConfirmar`) y **"Publicar"** (principal, ícono `Check`). El modelo publicado anterior no se muestra acá.
+
+**Celular (390 px):** el modal ocupa el ancho con 16 px de margen; los botones del pie se apilan a ancho completo con el principal arriba; la grilla de 2 campos queda en 2 columnas (campos cortos). Campos a 16 px de texto.
+
+**Copia:** sin "RA", "glb", "usdz", "proveedor", "escaneo fallido" ni nombres de estados. El botón de la lista de Platos pasa de "Modelo RA" a "Modelo 3D".
