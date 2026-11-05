@@ -29,7 +29,8 @@ export function PagosDelDiaPage() {
   // IDs de la carga anterior: null hasta la primera, que no resalta nada.
   const anteriores = useRef<Set<string> | null>(null);
   const temporizadores = useRef(new Set<ReturnType<typeof setTimeout>>());
-  const hoy = hoyArgentina(new Date(useAhora(60_000)));
+  const ahora = useAhora(60_000);
+  const reloj = hoyArgentina(new Date(ahora));
 
   useEventoSocket(EVENTOS_SOCKET.pagosCambio, recurso.recargar);
   const conexion = useConexionSocket(recurso.recargar);
@@ -65,12 +66,17 @@ export function PagosDelDiaPage() {
     return () => timers.forEach(clearTimeout);
   }, []);
 
+  // Con el reloj del dispositivo atrasado, el día que vale es el del servidor.
+  const hoy = recurso.datos && recurso.datos.fecha > reloj ? recurso.datos.fecha : reloj;
+
   // Si la pantalla quedó abierta al pasar la medianoche, se carga el día nuevo.
   const fechaCargada = recurso.datos?.fecha;
   const { recargar } = recurso;
   useEffect(() => {
-    if (fechaCargada && fechaCargada !== hoy) recargar();
-  }, [fechaCargada, hoy, recargar]);
+    if (fechaCargada && fechaCargada < reloj && !recurso.cargando) recargar();
+    // Con ahora, una recarga fallida se reintenta al minuto siguiente; cargando
+    // queda afuera para no reintentar en el acto cuando falla.
+  }, [fechaCargada, reloj, ahora, recargar]);
 
   const datos = recurso.datos;
   const sinMetodo = datos?.totales.porMetodo.SIN_METODO ?? 0;
