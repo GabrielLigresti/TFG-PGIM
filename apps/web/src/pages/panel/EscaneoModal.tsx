@@ -23,7 +23,7 @@ import {
   propsDecimal,
 } from '../../components/ui';
 import { ApiError, api, enviarVideo } from '../../lib/api';
-import { aNumero, formatoCantidad } from '../../lib/formato';
+import { aNumero } from '../../lib/formato';
 import { muestrearVideo } from '../../lib/muestreo-video';
 import { useEscaneo } from '../../lib/useEscaneo';
 import { useModelViewer } from '../../lib/useModelViewer';
@@ -151,16 +151,21 @@ export function EscaneoModal({
   });
 
   // Cada vista empieza con su propio diámetro: el borrador no hereda el del modelo publicado.
+  const precargado = useRef<string | null>(null);
   useEffect(() => {
     setDiametro('');
+    precargado.current = null;
   }, [vista]);
 
-  // El diámetro inicial del modelo publicado se deduce de su escala guardada.
+  // El diámetro inicial del modelo publicado se deduce de su escala guardada, una sola vez
+  // por modelo: si después se vacía el campo, no se vuelve a completar.
   useEffect(() => {
-    if (vista !== 'inicio' || !actual || !medidasVista || diametro !== '') return;
+    if (vista !== 'inicio' || !actual || !medidasVista) return;
+    if (precargado.current === actual.urlModelo) return;
+    precargado.current = actual.urlModelo;
     const cm = diametroPorEscala(actual.escalaReal, medidasVista.ancho, medidasVista.profundidad);
     setDiametro(String(cm).replace('.', ','));
-  }, [vista, actual, medidasVista, diametro]);
+  }, [vista, actual, medidasVista]);
 
   function datosMedidas(): ModeloRaInput | string {
     const cm = aNumero(diametro);
@@ -470,11 +475,6 @@ export function EscaneoModal({
               <Vacio icono={Box} titulo="Este plato todavía no tiene modelo 3D" />
             )}
             {actual && camposMedidas}
-            {actual && (
-              <p className="text-sm text-meta">
-                Guardado: porción {formatoCantidad(actual.porcionGramos, 'GRAMO')}.
-              </p>
-            )}
             {estado === 'FALLIDO' && (
               <Aviso>{escaneo?.error ?? 'No pudimos armar el modelo. Probá de nuevo.'}</Aviso>
             )}

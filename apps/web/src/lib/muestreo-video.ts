@@ -2,7 +2,8 @@ import { aLuminancia, type MetadatosVideo, type MuestraCuadro } from '@pgim/shar
 
 const ANCHO_MUESTRA = 320;
 const ESPERA_MS = 5000;
-const MENSAJE = 'No pudimos leer el video';
+const MENSAJE =
+  'No pudimos leer el video. Si lo grabaste con un iPhone, probá subirlo desde el mismo celular.';
 
 function esperar(video: HTMLVideoElement, evento: string): Promise<void> {
   return new Promise((resolver, rechazar) => {

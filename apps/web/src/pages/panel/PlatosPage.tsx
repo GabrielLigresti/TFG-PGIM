@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import type { Categoria, CategoriaInput, Insumo, Plato, PlatoInput } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
@@ -39,6 +39,18 @@ export function PlatosPage() {
     platos.recargar();
     categorias.recargar();
   }
+
+  // Mientras algún plato se está generando, la lista se actualiza sola.
+  const generando =
+    platos.datos?.some(
+      (p) => p.escaneo?.estado === 'PENDIENTE' || p.escaneo?.estado === 'PROCESANDO',
+    ) ?? false;
+  const { recargar: recargarPlatos } = platos;
+  useEffect(() => {
+    if (!generando) return;
+    const id = setInterval(recargarPlatos, 5000);
+    return () => clearInterval(id);
+  }, [generando, recargarPlatos]);
 
   const confirmar = useConfirmar();
 
