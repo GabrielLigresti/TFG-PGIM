@@ -27,6 +27,7 @@ import { MisTurnosPage } from './pages/panel/MisTurnosPage';
 import { AperturaPage } from './pages/panel/AperturaPage';
 import { AlertasPage } from './pages/panel/AlertasPage';
 import { CocinaPage } from './pages/panel/CocinaPage';
+import { PagosDelDiaPage } from './pages/panel/PagosDelDiaPage';
 import { MenusPage } from './pages/panel/MenusPage';
 import { PersonalPage } from './pages/panel/PersonalPage';
 import { PlatosPage } from './pages/panel/PlatosPage';
@@ -92,6 +93,7 @@ export default function App() {
                   <Route path="salon" element={conPermiso('reserva.ver', <SalonEnVivoPage />)} />
                   <Route path="reservas" element={conPermiso('reserva.ver', <ReservasPage />)} />
                   <Route path="cocina" element={conPermiso('pedido.ver', <CocinaPage />)} />
+                  <Route path="pagos" element={conPermiso('pago.ver', <PagosDelDiaPage />)} />
                   <Route
                     path="apertura"
                     element={conPermiso('apertura.consultar', <AperturaPage />)}
