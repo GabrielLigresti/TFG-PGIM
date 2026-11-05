@@ -16,6 +16,7 @@ const valido = {
   sucursal: {
     nombre: 'Casa central',
     direccion: 'Calle Falsa 123',
+    barrio: 'SAN_NICOLAS',
     horarioApertura: '12:00',
     horarioCierre: '23:30',
     toleranciaNoShowMin: 15,
@@ -57,6 +58,17 @@ describe('POST /api/auth/registro-restaurante', () => {
     const res = await request(createApp())
       .post('/api/auth/registro-restaurante')
       .send({ ...valido, restaurante: { nombre: 'X', cuit: '123' } });
+
+    expect(res.status).toBe(400);
+    expect(mockRestaurante()).not.toHaveBeenCalled();
+  });
+
+  it('responde 400 si la sucursal no trae barrio', async () => {
+    const { barrio: _barrio, ...sinBarrio } = valido.sucursal;
+
+    const res = await request(createApp())
+      .post('/api/auth/registro-restaurante')
+      .send({ ...valido, sucursal: sinBarrio });
 
     expect(res.status).toBe(400);
     expect(mockRestaurante()).not.toHaveBeenCalled();

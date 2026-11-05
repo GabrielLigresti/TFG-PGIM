@@ -22,13 +22,14 @@ export interface Categoria {
 }
 
 // Un enlace completo (http o https) o una ruta del propio sitio, como las fotos
-// de demo que sirve la web (/fotos-demo/…).
+// de demo que sirve la web (/fotos-demo/…). Las rutas de /api/uploads/ las
+// escribe solo la subida: pegarlas dejaría borrar la foto de otro restaurante.
 const fotoUrlSchema = z
   .string()
   .trim()
   .refine(
     (v) =>
-      (v.startsWith('/') && !v.startsWith('//')) ||
+      (v.startsWith('/') && !v.startsWith('//') && !v.startsWith('/api/uploads/')) ||
       /^https?:\/\/[^\s/?#]+\.[^\s/?#]+(\/\S*)?$|^https?:\/\/localhost(:\d+)?(\/\S*)?$/.test(v),
     'Pegá un enlace que empiece con https://',
   );

@@ -7,12 +7,13 @@ import { ProveedorAvisos } from './components/AvisoEmergente';
 import { ProveedorConfirmacion } from './components/Confirmacion';
 import { PanelLayout } from './components/PanelLayout';
 import { ProveedorCarrito } from './lib/carrito';
+import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { PanelPage } from './pages/PanelPage';
 import { RegistroPage } from './pages/RegistroPage';
 import { RegistroRestaurantePage } from './pages/RegistroRestaurantePage';
-import { InicioComensalPage } from './pages/comensal/InicioComensalPage';
 import { MenuSucursalPage } from './pages/comensal/MenuSucursalPage';
+import { MiCuentaPage } from './pages/comensal/MiCuentaPage';
 import { MisPuntosPage } from './pages/comensal/MisPuntosPage';
 import { MiMesaPage } from './pages/comensal/MiMesaPage';
 import { MisReservasPage } from './pages/comensal/MisReservasPage';
@@ -22,6 +23,7 @@ import { ReservarPage } from './pages/comensal/ReservarPage';
 import { SeleccionarSucursalPage } from './pages/SeleccionarSucursalPage';
 import { BeneficiosPage } from './pages/panel/BeneficiosPage';
 import { ProgramaPuntosPage } from './pages/panel/ProgramaPuntosPage';
+import { MiCuentaPanelPage } from './pages/panel/MiCuentaPanelPage';
 import { MetricasPage } from './pages/panel/MetricasPage';
 import { MisTurnosPage } from './pages/panel/MisTurnosPage';
 import { AperturaPage } from './pages/panel/AperturaPage';
@@ -69,6 +71,7 @@ export default function App() {
           <BrowserRouter>
             <ProveedorConfirmacion>
               <Routes>
+                <Route path="/" element={<LandingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/registro" element={<RegistroPage />} />
                 <Route path="/registrar-restaurante" element={<RegistroRestaurantePage />} />
@@ -83,12 +86,28 @@ export default function App() {
                 <Route
                   path="/panel"
                   element={
-                    <RutaProtegida tipo="EMPLEADO" requiereSucursal>
+                    // Sin sucursal elegida igual se abre "Mi cuenta": cada pantalla pide la suya.
+                    <RutaProtegida tipo="EMPLEADO">
                       <PanelLayout />
                     </RutaProtegida>
                   }
                 >
-                  <Route index element={<PanelPage />} />
+                  <Route
+                    index
+                    element={
+                      <RutaProtegida tipo="EMPLEADO" requiereSucursal>
+                        <PanelPage />
+                      </RutaProtegida>
+                    }
+                  />
+                  <Route
+                    path="mi-cuenta"
+                    element={
+                      <RutaProtegida tipo="EMPLEADO">
+                        <MiCuentaPanelPage />
+                      </RutaProtegida>
+                    }
+                  />
                   <Route path="salon" element={conPermiso('reserva.ver', <SalonEnVivoPage />)} />
                   <Route path="reservas" element={conPermiso('reserva.ver', <ReservasPage />)} />
                   <Route path="cocina" element={conPermiso('pedido.ver', <CocinaPage />)} />
@@ -133,15 +152,16 @@ export default function App() {
                   <Route path="platos" element={conPermiso('menu.ver', <PlatosPage />)} />
                   <Route path="menus" element={conPermiso('menu.ver', <MenusPage />)} />
                 </Route>
-                <Route path="/inicio" element={paraComensal(<InicioComensalPage />)} />
-                <Route path="/s/:sucursalId/menu" element={paraComensal(<MenuSucursalPage />)} />
-                <Route path="/s/:sucursalId/platos/:id" element={paraComensal(<PlatoPage />)} />
+                <Route path="/inicio" element={<Navigate to="/" replace />} />
+                <Route path="/s/:sucursalId/menu" element={<MenuSucursalPage />} />
+                <Route path="/s/:sucursalId/platos/:id" element={<PlatoPage />} />
                 <Route path="/s/:sucursalId/reservar" element={paraComensal(<ReservarPage />)} />
                 <Route path="/s/:sucursalId/pedido" element={paraComensal(<PedidoPage />)} />
                 <Route path="/reservas" element={paraComensal(<MisReservasPage />)} />
                 <Route path="/mesa" element={paraComensal(<MiMesaPage />)} />
+                <Route path="/cuenta" element={paraComensal(<MiCuentaPage />)} />
                 <Route path="/puntos" element={paraComensal(<MisPuntosPage />)} />
-                <Route path="*" element={<Navigate to="/login" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </ProveedorConfirmacion>
           </BrowserRouter>

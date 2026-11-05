@@ -28,6 +28,7 @@ describe('recetaRepository: salir del stock', () => {
           restauranteId: e.restauranteId,
           nombre: 'Palermo',
           direccion: 'Calle Falsa 456',
+          barrio: 'SAN_NICOLAS',
           horarioApertura: hora('12:00'),
           horarioCierre: hora('00:00'),
           toleranciaNoShowMin: 15,

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router';
 import { Box, Plus, Utensils } from 'lucide-react';
 import type { MenuSucursal, PlatoMenu } from '@pgim/shared';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
+import { useSesion } from '../../auth/SesionProvider';
 import { Chip, EstadoCarga, Etiqueta } from '../../components/ui';
 import { useCarrito } from '../../lib/carrito';
 import { formatoPesos } from '../../lib/formato';
@@ -13,12 +14,13 @@ import { useRecurso } from '../../lib/useRecurso';
 export function MenuSucursalPage() {
   const { sucursalId } = useParams();
   const { datos, cargando, error } = useRecurso<MenuSucursal>(
-    `/comensal/sucursales/${sucursalId}/menu`,
+    `/publico/sucursales/${sucursalId}/menu`,
   );
   // null = todas las categorías.
   const [categoria, setCategoria] = useState<string | null>(null);
   // Con la mesa activa en esta sucursal, el comensal pide desde el menú.
-  const mesa = useMiMesa(sucursalId ?? null).datos;
+  const { sesion } = useSesion();
+  const mesa = useMiMesa(sucursalId ?? null, sesion?.usuario.tipo === 'COMENSAL').datos;
   const carrito = useCarrito(mesa?.cuentaMesaId ?? null);
 
   const claseAccion =
@@ -46,7 +48,10 @@ export function MenuSucursalPage() {
   const visibles = categoria ? categorias.filter((c) => c.id === categoria) : categorias;
 
   return (
-    <LayoutComensal volver={{ a: '/inicio', texto: 'Sucursales' }} accionFija={accion || undefined}>
+    <LayoutComensal
+      volver={{ a: '/', texto: sesion ? 'Sucursales' : 'Buscar' }}
+      accionFija={accion || undefined}
+    >
       <EstadoCarga cargando={cargando && !datos} error={error} />
       {datos && (
         <>

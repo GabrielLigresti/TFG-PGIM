@@ -2,8 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import {
   administraModulo,
+  BARRIOS,
+  nombreBarrio,
   estaVigente,
   hoyArgentina,
+  type Barrio,
   type Menu,
   type Sucursal,
   type SucursalInput,
@@ -103,7 +106,7 @@ export function SucursalesPage() {
                 </span>
               ),
             },
-            { titulo: 'Dirección', valor: (s) => s.direccion },
+            { titulo: 'Dirección', valor: (s) => `${s.direccion}, ${nombreBarrio(s.barrio)}` },
             { titulo: 'Horario', valor: (s) => `${s.horarioApertura}–${s.horarioCierre}` },
             { titulo: 'Servicio', valor: (s) => horarios(s) || '—' },
             { titulo: 'Tolerancia', valor: (s) => `${s.toleranciaNoShowMin} min` },
@@ -160,6 +163,7 @@ function FormularioSucursal({
 }) {
   const [nombre, setNombre] = useState(sucursal?.nombre ?? '');
   const [direccion, setDireccion] = useState(sucursal?.direccion ?? '');
+  const [barrio, setBarrio] = useState<Barrio | ''>(sucursal?.barrio ?? '');
   const [apertura, setApertura] = useState(sucursal?.horarioApertura ?? '12:00');
   const [cierre, setCierre] = useState(sucursal?.horarioCierre ?? '00:00');
   const [tolerancia, setTolerancia] = useState(String(sucursal?.toleranciaNoShowMin ?? 15));
@@ -178,6 +182,7 @@ function FormularioSucursal({
     const datos: SucursalInput = {
       nombre,
       direccion,
+      barrio: barrio as Barrio,
       horarioApertura: apertura,
       horarioCierre: cierre,
       toleranciaNoShowMin: aNumero(tolerancia),
@@ -209,6 +214,23 @@ function FormularioSucursal({
             onChange={(e) => setDireccion(e.target.value)}
             className={claseInput}
           />
+        </Campo>
+        <Campo etiqueta="Barrio">
+          <select
+            required
+            value={barrio}
+            onChange={(e) => setBarrio(e.target.value as Barrio)}
+            className={claseInput}
+          >
+            <option value="" disabled>
+              Elegí un barrio
+            </option>
+            {BARRIOS.map((b) => (
+              <option key={b.valor} value={b.valor}>
+                {b.nombre}
+              </option>
+            ))}
+          </select>
         </Campo>
         <div className="grid grid-cols-2 gap-3">
           <Campo etiqueta="Apertura">

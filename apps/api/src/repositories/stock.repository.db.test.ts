@@ -282,6 +282,7 @@ describe('movimientos manuales', () => {
         restauranteId: e.restauranteId,
         nombre: 'Otra',
         direccion: 'Otra 1',
+        barrio: 'SAN_NICOLAS',
         horarioApertura: new Date('1970-01-01T12:00:00Z'),
         horarioCierre: new Date('1970-01-01T23:00:00Z'),
         toleranciaNoShowMin: 15,

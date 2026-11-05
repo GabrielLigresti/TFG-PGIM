@@ -2,7 +2,8 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 
-const API_URL = 'http://localhost:3000';
+// El e2e apunta la web a su propia API (puerto 3001).
+const API_URL = process.env.API_URL ?? 'http://localhost:3000';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],

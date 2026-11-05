@@ -19,7 +19,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:up": "docker compose up -d db",
-    "db:down": "docker compose down"
+    "db:down": "docker compose down",
+    "test:e2e": "npm run test:e2e -w @pgim/e2e"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

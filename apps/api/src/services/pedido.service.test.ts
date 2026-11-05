@@ -61,6 +61,7 @@ function armar(cuenta: CuentaParaPedido | null = CUENTA) {
       id: 'centro',
       nombre: 'Centro',
       direccion: 'x',
+      barrio: 'SAN_NICOLAS',
       restaurante: { id: 'r', nombre: 'R' },
     },
     menu: { nombre: 'Carta', descripcion: null },
