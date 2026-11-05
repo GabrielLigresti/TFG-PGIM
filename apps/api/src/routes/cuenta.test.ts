@@ -70,15 +70,41 @@ describe('/api/cuenta', () => {
     });
   });
 
-  it('empleado: PUT válido responde 200 y el servicio recibe el usuarioId del token, no el del body', async () => {
+  it('empleado: PUT válido responde 200 y el servicio recibe el usuarioId del token', async () => {
     await request(app)
       .put('/api/cuenta')
       .set('Cookie', cookieConPermisos([]))
-      .send({ nombreCompleto: 'Eli', usuarioId: IDS.ajena })
+      .send({ nombreCompleto: 'Eli' })
       .expect(200);
     expect(cuentaService.actualizarEmpleado).toHaveBeenCalledWith(IDS.admin, IDS.restaurante, {
       nombreCompleto: 'Eli',
     });
+  });
+
+  it('empleado: un usuarioId en el body responde 400 y no llega al servicio', async () => {
+    await request(app)
+      .put('/api/cuenta')
+      .set('Cookie', cookieConPermisos([]))
+      .send({ nombreCompleto: 'Eli', usuarioId: IDS.ajena })
+      .expect(400);
+    expect(cuentaService.actualizarEmpleado).not.toHaveBeenCalled();
+  });
+
+  it('empleado: nombreCompleto con teléfono responde 400', async () => {
+    await request(app)
+      .put('/api/cuenta')
+      .set('Cookie', cookieConPermisos([]))
+      .send({ nombreCompleto: 'Eli', telefono: null })
+      .expect(400);
+  });
+
+  it('comensal: un campo extra además de nombre y teléfono responde 400', async () => {
+    await request(app)
+      .put('/api/cuenta')
+      .set('Cookie', cookieDeComensal())
+      .send({ nombre: 'Cora', telefono: null, nombreCompleto: 'Cora X' })
+      .expect(400);
+    expect(cuentaService.actualizarComensal).not.toHaveBeenCalled();
   });
 
   it('empleado: PUT con campos del comensal (sin nombreCompleto) responde 400', async () => {

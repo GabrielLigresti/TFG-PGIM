@@ -75,8 +75,9 @@ cuentaRouter.put('/foto', soloTipo('EMPLEADO'), tenant, archivoFoto, async (req,
 
 cuentaRouter.put(
   '/contrasena',
-  limiteContrasena,
+  // La validación va antes: un pedido mal formado no gasta intentos.
   validar(cambiarContrasenaSchema),
+  limiteContrasena,
   async (req, res) => {
     const { actual, nueva } = req.body as CambiarContrasenaInput;
     await cuentaService.cambiarContrasena(req.sesion!.usuario.id, actual, nueva);

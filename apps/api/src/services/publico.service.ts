@@ -51,7 +51,10 @@ export function createPublicoService(repo: ComensalRepository, menuDeSucursal: M
         .flatMap((r) =>
           r.sucursales
             .filter((s) => !barrio || s.barrio === barrio)
-            .map((s) => ({ restaurante: { id: r.id, nombre: r.nombre }, sucursal: s })),
+            .map((s) => ({
+              restaurante: { id: r.id, nombre: r.nombre },
+              sucursal: { id: s.id, nombre: s.nombre, direccion: s.direccion, barrio: s.barrio },
+            })),
         )
         .sort(
           (a, b) =>
@@ -66,9 +69,12 @@ export function createPublicoService(repo: ComensalRepository, menuDeSucursal: M
 
       const resultados = await Promise.all(
         sucursales.map(async ({ restaurante, sucursal }) => {
-          const coincideSucursal = [restaurante.nombre, sucursal.nombre, sucursal.direccion].some(
-            (campo) => normalizar(campo).includes(texto),
-          );
+          const coincideSucursal = [
+            restaurante.nombre,
+            sucursal.nombre,
+            sucursal.direccion,
+            nombreBarrio(sucursal.barrio),
+          ].some((campo) => normalizar(campo).includes(texto));
           const platos = (await nombresDePlatos(sucursal.id)).filter((nombre) =>
             normalizar(nombre).includes(texto),
           );

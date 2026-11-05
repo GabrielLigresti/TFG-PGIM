@@ -25,7 +25,8 @@ describe('límite de solicitudes públicas', () => {
 
   it('agotado el límite de búsqueda, la carta sigue abierta', async () => {
     const app = createApp();
-    // El contador es del módulo: el test anterior ya lo agotó.
+    // Agota su propio contador: así corre sola, con -t.
+    for (let n = 1; n <= 60; n++) await request(app).get('/api/publico/buscar');
     expect((await request(app).get('/api/publico/buscar')).status).toBe(429);
 
     const id = '01900000-0000-7000-8000-000000000011';

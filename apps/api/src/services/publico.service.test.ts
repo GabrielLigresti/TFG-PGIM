@@ -247,6 +247,12 @@ describe('publicoService: buscar', () => {
     expect((await servicio.buscar('Siempre Viva')).map((x) => x.sucursal.id)).toEqual(['centro']);
   });
 
+  it('por barrio, con el nombre visible y sin importar tildes', async () => {
+    const { servicio } = buscador(MENUS);
+    expect((await servicio.buscar('san nicolas')).map((x) => x.sucursal.id)).toEqual(['centro']);
+    expect((await servicio.buscar('palermo')).map((x) => x.sucursal.id)).toEqual(['palermo']);
+  });
+
   it('un plato en dos sucursales las trae a las dos', async () => {
     const { servicio } = buscador(MENUS);
     expect((await servicio.buscar('milanesa')).map((x) => x.sucursal.id)).toEqual([
@@ -324,6 +330,28 @@ describe('publicoService: buscar', () => {
       'nombre',
     ]);
     expect(Object.keys(r[0]?.restaurante ?? {}).sort()).toEqual(['id', 'nombre']);
+  });
+});
+
+describe('publicoService: buscar, campos públicos', () => {
+  it('no filtra los campos extra que trae el repositorio', async () => {
+    const { servicio, repo } = buscador(MENUS);
+    repo.listarSucursales.mockResolvedValue([
+      {
+        id: 'r',
+        nombre: 'R',
+        activo: true,
+        sucursales: [{ ...CENTRO, restauranteId: 'r', activa: true }],
+      } as never,
+    ]);
+    const [r] = await servicio.buscar();
+    expect(r?.sucursal).toEqual({
+      id: 'centro',
+      nombre: 'Centro',
+      direccion: 'Siempre Viva 742',
+      barrio: 'SAN_NICOLAS',
+    });
+    expect(r?.restaurante).toEqual({ id: 'r', nombre: 'R' });
   });
 });
 
