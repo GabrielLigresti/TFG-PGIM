@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Wallet } from 'lucide-react';
-import { EVENTOS_SOCKET, type MetodoPago, type PagosDelDia } from '@pgim/shared';
+import { EVENTOS_SOCKET, hoyArgentina, type MetodoPago, type PagosDelDia } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { useAvisos } from '../../components/AvisoEmergente';
 import { IndicadorConexion } from '../../components/IndicadorConexion';
 import { EncabezadoPagina, Estado, EstadoCarga, Kpi, Panel, Vacio } from '../../components/ui';
-import { formatoHora, formatoPesos } from '../../lib/formato';
+import { formatoDiaRelativo, formatoHora, formatoPesos } from '../../lib/formato';
 import { useConexionSocket, useEventoSocket } from '../../lib/socket';
+import { useAhora } from '../../lib/useAhora';
 import { useRecurso } from '../../lib/useRecurso';
 
 // CU-23: pagos aprobados y rechazados de hoy en la sucursal de trabajo. La
-// pregunta que responde es "¿llegó el pago de la mesa 4?", de un vistazo.
+// pregunta que responde es "¿llegó el pago de la mesa 4?", de un vistazo. El día
+// es el calendario de Argentina: a medianoche la lista empieza de cero.
 
 const RESALTADO_MS = 6000;
 
@@ -26,7 +28,8 @@ export function PagosDelDiaPage() {
   const [resaltados, setResaltados] = useState<Set<string>>(new Set());
   // IDs de la carga anterior: null hasta la primera, que no resalta nada.
   const anteriores = useRef<Set<string> | null>(null);
-  const temporizadores = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const temporizadores = useRef(new Set<ReturnType<typeof setTimeout>>());
+  const hoy = hoyArgentina(new Date(useAhora(60_000)));
 
   useEventoSocket(EVENTOS_SOCKET.pagosCambio, recurso.recargar);
   const conexion = useConexionSocket(recurso.recargar);
@@ -40,30 +43,34 @@ export function PagosDelDiaPage() {
     const nuevos = pagos.filter((p) => !previos.has(p.id));
     if (nuevos.length === 0) return;
     setResaltados((s) => new Set([...s, ...nuevos.map((p) => p.id)]));
-    temporizadores.current.push(
-      setTimeout(
-        () =>
-          setResaltados((s) => {
-            const otro = new Set(s);
-            for (const p of nuevos) otro.delete(p.id);
-            return otro;
-          }),
-        RESALTADO_MS,
-      ),
-    );
-    for (const p of nuevos) {
-      avisar(
-        p.estado === 'APROBADO'
-          ? `Pago recibido: mesa ${p.mesaNumero}, ${formatoPesos(p.monto)}`
-          : `Pago no aprobado: mesa ${p.mesaNumero}`,
-      );
-    }
+    const timer = setTimeout(() => {
+      temporizadores.current.delete(timer);
+      setResaltados((s) => {
+        const otro = new Set(s);
+        for (const p of nuevos) otro.delete(p.id);
+        return otro;
+      });
+    }, RESALTADO_MS);
+    temporizadores.current.add(timer);
+    // Al volver de un corte pueden llegar varios juntos: un solo aviso.
+    const [primero] = nuevos;
+    if (nuevos.length > 1) avisar(`${nuevos.length} pagos nuevos`);
+    else if (primero?.estado === 'APROBADO')
+      avisar(`Pago recibido: mesa ${primero.mesaNumero}, ${formatoPesos(primero.monto)}`);
+    else if (primero) avisar(`Pago no aprobado: mesa ${primero.mesaNumero}`);
   }, [recurso.datos, avisar]);
 
   useEffect(() => {
     const timers = temporizadores.current;
     return () => timers.forEach(clearTimeout);
   }, []);
+
+  // Si la pantalla quedó abierta al pasar la medianoche, se carga el día nuevo.
+  const fechaCargada = recurso.datos?.fecha;
+  const { recargar } = recurso;
+  useEffect(() => {
+    if (fechaCargada && fechaCargada !== hoy) recargar();
+  }, [fechaCargada, hoy, recargar]);
 
   const datos = recurso.datos;
   const sinMetodo = datos?.totales.porMetodo.SIN_METODO ?? 0;
@@ -72,12 +79,14 @@ export function PagosDelDiaPage() {
     <section>
       <EncabezadoPagina
         titulo="Pagos del día"
-        descripcion={`Pagos de ${sesion?.sucursalActiva?.nombre ?? 'la sucursal'}, los más nuevos arriba.`}
+        descripcion={`${datos ? `${formatoDiaRelativo(datos.fecha, hoy)} · ` : ''}Pagos de ${
+          sesion?.sucursalActiva?.nombre ?? 'la sucursal'
+        }, los más nuevos arriba.`}
         accion={<IndicadorConexion estado={conexion} />}
       />
       <EstadoCarga cargando={recurso.cargando && !datos} error={recurso.error} />
       {datos && (
-        <div className="grid gap-4">
+        <div className="grid max-w-3xl gap-4">
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Kpi
               etiqueta="Cobrado hoy"
@@ -86,15 +95,20 @@ export function PagosDelDiaPage() {
                 sinMetodo > 0 ? ` · ${formatoPesos(sinMetodo)} sin cobro` : ''
               }`}
             />
-            <Kpi etiqueta="Tarjeta" valor={formatoPesos(datos.totales.porMetodo.TARJETA)} />
+            <Kpi
+              etiqueta="Tarjeta"
+              valor={formatoPesos(datos.totales.porMetodo.TARJETA)}
+              detalle="Crédito o débito"
+            />
             <Kpi
               etiqueta="Billetera virtual"
               valor={formatoPesos(datos.totales.porMetodo.BILLETERA_VIRTUAL)}
+              detalle="Dinero en cuenta"
             />
             <Kpi
               etiqueta="No aprobados"
               valor={datos.totales.rechazados}
-              detalle="Mercado Pago no los aprobó"
+              detalle="No se completaron"
               tono={datos.totales.rechazados > 0 ? 'warn' : 'neutro'}
             />
           </div>
@@ -110,7 +124,7 @@ export function PagosDelDiaPage() {
                 {datos.pagos.map((pago) => (
                   <li
                     key={pago.id}
-                    className={`flex items-start justify-between gap-3 py-3 ${
+                    className={`-mx-2 flex items-start justify-between gap-3 px-2 py-3 ${
                       resaltados.has(pago.id) ? 'rounded-panel ring-2 ring-accent' : ''
                     }`}
                   >
@@ -120,7 +134,7 @@ export function PagosDelDiaPage() {
                       </p>
                       <p className="text-sm text-meta">
                         {pago.comensalNombre} · {formatoHora(pago.fecha)}
-                        {pago.comprobanteNumero && ` · N.º ${pago.comprobanteNumero}`}
+                        {pago.comprobanteNumero && ` · ${pago.comprobanteNumero}`}
                       </p>
                     </div>
                     <div className="grid justify-items-end gap-1 text-right">

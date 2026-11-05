@@ -41,6 +41,7 @@ describe('/api/pagos/hoy', () => {
   });
 
   it('sin sucursal de trabajo responde 409', async () => {
+    // Arma la sesión con pago.ver; la cookie va con un token sin sucursal de trabajo.
     cookieConPermisos(['pago.ver']);
     await request(app)
       .get('/api/pagos/hoy')

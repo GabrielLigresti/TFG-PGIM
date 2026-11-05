@@ -93,6 +93,16 @@ En `EVENTOS_SOCKET` se suma `pagosCambio: 'pagos:cambio'`, un aviso sin datos.
 mismo criterio de Métricas, así que el cobrado de hoy coincide con lo que
 Métricas mostrará para esta fecha a partir de mañana.
 
+Consecuencias del día calendario, aceptadas (CU-23, opción A):
+
+- A medianoche la lista empieza de cero, aunque el servicio siga.
+- Un pago creado antes de medianoche y resuelto después no figura en ninguno
+  de los dos días.
+- Por eso el encabezado muestra la fecha ("Hoy, jueves 5 de noviembre"). Si la
+  pantalla queda abierta al pasar la medianoche, carga sola el día nuevo.
+- Queda como mejora un "día de servicio" con corte de madrugada, a definir para
+  todo el sistema, Métricas incluida.
+
 ### Tiempo real
 
 En el NotificadorStaff (`realtime/notificadores.ts`), ante `PAGO_APROBADO` o
