@@ -389,7 +389,7 @@ Por cada fila de `repo.enCurso()`, con `proveedor = deps.proveedores.buscar(fila
 - [ ] **Step 2:** `revisor-pr` con el rango de commits de la rama, este plan, la spec y el foco: transacción de `publicar`, aislamiento por tenant en `escaneo.repository`, transiciones del State y Review Focus.
 - [ ] **Step 3:** presentarle a Gabriel los hallazgos de las dos revisiones, con severidad, antes de arreglarlos.
 - [ ] **Step 4:** `verificador` con typecheck, tests, build y `format:check`; push a `claude/ra-module-dishes-expansion-1qovom`.
-- [ ] **Step 5:** ofrecer registrar en la wiki las decisiones nuevas: el escaneo reemplaza la subida manual, el proveedor simulado con interfaz `Proveedor3D`, la verificación de calidad en el navegador con la red de seguridad del servidor, y que se conserva `url_modelo_ios`.
+- [ ] **Step 5:** ofrecer registrar en la wiki las decisiones nuevas: el escaneo reemplaza la subida manual, el proveedor simulado con interfaz `Proveedor3D`, la verificación de calidad en el navegador con la red de seguridad del servidor, y que se mantiene la columna `url_modelo_ios` (al publicar un escaneo sin `.usdz` queda null y se borra el anterior).
 
 ---
 
