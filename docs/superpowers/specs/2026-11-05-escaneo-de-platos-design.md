@@ -181,7 +181,7 @@ El botón "Modelo RA" de la lista de Platos abre un modal que reemplaza a `Model
 | Situación | Contenido | Acciones |
 |---|---|---|
 | Sin escaneo activo (ninguno, o el último fue PUBLICADO, DESCARTADO o FALLIDO) | Vista previa del modelo publicado, si hay; diámetro del plato y porción; motivo, si el último escaneo falló | Guardar (si hay modelo), Quitar modelo, **Escanear plato** |
-| Grabar o elegir video | Instrucciones: plato mate, luz pareja sin flash, una vuelta lenta de 30 a 60 s. Selector `accept="video/mp4,video/quicktime"` con `capture="environment"` | Cancelar |
+| Grabar o elegir video | Instrucciones: plato mate, luz pareja sin flash, una vuelta lenta de 30 a 60 s. Selector `accept="video/mp4,video/quicktime"` (sin `capture`: así el celular ofrece grabar o elegir un video ya grabado) | Cancelar |
 | Revisando el video | "Revisando el video…" con avance por cuadro | — |
 | Informe de calidad | Una fila por criterio con ícono y texto (Bien / Atención / No sirve) y qué corregir | Rechazo: Grabar de nuevo. Advertencias: Grabar de nuevo y Enviar igual. Todo bien: Enviar |
 | Generando (PENDIENTE o PROCESANDO) | "Estamos armando el modelo. Puede tardar unos minutos; podés cerrar esta ventana." Consulta cada 5 s | Cerrar |

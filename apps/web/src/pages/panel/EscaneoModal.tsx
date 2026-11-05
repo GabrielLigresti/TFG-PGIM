@@ -353,7 +353,6 @@ export function EscaneoModal({
               <input
                 type="file"
                 accept="video/mp4,video/quicktime"
-                capture="environment"
                 onChange={(e) => {
                   const archivo = e.target.files?.[0];
                   if (archivo) void revisarVideo(archivo);
