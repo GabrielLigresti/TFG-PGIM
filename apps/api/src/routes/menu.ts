@@ -1,7 +1,6 @@
 import express, { Router } from 'express';
-import { z } from 'zod';
 import {
-  LIMITE_MODELO_MB,
+  LIMITE_VIDEO_MB,
   categoriaInputSchema,
   idParamSchema,
   menuInputSchema,
@@ -13,7 +12,9 @@ import {
   type PlatoInput,
 } from '@pgim/shared';
 import { autenticar, requierePermiso, tenant, validar, validarParams } from '../middleware/auth';
+import { escaneoService } from '../services/escaneo.service';
 import { menuService } from '../services/menu.service';
+import { leerInformeCalidad } from './escaneos';
 
 // Categorías, platos y menús comparten los permisos menu.* (el Jefe de cocina tiene el ABM completo).
 
@@ -109,13 +110,6 @@ platosRouter.delete(
   },
 );
 
-// Modelo RA del plato (CU-16). Los archivos llegan como cuerpo binario, sin
-// multipart; el .glb trae la escala y la porción en la query.
-const archivoModelo = express.raw({
-  type: 'application/octet-stream',
-  limit: `${LIMITE_MODELO_MB}mb`,
-});
-
 // Foto del plato desde la computadora, hasta 5 MB.
 const archivoFoto = express.raw({ type: 'application/octet-stream', limit: '5mb' });
 
@@ -135,29 +129,44 @@ platosRouter.put(
   },
 );
 
-const modeloParamsSchema = idParamSchema.extend({ formato: z.enum(['glb', 'usdz']) });
-
-const modeloQuerySchema = z.object({
-  escalaReal: z.coerce.number(),
-  porcionGramos: z.coerce.number(),
+// Escaneo del plato: el video llega como cuerpo binario y el informe de calidad
+// del navegador en el encabezado X-Calidad-Video.
+const archivoVideo = express.raw({
+  type: 'application/octet-stream',
+  limit: `${LIMITE_VIDEO_MB}mb`,
 });
 
-platosRouter.put(
-  '/:id/modelo-ra/:formato',
+platosRouter.post(
+  '/:id/escaneos',
   requierePermiso('menu.editar'),
-  validarParams(modeloParamsSchema),
-  archivoModelo,
+  validarParams(idParamSchema),
+  archivoVideo,
   async (req, res) => {
-    const { id, formato } = modeloParamsSchema.parse(req.params);
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
-      res.status(400).json({ error: 'Falta el archivo del modelo' });
+      res.status(400).json({ error: 'Falta el video' });
       return;
     }
-    const datos =
-      formato === 'glb' ? modeloRaInputSchema.parse(modeloQuerySchema.parse(req.query)) : undefined;
-    res.json(
-      await menuService.subirModelo(req.tenant!.restauranteId, id, formato, req.body, datos),
-    );
+    const informe = leerInformeCalidad(req.header('X-Calidad-Video'));
+    res
+      .status(201)
+      .json(
+        await escaneoService.crear(
+          req.tenant!.restauranteId,
+          req.params.id as string,
+          req.sesion!.usuario.id,
+          req.body,
+          informe,
+        ),
+      );
+  },
+);
+
+platosRouter.get(
+  '/:id/escaneo',
+  requierePermiso('menu.editar'),
+  validarParams(idParamSchema),
+  async (req, res) => {
+    res.json(await escaneoService.ultimo(req.tenant!.restauranteId, req.params.id as string));
   },
 );
 

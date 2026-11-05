@@ -1,14 +1,10 @@
 import type { CategoriaInput, MenuInput, ModeloRaInput, PlatoInput } from '@pgim/shared';
 import * as archivosFoto from '../lib/archivos-foto';
 import * as archivosModelo from '../lib/archivos-modelo';
-import type { FormatoModelo } from '../lib/archivos-modelo';
 import { AppError } from '../lib/errors';
 import { menuRepository, type MenuRepository } from '../repositories/menu.repository';
 
-export type ArchivosModelo = Pick<
-  typeof archivosModelo,
-  'validarGlb' | 'validarUsdz' | 'guardarModelo' | 'borrarModelo'
->;
+export type ArchivosModelo = Pick<typeof archivosModelo, 'borrarModelo'>;
 
 export type ArchivosFoto = Pick<typeof archivosFoto, 'validarFoto' | 'guardarFoto' | 'borrarFoto'>;
 
@@ -143,42 +139,6 @@ export function createMenuService(
         throw e;
       }
       await fotos.borrarFoto(plato.fotoUrl);
-      return obtenerPlato(restauranteId, id);
-    },
-
-    // CU-16: el .glb es obligatorio y trae la escala y la porción; el .usdz
-    // (iOS) es opcional y solo se suma a un modelo existente. El archivo nuevo
-    // se guarda antes que la fila y el viejo se borra al final.
-    async subirModelo(
-      restauranteId: string,
-      id: string,
-      formato: FormatoModelo,
-      archivo: Buffer,
-      datos?: ModeloRaInput,
-    ) {
-      const plato = await obtenerPlato(restauranteId, id);
-      const actual = plato.modeloRa;
-      if (formato === 'glb') archivos.validarGlb(archivo);
-      else archivos.validarUsdz(archivo);
-      if (formato === 'usdz' && !actual) {
-        throw new AppError(409, 'Primero subí el modelo .glb del plato');
-      }
-      if (formato === 'glb' && !datos) {
-        throw new AppError(400, 'Indicá la escala y la porción del modelo');
-      }
-
-      const url = await archivos.guardarModelo(archivo, formato);
-      const nuevo =
-        formato === 'glb'
-          ? { urlModelo: url, urlModeloIos: actual?.urlModeloIos ?? null, ...datos! }
-          : { ...actual!, urlModeloIos: url };
-      try {
-        await repo.guardarModeloRa(restauranteId, id, nuevo);
-      } catch (e) {
-        await archivos.borrarModelo(url);
-        throw e;
-      }
-      await archivos.borrarModelo(formato === 'glb' ? actual?.urlModelo : actual?.urlModeloIos);
       return obtenerPlato(restauranteId, id);
     },
 
