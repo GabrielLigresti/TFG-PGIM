@@ -463,6 +463,35 @@ describe('procesarEnCurso', () => {
     });
   });
 
+  it('PROCESANDO vencido con el proveedor en LISTO pero guardarModelo falla: FALLIDO', async () => {
+    const proveedor = proveedorFalso({
+      consultar: jest.fn().mockResolvedValue({ estado: 'LISTO', glb: GLB }),
+    });
+    const vencido = procesando({ actualizadoEn: new Date(AHORA.getTime() - 31 * MINUTO) });
+    const { service, repo, deps } = armar([vencido], proveedor);
+    deps.modelos.guardarModelo.mockRejectedValue(new Error('disco'));
+    await service.procesarEnCurso();
+    expect(repo.cambiarEstado).toHaveBeenCalledWith(R, 'e1', 'PROCESANDO', {
+      estado: 'FALLIDO',
+      error: 'El escaneo tardó demasiado',
+      rutaVideo: null,
+    });
+  });
+
+  it('PENDIENTE vencido con un proveedor desconocido: FALLIDO', async () => {
+    const vencido = pendiente({ actualizadoEn: new Date(AHORA.getTime() - 31 * MINUTO) });
+    const { service, repo, deps } = armar([vencido]);
+    deps.proveedores.buscar = jest.fn().mockImplementation(() => {
+      throw new Error('Proveedor no registrado');
+    });
+    await service.procesarEnCurso();
+    expect(repo.cambiarEstado).toHaveBeenCalledWith(R, 'e1', 'PENDIENTE', {
+      estado: 'FALLIDO',
+      error: 'El escaneo tardó demasiado',
+      rutaVideo: null,
+    });
+  });
+
   it('PROCESANDO listo: guarda el modelo, pasa a EN_REVISION y borra el video', async () => {
     const proveedor = proveedorFalso({
       consultar: jest.fn().mockResolvedValue({ estado: 'LISTO', glb: GLB, usdz: USDZ }),
@@ -501,7 +530,7 @@ describe('procesarEnCurso', () => {
     );
   });
 
-  it('PROCESANDO listo con .glb inválido: FALLIDO con el mensaje de validarGlb', async () => {
+  it('PROCESANDO listo con .glb inválido: FALLIDO con un motivo fijo y el detalle en el log', async () => {
     const proveedor = proveedorFalso({
       consultar: jest.fn().mockResolvedValue({ estado: 'LISTO', glb: GLB }),
     });
@@ -513,9 +542,14 @@ describe('procesarEnCurso', () => {
     expect(deps.modelos.guardarModelo).not.toHaveBeenCalled();
     expect(repo.cambiarEstado).toHaveBeenCalledWith(R, 'e1', 'PROCESANDO', {
       estado: 'FALLIDO',
-      error: 'El archivo no es un modelo .glb',
+      error: 'No pudimos armar el modelo con este video',
       rutaVideo: null,
     });
+    expect(error).toHaveBeenCalledWith(
+      expect.any(String),
+      'e1',
+      expect.objectContaining({ message: 'El archivo no es un modelo .glb' }),
+    );
     expect(deps.videos.borrarVideo).toHaveBeenCalledWith('/uploads/escaneos/v.mp4');
   });
 

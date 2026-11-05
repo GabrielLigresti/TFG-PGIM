@@ -125,7 +125,10 @@ export function createEscaneoService(repo: EscaneoRepository, deps: Dependencias
       deps.modelos.validarGlb(resultado.glb);
       if (resultado.usdz) deps.modelos.validarUsdz(resultado.usdz);
     } catch (e) {
-      if (e instanceof AppError) return fallar(fila, e.message);
+      if (e instanceof AppError) {
+        console.error('El modelo del escaneo no es válido', fila.id, e);
+        return fallar(fila, 'No pudimos armar el modelo con este video');
+      }
       throw e;
     }
     const estado = estadoDeEscaneo(fila.estado).completar();
@@ -153,23 +156,17 @@ export function createEscaneoService(repo: EscaneoRepository, deps: Dependencias
 
   async function consultar(fila: FilaEscaneo, proveedor: Proveedor3D) {
     if (!fila.tareaProveedorId) return fallar(fila, 'No pudimos recuperar el escaneo');
-    // actualizadoEn es el momento del envío: nada más toca la fila mientras procesa.
-    const vencido =
-      deps.ahora().getTime() - fila.actualizadoEn.getTime() > deps.timeoutMin * 60_000;
-    let resultado: ResultadoEscaneo;
-    try {
-      resultado = await proveedor.consultar(fila.tareaProveedorId);
-    } catch (e) {
-      // Un proveedor que no responde no deja el escaneo trabado para siempre.
-      if (vencido) return fallar(fila, 'El escaneo tardó demasiado');
-      throw e;
-    }
+    const resultado = await proveedor.consultar(fila.tareaProveedorId);
     if (resultado.estado === 'LISTO') return completar(fila, resultado);
     if (resultado.estado === 'FALLIDO') return fallar(fila, resultado.motivo);
-    if (vencido) return fallar(fila, 'El escaneo tardó demasiado');
   }
 
   async function procesar(fila: FilaEscaneo) {
+    // actualizadoEn es el momento del último cambio de estado: nada más toca la fila.
+    // El vencimiento se evalúa antes de tocar al proveedor, así nada queda trabado.
+    const vencido =
+      deps.ahora().getTime() - fila.actualizadoEn.getTime() > deps.timeoutMin * 60_000;
+    if (vencido) return fallar(fila, 'El escaneo tardó demasiado');
     const proveedor = deps.proveedores.buscar(fila.proveedor);
     if (fila.estado === 'PENDIENTE') return enviar(fila, proveedor);
     if (fila.estado === 'PROCESANDO') return consultar(fila, proveedor);
