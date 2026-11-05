@@ -7,6 +7,7 @@ import { alertaRepository } from './repositories/alerta.repository';
 import { cuentaMesaRepository } from './repositories/cuenta-mesa.repository';
 import { createSocketServer } from './realtime/socket';
 import { pagoService } from './services/pago.service';
+import { escaneoService } from './services/escaneo.service';
 import { reservaService } from './services/reserva.service';
 import { registrarGeneradorAlertas } from './suscriptores/generador-alertas';
 import { registrarRegistroVisitas } from './suscriptores/registro-visitas';
@@ -23,6 +24,11 @@ registrarRegistroVisitas(busEventos, cuentaMesaRepository);
 const tareas = [
   iniciarTareaPeriodica('vencer reservas', () => reservaService.vencerPendientes()),
   iniciarTareaPeriodica('vencer pagos', () => pagoService.vencerPendientes(new Date())),
+  iniciarTareaPeriodica(
+    'procesar escaneos',
+    () => escaneoService.procesarEnCurso(),
+    env.ESCANEO_INTERVALO_MS,
+  ),
 ];
 
 httpServer.listen(env.PORT, () => {
