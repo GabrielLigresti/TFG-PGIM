@@ -58,7 +58,7 @@ export function abrirCentroTodoElDia() {
 // reglas de dominio. La reserva no guarda fin: se deduce del inicio.
 export function moverReservaAhora(emailComensal: string) {
   // (mesa, inicio) es único: si una corrida anterior que falló a la mitad dejó
-  // otra reserva en esa hora, la reserva pasa a una mesa libre de esa hora.
+  // otra reserva viva en esa hora (el índice único cubre solo las pendientes y activas), la reserva pasa a una mesa libre de esa hora.
   ejecutarSql(`
     WITH destino AS (
       SELECT date_trunc('hour', now() + interval '20 minutes') AS hora
@@ -68,7 +68,8 @@ export function moverReservaAhora(emailComensal: string) {
       mesa_id = (
         SELECT m.id FROM mesa m
         WHERE m.sucursal_id = r.sucursal_id AND m.activa AND m.capacidad >= r.cantidad_personas
-          AND NOT EXISTS (SELECT 1 FROM reserva x WHERE x.mesa_id = m.id AND x.inicio = d.hora)
+          AND NOT EXISTS (SELECT 1 FROM reserva x WHERE x.mesa_id = m.id AND x.inicio = d.hora
+                AND x.id <> r.id AND x.estado IN ('PENDIENTE', 'ACTIVA'))
         ORDER BY (m.id = r.mesa_id) DESC, m.capacidad, m.numero
         LIMIT 1
       )

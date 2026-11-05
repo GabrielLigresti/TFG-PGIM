@@ -67,19 +67,29 @@ test('del alta del comensal a su primera visita, con el personal en otra sesión
   await expect(comensal).toHaveURL(/\/mesa$/);
   await expectPedido(comensal, 'Recibido');
 
+  // El número de pedido identifica la comanda de esta corrida en la cocina.
+  const numeroPedido = (
+    await comensal
+      .getByText(/Pedido #\d+/)
+      .first()
+      .innerText()
+  ).match(/#(\d+)/)![1];
+  const comanda = (page: Page) =>
+    page.getByRole('article').filter({ hasText: `Pedido #${numeroPedido}` });
+
   // 5. Cocina lo prepara, y el mozo lo entrega; el comensal ve cada estado.
   const cocina = await (await browser.newContext()).newPage();
   await ingresarEmpleado(cocina, 'cocina@demo.pgim.test');
   await cocina.goto('/panel/cocina');
-  await cocina.getByRole('button', { name: 'Empezar' }).click();
+  await comanda(cocina).getByRole('button', { name: 'Empezar' }).click();
   await expectPedido(comensal, 'En preparación');
-  await cocina.getByRole('button', { name: 'Marcar listo' }).click();
+  await comanda(cocina).getByRole('button', { name: 'Marcar listo' }).click();
   await expectPedido(comensal, 'Listo');
 
   const mozo = await (await browser.newContext()).newPage();
   await ingresarEmpleado(mozo, 'mozo@demo.pgim.test');
   await mozo.goto('/panel/cocina');
-  await mozo.getByRole('button', { name: 'Entregar' }).click();
+  await comanda(mozo).getByRole('button', { name: 'Entregar' }).click();
   await expectPedido(comensal, 'Entregado');
 
   // 6. Paga el total: la pasarela de prueba aprueba al instante.
