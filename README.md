@@ -19,14 +19,18 @@ TypeScript en todo el monorepo (npm workspaces):
 
 ## Puesta en marcha
 
+Después de copiar el `.env`, reemplazar `JWT_SECRET` por una clave propia: el valor de ejemplo pasa la validación, así que la API arranca sin avisar.
+
 ```bash
 cp apps/api/.env.example apps/api/.env
 npm install
 npm run db:up
+(cd apps/api && npx prisma migrate deploy)
+npm run db:seed -w @pgim/api
 npm run dev
 ```
 
-La web queda en http://localhost:5173 y la API en http://localhost:3000.
+La web queda en http://localhost:5173 y la API en http://localhost:3000. El seed carga datos ficticios: se puede ingresar con `admin@demo.pgim.test` y la contraseña `demo1234`.
 
 ### HTTPS con un túnel
 
@@ -44,4 +48,5 @@ La cámara (realidad aumentada) solo funciona con HTTPS. Con `npm run dev` corri
 | `npm run typecheck` | Verifica tipos en todo el monorepo |
 | `npm run format` | Formatea con Prettier |
 | `npm run db:up` / `db:down` | Levanta o baja PostgreSQL en Docker |
-| `npm run db:migrate -w @pgim/api` | Aplica migraciones de Prisma |
+| `npm run db:migrate -w @pgim/api` | Crea y aplica migraciones de Prisma en desarrollo |
+| `npm run db:seed -w @pgim/api` | Carga los datos ficticios; se puede repetir sin duplicar filas |
