@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Link, NavLink } from 'react-router';
+import { Link, NavLink, useLocation } from 'react-router';
 import type { MiMesa } from '@pgim/shared';
 import { CalendarDays, ChevronLeft, House, LogOut, Receipt, Star, UserRound } from 'lucide-react';
 import { rutaInicio, useSesion } from '../auth/SesionProvider';
@@ -35,6 +35,7 @@ export function LayoutComensal({
   children: ReactNode;
 }) {
   const { sesion, logout } = useSesion();
+  const { pathname } = useLocation();
   // "Mi mesa" aparece solo mientras el comensal tiene una mesa activa.
   // Sin sesión de comensal no la consulta: sería un 401 (o 403) en la consola.
   const esComensal = sesion?.usuario.tipo === 'COMENSAL';
@@ -64,6 +65,7 @@ export function LayoutComensal({
           {!sesion ? (
             <Link
               to="/login"
+              state={{ desde: pathname, tipo: 'COMENSAL' }}
               className="inline-flex min-h-11 shrink-0 items-center rounded-control px-3 text-sm font-semibold text-meta hover:bg-panel hover:text-text"
             >
               Ingresar

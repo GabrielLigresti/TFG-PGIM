@@ -8,8 +8,8 @@ import {
   type CambioSalon,
   type FranjaDisponible,
   type MapaDeFranja,
+  type MenuSucursal,
   type ReservaComensal,
-  type ResultadoBusqueda,
 } from '@pgim/shared';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
 import { LeyendaSalon, MapaSalon } from '../../components/MapaSalon';
@@ -32,8 +32,9 @@ export function ReservarPage() {
   const { enviar, enviando, error, setError } = useGuardar();
 
   const base = `/comensal/sucursales/${sucursalId}`;
-  const resultados = useRecurso<ResultadoBusqueda[]>('/publico/buscar');
-  const sucursal = resultados.datos?.find((r) => r.sucursal.id === sucursalId)?.sucursal;
+  // El nombre sale de la carta pública, que no tiene límite por IP.
+  const sucursal = useRecurso<MenuSucursal>(`/publico/sucursales/${sucursalId}/menu`).datos
+    ?.sucursal;
   const franjas = useRecurso<FranjaDisponible[]>(
     fecha ? `${base}/franjas?fecha=${fecha}&personas=${personas}` : null,
   );

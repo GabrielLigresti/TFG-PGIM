@@ -27,6 +27,8 @@ export function useEventoSocket<T>(
   evento: string,
   manejar: (datos: T) => void,
   salaSucursalId?: string,
+  // false = no se conecta ni escucha (por ejemplo, sin sesión: el servidor rechaza).
+  activo = true,
 ): void {
   // manejar suele ser una función nueva en cada render: se guarda en un ref
   // para no suscribirse de nuevo cada vez.
@@ -36,6 +38,7 @@ export function useEventoSocket<T>(
   });
 
   useEffect(() => {
+    if (!activo) return;
     const conexion = obtenerSocket();
     const alRecibir = (datos: T) => manejador.current(datos);
     const seguir = () => {
@@ -49,7 +52,7 @@ export function useEventoSocket<T>(
       conexion.off('connect', seguir);
       if (salaSucursalId) conexion.emit(EVENTOS_SOCKET.dejarSalon, salaSucursalId);
     };
-  }, [evento, salaSucursalId]);
+  }, [evento, salaSucursalId, activo]);
 }
 
 export type EstadoConexion = 'conectando' | 'en-vivo' | 'sin-conexion' | 'reintentando';

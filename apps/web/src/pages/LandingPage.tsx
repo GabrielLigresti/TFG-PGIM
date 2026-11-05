@@ -1,15 +1,32 @@
-import { Link } from 'react-router';
-import { CalendarDays, LogOut, Star, UserRound } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { Link, useLocation } from 'react-router';
+import { CalendarDays, LogOut, Receipt, Star, UserRound } from 'lucide-react';
 import { rutaInicio, useSesion } from '../auth/SesionProvider';
 import { BuscadorSucursales } from '../components/BuscadorSucursales';
+import { useMiMesa } from '../lib/miMesa';
 
+// En el celular, ícono con el texto chico debajo (como las pestañas); desde md, en fila.
 const claseEnlace =
-  'inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 rounded-control px-2 text-sm font-medium text-text hover:bg-panel';
+  'inline-flex min-h-11 min-w-11 flex-col items-center justify-center gap-0.5 rounded-control px-1.5 text-text hover:bg-panel md:flex-row md:gap-1.5 md:px-2 md:text-sm md:font-medium';
+
+function Texto({ corto, largo }: { corto: string; largo?: ReactNode }) {
+  return (
+    <>
+      <span className="text-[11px] leading-none md:hidden">{corto}</span>
+      <span className="hidden md:inline">{largo ?? corto}</span>
+    </>
+  );
+}
 
 // Entrada pública: cualquiera busca una sucursal y mira su carta sin sesión.
 export function LandingPage() {
   const { sesion, cargando, logout } = useSesion();
   const tipo = sesion?.usuario.tipo;
+  const { pathname } = useLocation();
+  // Para que el login vuelva a esta pantalla.
+  const alLogin = { desde: pathname, tipo: 'COMENSAL' };
+  // "Mi mesa" aparece solo con una mesa activa; sin sesión de comensal no se consulta.
+  const mesa = useMiMesa(null, tipo === 'COMENSAL').datos;
 
   return (
     <div className="min-h-screen bg-bg">
@@ -21,12 +38,14 @@ export function LandingPage() {
               <>
                 <Link
                   to="/login"
+                  state={alLogin}
                   className="inline-flex min-h-11 items-center rounded-control px-4 text-sm font-semibold text-meta hover:bg-panel hover:text-text"
                 >
                   Ingresar
                 </Link>
                 <Link
                   to="/registro"
+                  state={alLogin}
                   className="inline-flex min-h-11 items-center rounded-control border border-line-strong bg-surface px-4 text-sm font-semibold text-text hover:bg-panel"
                 >
                   Crear cuenta
@@ -35,17 +54,23 @@ export function LandingPage() {
             )}
             {tipo === 'COMENSAL' && (
               <>
+                {mesa && (
+                  <Link to="/mesa" aria-label="Mi mesa" className={claseEnlace}>
+                    <Receipt aria-hidden className="size-5" />
+                    <Texto corto="Mi mesa" />
+                  </Link>
+                )}
                 <Link to="/reservas" aria-label="Mis reservas" className={claseEnlace}>
                   <CalendarDays aria-hidden className="size-5" />
-                  <span className="hidden md:inline">Mis reservas</span>
+                  <Texto corto="Reservas" largo="Mis reservas" />
                 </Link>
                 <Link to="/puntos" aria-label="Mis puntos" className={claseEnlace}>
                   <Star aria-hidden className="size-5" />
-                  <span className="hidden md:inline">Mis puntos</span>
+                  <Texto corto="Puntos" largo="Mis puntos" />
                 </Link>
                 <Link to="/cuenta" aria-label="Mi cuenta" className={claseEnlace}>
                   <UserRound aria-hidden className="size-5" />
-                  <span className="hidden md:inline">Mi cuenta</span>
+                  <Texto corto="Cuenta" largo="Mi cuenta" />
                 </Link>
                 <button
                   type="button"
@@ -54,7 +79,7 @@ export function LandingPage() {
                   className={`${claseEnlace} text-meta`}
                 >
                   <LogOut aria-hidden className="size-5 md:size-4" />
-                  <span className="hidden md:inline">Salir</span>
+                  <Texto corto="Salir" />
                 </button>
               </>
             )}

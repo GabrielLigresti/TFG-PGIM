@@ -30,9 +30,9 @@ export function useMiMesa(sucursalId: string | null, activo = true) {
       recargar();
     }, ESPERA_RECARGA_MS);
   };
-  useEventoSocket(EVENTOS_SOCKET.pedidoCambio, recargarAgrupado);
-  useEventoSocket(EVENTOS_SOCKET.mesaCambio, recargarAgrupado);
+  useEventoSocket(EVENTOS_SOCKET.pedidoCambio, recargarAgrupado, undefined, activo);
+  useEventoSocket(EVENTOS_SOCKET.mesaCambio, recargarAgrupado, undefined, activo);
   // El personal activa la reserva: la mesa aparece sin recargar.
-  useEventoSocket(EVENTOS_SOCKET.cambioReserva, recargarAgrupado);
+  useEventoSocket(EVENTOS_SOCKET.cambioReserva, recargarAgrupado, undefined, activo);
   return recurso;
 }

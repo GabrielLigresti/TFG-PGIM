@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import type { DetallePlato } from '@pgim/shared';
 import { useSesion } from '../../auth/SesionProvider';
 import { useAvisos } from '../../components/AvisoEmergente';
@@ -50,16 +50,24 @@ export function PlatoPage() {
     setObservaciones('');
   }
 
-  const accion = plato && puedePedir && (
+  // Sin sesión de comensal no hay mesa: la acción es reservar, como en la carta.
+  const accion = !plato ? null : puedePedir ? (
     <Boton densidad="comensal" className="flex-1" onClick={agregarDesdeFicha}>
       Agregar al pedido · {formatoPesos(plato.precio * cantidad)}
     </Boton>
-  );
+  ) : !mesa ? (
+    <Link
+      to={`/s/${sucursalId}/reservar`}
+      className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover"
+    >
+      Reservar mesa
+    </Link>
+  ) : null;
 
   return (
     <LayoutComensal
       volver={{ a: `/s/${sucursalId}/menu`, texto: 'Menú' }}
-      accionFija={accion || undefined}
+      accionFija={accion ?? undefined}
     >
       <EstadoCarga cargando={cargando && !datos} error={error} />
       {plato && (
