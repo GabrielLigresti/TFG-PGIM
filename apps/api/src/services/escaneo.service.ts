@@ -153,13 +153,20 @@ export function createEscaneoService(repo: EscaneoRepository, deps: Dependencias
 
   async function consultar(fila: FilaEscaneo, proveedor: Proveedor3D) {
     if (!fila.tareaProveedorId) return fallar(fila, 'No pudimos recuperar el escaneo');
-    const resultado = await proveedor.consultar(fila.tareaProveedorId);
+    // actualizadoEn es el momento del envío: nada más toca la fila mientras procesa.
+    const vencido =
+      deps.ahora().getTime() - fila.actualizadoEn.getTime() > deps.timeoutMin * 60_000;
+    let resultado: ResultadoEscaneo;
+    try {
+      resultado = await proveedor.consultar(fila.tareaProveedorId);
+    } catch (e) {
+      // Un proveedor que no responde no deja el escaneo trabado para siempre.
+      if (vencido) return fallar(fila, 'El escaneo tardó demasiado');
+      throw e;
+    }
     if (resultado.estado === 'LISTO') return completar(fila, resultado);
     if (resultado.estado === 'FALLIDO') return fallar(fila, resultado.motivo);
-    // actualizadoEn es el momento del envío: nada más toca la fila mientras procesa.
-    const transcurridoMs = deps.ahora().getTime() - fila.actualizadoEn.getTime();
-    if (transcurridoMs > deps.timeoutMin * 60_000)
-      return fallar(fila, 'El escaneo tardó demasiado');
+    if (vencido) return fallar(fila, 'El escaneo tardó demasiado');
   }
 
   async function procesar(fila: FilaEscaneo) {

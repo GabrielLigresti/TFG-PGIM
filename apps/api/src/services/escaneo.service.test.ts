@@ -444,6 +444,25 @@ describe('procesarEnCurso', () => {
     expect(deps.videos.borrarVideo).toHaveBeenCalledWith('/uploads/escaneos/v.mp4');
   });
 
+  it('PROCESANDO con el proveedor caído: reintenta y, vencido, pasa a FALLIDO', async () => {
+    const proveedor = proveedorFalso({
+      consultar: jest.fn().mockRejectedValue(new Error('sin conexión')),
+    });
+    const reciente = procesando({ actualizadoEn: new Date(AHORA.getTime() - 5 * MINUTO) });
+    const a = armar([reciente], proveedor);
+    await a.service.procesarEnCurso();
+    expect(a.repo.cambiarEstado).not.toHaveBeenCalled();
+
+    const vencido = procesando({ actualizadoEn: new Date(AHORA.getTime() - 31 * MINUTO) });
+    const b = armar([vencido], proveedor);
+    await b.service.procesarEnCurso();
+    expect(b.repo.cambiarEstado).toHaveBeenCalledWith(R, 'e1', 'PROCESANDO', {
+      estado: 'FALLIDO',
+      error: 'El escaneo tardó demasiado',
+      rutaVideo: null,
+    });
+  });
+
   it('PROCESANDO listo: guarda el modelo, pasa a EN_REVISION y borra el video', async () => {
     const proveedor = proveedorFalso({
       consultar: jest.fn().mockResolvedValue({ estado: 'LISTO', glb: GLB, usdz: USDZ }),
