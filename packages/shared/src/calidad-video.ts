@@ -82,7 +82,9 @@ export function aLuminancia(rgba: Uint8ClampedArray, ancho: number, alto: number
   const luminancia = new Uint8Array(ancho * alto);
   for (let i = 0; i < luminancia.length; i++) {
     const o = i * 4;
-    luminancia[i] = Math.round(0.299 * rgba[o] + 0.587 * rgba[o + 1] + 0.114 * rgba[o + 2]);
+    luminancia[i] = Math.round(
+      0.299 * (rgba[o] ?? 0) + 0.587 * (rgba[o + 1] ?? 0) + 0.114 * (rgba[o + 2] ?? 0),
+    );
   }
   return { ancho, alto, luminancia };
 }
@@ -96,7 +98,12 @@ export function varianzaLaplaciano(c: MuestraCuadro): number {
   for (let y = 1; y < alto - 1; y++) {
     for (let x = 1; x < ancho - 1; x++) {
       const i = y * ancho + x;
-      const r = l[i - ancho] + l[i + ancho] + l[i - 1] + l[i + 1] - 4 * l[i];
+      const r =
+        (l[i - ancho] ?? 0) +
+        (l[i + ancho] ?? 0) +
+        (l[i - 1] ?? 0) +
+        (l[i + 1] ?? 0) -
+        4 * (l[i] ?? 0);
       suma += r;
       sumaCuad += r * r;
       n++;
@@ -117,7 +124,7 @@ export function exposicion(c: MuestraCuadro): {
   let quemados = 0;
   let negros = 0;
   for (let i = 0; i < total; i++) {
-    const v = c.luminancia[i];
+    const v = c.luminancia[i] ?? 0;
     suma += v;
     if (v >= 250) quemados++;
     else if (v <= 5) negros++;
@@ -135,7 +142,7 @@ export function brillosCentrales(c: MuestraCuadro): number {
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       total++;
-      if (c.luminancia[y * c.ancho + x] >= 240) brillantes++;
+      if ((c.luminancia[y * c.ancho + x] ?? 0) >= 240) brillantes++;
     }
   }
   return total === 0 ? 0 : brillantes / total;
@@ -145,7 +152,7 @@ export function diferenciaEntreCuadros(a: MuestraCuadro, b: MuestraCuadro): numb
   const n = Math.min(a.luminancia.length, b.luminancia.length);
   if (n === 0) return 0;
   let suma = 0;
-  for (let i = 0; i < n; i++) suma += Math.abs(a.luminancia[i] - b.luminancia[i]);
+  for (let i = 0; i < n; i++) suma += Math.abs((a.luminancia[i] ?? 0) - (b.luminancia[i] ?? 0));
   return suma / n / 255;
 }
 
@@ -253,9 +260,10 @@ const criterioRecorrido: CriterioCalidad = {
   id: 'RECORRIDO',
   evaluar(muestras, _m, u) {
     const difs: number[] = [];
-    for (let i = 1; i < muestras.length; i++) {
-      difs.push(diferenciaEntreCuadros(muestras[i - 1], muestras[i]));
-    }
+    muestras.forEach((cuadro, i) => {
+      const anterior = muestras[i - 1];
+      if (anterior) difs.push(diferenciaEntreCuadros(anterior, cuadro));
+    });
     const prom = media(difs);
     const saltos = difs.length === 0 ? 0 : difs.filter((d) => d > u.saltoMin).length / difs.length;
     const quieto = 'Da una vuelta lenta y completa alrededor del plato';

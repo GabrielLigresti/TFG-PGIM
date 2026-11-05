@@ -46,7 +46,7 @@ function sanas(): MuestraCuadro[] {
     for (let i = 0; i < N * N; i++) {
       const x = i % N;
       const y = Math.floor(i / N);
-      c.luminancia[i] += (x + y) % 2 === 0 ? -20 : 20;
+      c.luminancia[i] = (c.luminancia[i] ?? 0) + ((x + y) % 2 === 0 ? -20 : 20);
     }
     return c;
   });
@@ -207,11 +207,7 @@ describe('evaluarCalidad', () => {
     const rechazo = evaluarCalidad(muestras, { ...meta, duracionS: 2 }, U);
     expect(rechazo.nivelGlobal).toBe('RECHAZO');
 
-    const adv = evaluarCalidad(
-      muestras.map(() => centroBlanco()).map((c, i) => (i === 0 ? c : muestras[i])),
-      meta,
-      U,
-    );
+    const adv = evaluarCalidad([centroBlanco(), ...muestras.slice(1)], meta, U);
     expect(['ADVERTENCIA', 'RECHAZO']).toContain(adv.nivelGlobal);
   });
 
