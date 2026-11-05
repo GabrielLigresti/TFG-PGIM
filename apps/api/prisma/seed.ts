@@ -57,8 +57,8 @@ const ROLES_STAFF: RolPredeterminado[] = [
 ];
 
 const SUCURSALES = [
-  { nombre: 'Centro', direccion: 'Av. Siempre Viva 742' },
-  { nombre: 'Palermo', direccion: 'Calle Falsa 123' },
+  { nombre: 'Centro', direccion: 'Av. Siempre Viva 742', barrio: 'SAN_NICOLAS' },
+  { nombre: 'Palermo', direccion: 'Calle Falsa 123', barrio: 'PALERMO' },
 ] as const;
 
 type NombreSucursal = (typeof SUCURSALES)[number]['nombre'];
@@ -1170,6 +1170,189 @@ async function seedFaltantesSimulador(
   });
 }
 
+// Una sucursal dada de baja del primer restaurante: el buscador público no la muestra.
+// Queda fuera del mapa de sucursales del seed, así no recibe salón, stock ni historial.
+async function seedSucursalCerrada(tx: Prisma.TransactionClient, restauranteId: string) {
+  const nombre = 'Belgrano (cerrada)';
+  const datos = {
+    direccion: 'Av. Cabildo 1500',
+    barrio: 'BELGRANO',
+    horarioApertura: hora('12:00'),
+    horarioCierre: hora('00:00'),
+    toleranciaNoShowMin: 15,
+    activa: false,
+  } as const;
+  const existente = await tx.sucursal.findFirst({ where: { restauranteId, nombre } });
+  const sucursal = existente
+    ? await tx.sucursal.update({ where: { id: existente.id }, data: datos })
+    : await tx.sucursal.create({ data: { restauranteId, nombre, ...datos } });
+  await tx.configuracionApertura.upsert({
+    where: { sucursalId: sucursal.id },
+    update: {},
+    create: { sucursalId: sucursal.id, ...CONFIGURACION_APERTURA_POR_DEFECTO },
+  });
+}
+
+// Segundo restaurante ficticio, chico y sin historial: sirve para probar que el
+// buscador cruza restaurantes y que cada panel ve solo lo suyo.
+const CUIT_SEGUNDO_RESTAURANTE = '30-00000001-8';
+const INSUMOS_SEGUNDO: { nombre: string; unidadBase: UnidadBase; costo: number; stock: number }[] =
+  [
+    { nombre: 'Papa', unidadBase: 'GRAMO', costo: 1.2, stock: 8000 },
+    { nombre: 'Harina 000', unidadBase: 'GRAMO', costo: 0.9, stock: 8000 },
+    { nombre: 'Tomate', unidadBase: 'GRAMO', costo: 2.5, stock: 4000 },
+    { nombre: 'Gaseosa cola 500 ml', unidadBase: 'UNIDAD', costo: 700, stock: 48 },
+  ];
+const NOQUIS: RecetaSeed = {
+  rendimiento: 1,
+  instrucciones: 'Amasar la papa con la harina, cortar los ñoquis, hervirlos y servir con el tuco.',
+  lineas: [
+    ['Papa', 250, 'GRAMO', 10],
+    ['Harina 000', 100, 'GRAMO'],
+    ['Tomate', 150, 'GRAMO', 10],
+  ],
+};
+
+async function seedSegundoRestaurante(tx: Prisma.TransactionClient, passwordHash: string) {
+  const nombre = 'La Esquina de Villa Crespo';
+  const restaurante = await tx.restaurante.upsert({
+    where: { cuit: CUIT_SEGUNDO_RESTAURANTE },
+    update: { nombre },
+    create: { nombre, cuit: CUIT_SEGUNDO_RESTAURANTE },
+  });
+  const restauranteId = restaurante.id;
+
+  const datosSucursal = {
+    direccion: 'Av. Corrientes 5400',
+    barrio: 'VILLA_CRESPO',
+    horarioApertura: hora('12:00'),
+    horarioCierre: hora('00:00'),
+    toleranciaNoShowMin: 15,
+    activa: true,
+  } as const;
+  const existente = await tx.sucursal.findFirst({
+    where: { restauranteId, nombre: 'Villa Crespo' },
+  });
+  const sucursal = existente
+    ? await tx.sucursal.update({ where: { id: existente.id }, data: datosSucursal })
+    : await tx.sucursal.create({
+        data: { restauranteId, nombre: 'Villa Crespo', ...datosSucursal },
+      });
+  await tx.horarioServicio.deleteMany({ where: { sucursalId: sucursal.id } });
+  await tx.horarioServicio.createMany({
+    data: HORARIOS_SERVICIO.map((h) => ({ sucursalId: sucursal.id, ...h })),
+  });
+  await seedSalon(tx, sucursal.id, { capacidades: [2, 4, 4, 6], columnas: 2, x0: 20, pasoX: 40 });
+  await tx.configuracionApertura.upsert({
+    where: { sucursalId: sucursal.id },
+    update: {},
+    create: { sucursalId: sucursal.id, ...CONFIGURACION_APERTURA_POR_DEFECTO },
+  });
+
+  // Administrador con el rol predeterminado.
+  const rolIds = await crearRolesPredeterminados(tx, restauranteId);
+  const usuario = await tx.usuario.upsert({
+    where: { email: 'admin2@demo.pgim.test' },
+    update: { passwordHash, activo: true },
+    create: { email: 'admin2@demo.pgim.test', passwordHash, tipo: 'EMPLEADO' },
+  });
+  const datosEmpleado = {
+    restauranteId,
+    rolId: rolIds.get('Administrador')!,
+    nombreCompleto: 'Bruno Administrador',
+    horasSemanalesMax: 48,
+  };
+  await tx.empleado.upsert({
+    where: { usuarioId: usuario.id },
+    update: datosEmpleado,
+    create: { usuarioId: usuario.id, ...datosEmpleado },
+  });
+  await tx.empleadoSucursal.deleteMany({ where: { empleadoId: usuario.id } });
+  await tx.empleadoSucursal.create({
+    data: { empleadoId: usuario.id, sucursalId: sucursal.id },
+  });
+
+  // Carta: un principal con receta y una bebida de reventa.
+  const categorias = new Map<string, string>();
+  for (const c of CATEGORIAS.filter((c) => c.nombre === 'Principales' || c.nombre === 'Bebidas')) {
+    const { id } = await tx.categoria.upsert({
+      where: { restauranteId_nombre: { restauranteId, nombre: c.nombre } },
+      update: { requiereReceta: c.requiereReceta, admiteObservaciones: c.admiteObservaciones },
+      create: { restauranteId, ...c },
+    });
+    categorias.set(c.nombre, id);
+  }
+  const componentes = new Map<string, string>();
+  for (const insumo of INSUMOS_SEGUNDO) {
+    const id = await seedComponente(tx, restauranteId, {
+      nombre: insumo.nombre,
+      tipo: 'INSUMO',
+      unidadBase: insumo.unidadBase,
+      costoCompraVigente: insumo.costo,
+    });
+    componentes.set(insumo.nombre, id);
+    const existencia = await tx.existencia.findUnique({
+      where: { sucursalId_componenteId: { sucursalId: sucursal.id, componenteId: id } },
+    });
+    if (existencia) continue;
+    await tx.existencia.create({
+      data: {
+        sucursalId: sucursal.id,
+        componenteId: id,
+        cantidadActual: insumo.stock,
+        movimientos: {
+          create: {
+            tipo: 'INGRESO',
+            cantidad: insumo.stock,
+            costoUnitario: insumo.costo,
+            motivo: 'Stock inicial',
+            empleadoId: usuario.id,
+          },
+        },
+      },
+    });
+  }
+  const platos = [
+    {
+      nombre: 'Ñoquis con tuco',
+      categoria: 'Principales',
+      precio: 9500,
+      descripcion: 'Ñoquis de papa caseros con salsa de tomate.',
+      receta: NOQUIS as RecetaSeed | null,
+      insumo: null as string | null,
+    },
+    {
+      nombre: 'Gaseosa cola 500 ml',
+      categoria: 'Bebidas',
+      precio: 2800,
+      descripcion: 'Botella individual.',
+      receta: null,
+      insumo: 'Gaseosa cola 500 ml',
+    },
+  ];
+  const platoIds: string[] = [];
+  for (const plato of platos) {
+    const datos = {
+      categoriaId: categorias.get(plato.categoria)!,
+      precio: plato.precio,
+      descripcion: plato.descripcion,
+      // Sin foto: las de /fotos-demo son solo de La Parrilla Demo.
+      fotoUrl: null,
+      disponible: true,
+      activo: true,
+      insumoId: plato.insumo ? componentes.get(plato.insumo)! : null,
+    };
+    const actual = await tx.itemMenu.findFirst({ where: { restauranteId, nombre: plato.nombre } });
+    const item = actual
+      ? await tx.itemMenu.update({ where: { id: actual.id }, data: datos })
+      : await tx.itemMenu.create({ data: { restauranteId, nombre: plato.nombre, ...datos } });
+    if (plato.receta) await seedReceta(tx, { itemMenuId: item.id }, plato.receta, componentes);
+    platoIds.push(item.id);
+  }
+  const cartaId = await seedMenus(tx, restauranteId, platoIds);
+  await tx.sucursal.update({ where: { id: sucursal.id }, data: { menuActivoId: cartaId } });
+}
+
 async function main(): Promise<void> {
   const passwordHash = await hashPassword(PASSWORD_DEMO);
 
@@ -1183,9 +1366,10 @@ async function main(): Promise<void> {
     });
 
     const sucursalIds = new Map<NombreSucursal, string>();
-    for (const { nombre, direccion } of SUCURSALES) {
+    for (const { nombre, direccion, barrio } of SUCURSALES) {
       const datos = {
         direccion,
+        barrio,
         horarioApertura: hora('12:00'),
         horarioCierre: hora('00:00'),
         toleranciaNoShowMin: 15,
@@ -1213,6 +1397,8 @@ async function main(): Promise<void> {
         create: { sucursalId: sucursal.id, ...CONFIGURACION_APERTURA_POR_DEFECTO },
       });
     }
+
+    await seedSucursalCerrada(tx, restaurante.id);
 
     const rolIds = await crearRolesPredeterminados(tx, restaurante.id);
     for (const rol of ROLES_STAFF) {
@@ -1260,6 +1446,7 @@ async function main(): Promise<void> {
       data: { menuActivoId: cartaId },
     });
     await seedFidelizacion(tx, restaurante.id, cartaId);
+    await seedSegundoRestaurante(tx, passwordHash);
 
     for (const { email, nombre } of COMENSALES) {
       const comensal = await tx.usuario.upsert({

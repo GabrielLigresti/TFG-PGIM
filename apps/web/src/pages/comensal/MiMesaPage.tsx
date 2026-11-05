@@ -131,7 +131,7 @@ export function MiMesaPage() {
               ? `La mesa ${ultima.mesa.numero} en ${ultima.sucursal.nombre} quedó cerrada.`
               : 'No tenés una mesa activa. Cuando llegues, el personal activa tu reserva.'}
           </p>
-          <Link to="/inicio" className="text-sm font-semibold text-accent-ink underline">
+          <Link to="/" className="text-sm font-semibold text-accent-ink underline">
             Volver al inicio
           </Link>
         </div>

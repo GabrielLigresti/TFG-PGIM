@@ -112,6 +112,7 @@ describe('registrarRestaurante', () => {
     sucursal: {
       nombre: 'Casa central',
       direccion: 'Calle Falsa 123',
+      barrio: 'SAN_NICOLAS' as const,
       horarioApertura: '12:00',
       horarioCierre: '23:30',
       toleranciaNoShowMin: 15,

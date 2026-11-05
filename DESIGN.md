@@ -190,7 +190,7 @@ Un verde comestible sobre blanco y grises fríos, con tres tonos de estado que n
 - **Verde Albahaca** (#16756b): acción principal, navegación activa, foco, chip seleccionado y todo lo que está "en curso" (En preparación, Mesa en curso, Cuenta abierta). Blanco encima pasa AA.
 - **Verde Albahaca Hondo** (#125e56): hover de la acción y texto sobre fondos verdes suaves.
 - **Verde Albahaca Suave** (#e3eeed): fondo de la opción activa, del botón tonal y de la etiqueta "en curso".
-- **Hoja de Albahaca** (#dceae9): hoja tintada que agrupa contenido detrás de tarjetas blancas en el comensal. Pendiente: el token existe, ninguna pantalla lo usa todavía.
+- **Hoja de Albahaca** (#dceae9): hoja tintada que agrupa contenido detrás de tarjetas blancas en el comensal. Hoy lo usa la landing, en el bloque de búsqueda; el resto del comensal llega con la carta nueva.
 
 ### Neutral
 - **Blanco Mantel** (#ffffff): fondo de página y de tarjetas.
@@ -292,7 +292,7 @@ Etiqueta en píldora con ícono, texto y tono; la única fuente es `lib/estados.
 - **Do** usar Verde Albahaca (#16756b) solo en acciones, navegación activa, foco y estados en curso.
 - **Do** acompañar cada estado con ícono y texto, y usar Azul Listo (#1d5fb4) para OK.
 - **Do** escribir la acción siguiente en el restaurante ("Marcar listo", "Activar mesa") en lugar de dejar un ícono solo.
-- **Do** agrupar el contenido del comensal sobre Hoja de Albahaca (#dceae9) con tarjetas blancas encima (pendiente, llega con la carta nueva).
+- **Do** agrupar el contenido del comensal sobre Hoja de Albahaca (#dceae9) con tarjetas blancas encima (hoy lo hace la landing en el bloque de búsqueda; el resto llega con la carta nueva).
 - **Do** respetar las alturas por densidad: 36, 44 y 48 px.
 
 ### Don't:

@@ -31,3 +31,7 @@ apps/api/src/generated/
 # Caché de fuentes de Java que deja PlantUML al regenerar los diagramas
 docs/modelos/?/
 .java/
+
+# Prueba integral (Playwright)
+apps/e2e/test-results/
+apps/e2e/playwright-report/

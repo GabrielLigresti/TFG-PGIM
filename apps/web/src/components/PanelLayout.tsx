@@ -17,6 +17,7 @@ import {
   Menu,
   ScrollText,
   Shield,
+  UserRound,
   Users,
   Utensils,
   X,
@@ -232,28 +233,45 @@ export function PanelLayout() {
     sesion.sucursales.length > 1 ? (
       <select
         aria-label="Sucursal de trabajo"
-        value={sesion.sucursalActiva?.id}
+        value={sesion.sucursalActiva?.id ?? ''}
         onChange={(e) => seleccionarSucursal(e.target.value)}
         className="min-h-11 w-full min-w-0 max-w-44 truncate rounded-control border border-line-strong bg-surface px-2 text-[16px] sm:min-h-9 sm:text-sm"
       >
+        {!sesion.sucursalActiva && (
+          <option value="" disabled>
+            Elegí una sucursal
+          </option>
+        )}
         {sesion.sucursales.map((s) => (
           <option key={s.id} value={s.id}>
             {s.nombre}
           </option>
         ))}
       </select>
-    ) : (
+    ) : sesion.sucursalActiva ? (
       <span className="flex min-w-0 items-center gap-1 text-sm text-meta">
         <MapPin aria-hidden className="size-4 shrink-0" />
-        <span className="truncate">{sesion.sucursalActiva?.nombre}</span>
+        <span className="truncate">{sesion.sucursalActiva.nombre}</span>
       </span>
-    );
+    ) : null;
 
   const usuario = (
     <div className="flex shrink-0 items-center gap-2 sm:min-w-0 sm:shrink">
       <span className="hidden min-w-0 truncate text-sm text-meta sm:block">
         {sesion.usuario.nombre} · {sesion.rol?.nombre}
       </span>
+      <NavLink
+        to="/panel/mi-cuenta"
+        aria-label="Mi cuenta"
+        className={({ isActive }) =>
+          `inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 rounded-control px-2 text-sm hover:bg-panel hover:text-text sm:min-h-9 ${isActive ? 'font-semibold text-accent-ink' : 'text-meta'}`
+        }
+      >
+        <UserRound aria-hidden className="size-4" />
+        <span aria-hidden className="hidden sm:inline">
+          Mi cuenta
+        </span>
+      </NavLink>
       <button
         type="button"
         onClick={logout}

@@ -27,7 +27,7 @@ export function PedidoPage() {
   // El carrito guarda el precio de cuando se agregó el plato: al abrir el
   // pedido se pone al día con el menú, que es el precio que cobra la cocina.
   const menu = useRecurso<MenuSucursal>(
-    sucursalId ? `/comensal/sucursales/${sucursalId}/menu` : null,
+    sucursalId ? `/publico/sucursales/${sucursalId}/menu` : null,
   );
   const [preciosNuevos, setPreciosNuevos] = useState<string[]>([]);
   const { actualizar } = carrito;

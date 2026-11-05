@@ -11,6 +11,7 @@
 ' Menor (28/10): Categoria.admiteObservaciones (aclaraciones solo en las categorías que las admiten).
 ' Menor (28/10): Pago.metodo opcional; lo informa Mercado Pago al aprobarse (el comensal elige el medio en Mercado Pago).
 ' Menor (04/11): Verificador.verificar recibe los pronósticos de la semana; TipoAlerta suma INASISTENCIA (CU-21).
+' Menor (04/11, Hito 8): Sucursal.barrio con el enum Barrio (48 barrios de CABA) para el filtro del buscador.
 ' PNG a 103 dpi (antes 104, 105, 110 y 125) para no superar 25 MP (límite de imágenes de Google Docs). Para imprimir o hacer zoom, usar el PDF/SVG vectorial.
 top to bottom direction
 skinparam dpi 103
@@ -67,6 +68,7 @@ package "1. Organización, acceso y personal" as P1 {
   class Sucursal {
     -nombre : String
     -direccion : String
+    -barrio : Barrio
     -horarioApertura : Time
     -horarioCierre : Time
     -toleranciaNoShowMin : Integer
@@ -583,6 +585,13 @@ package "Enumeraciones" as PEN {
     COCINERO
     OTRO
   }
+  enum Barrio <<enum>> {
+    AGRONOMIA
+    BELGRANO
+    PALERMO
+    RECOLETA
+    …
+  }
   enum FranjaServicio <<enum>> {
     ALMUERZO
     CENA
@@ -678,6 +687,10 @@ Pago "*" --> "1" EstadoPago : estado
 EstadoPago <|-- PagoPendiente
 EstadoPago <|-- PagoAprobado
 EstadoPago <|-- PagoRechazado
+note bottom of Barrio
+  48 barrios oficiales de CABA;
+  lista completa en @pgim/shared.
+end note
 note bottom of EstadoPago
   Cada estado acepta solo sus transiciones válidas;
   las demás las rechaza la clase base. Se persiste

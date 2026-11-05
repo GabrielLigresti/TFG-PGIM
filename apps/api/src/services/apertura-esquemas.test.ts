@@ -10,6 +10,7 @@ import {
 const sucursal = {
   nombre: 'Centro',
   direccion: 'Calle 123',
+  barrio: 'SAN_NICOLAS',
   horarioApertura: '11:00',
   horarioCierre: '23:30',
   toleranciaNoShowMin: 15,

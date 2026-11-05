@@ -31,6 +31,60 @@ enum Arquetipo {
   @@map("arquetipo")
 }
 
+// Barrios oficiales de CABA (filtro del buscador). Nombres visibles en @pgim/shared.
+enum Barrio {
+  AGRONOMIA
+  ALMAGRO
+  BALVANERA
+  BARRACAS
+  BELGRANO
+  BOEDO
+  CABALLITO
+  CHACARITA
+  COGHLAN
+  COLEGIALES
+  CONSTITUCION
+  FLORES
+  FLORESTA
+  LA_BOCA
+  LA_PATERNAL
+  LINIERS
+  MATADEROS
+  MONTE_CASTRO
+  MONTSERRAT
+  NUEVA_POMPEYA
+  NUNEZ
+  PALERMO
+  PARQUE_AVELLANEDA
+  PARQUE_CHACABUCO
+  PARQUE_CHAS
+  PARQUE_PATRICIOS
+  PUERTO_MADERO
+  RECOLETA
+  RETIRO
+  SAAVEDRA
+  SAN_CRISTOBAL
+  SAN_NICOLAS
+  SAN_TELMO
+  VELEZ_SARSFIELD
+  VERSALLES
+  VILLA_CRESPO
+  VILLA_DEL_PARQUE
+  VILLA_DEVOTO
+  VILLA_GRAL_MITRE
+  VILLA_LUGANO
+  VILLA_LURO
+  VILLA_ORTUZAR
+  VILLA_PUEYRREDON
+  VILLA_REAL
+  VILLA_RIACHUELO
+  VILLA_SANTA_RITA
+  VILLA_SOLDATI
+  VILLA_URQUIZA
+
+  @@map("barrio")
+}
+
 enum FranjaServicio {
   ALMUERZO
   CENA
@@ -232,6 +286,7 @@ model Sucursal {
   restauranteId       String   @map("restaurante_id") @db.Uuid
   nombre              String
   direccion           String
+  barrio              Barrio
   horarioApertura     DateTime @map("horario_apertura") @db.Time(0)
   horarioCierre       DateTime @map("horario_cierre") @db.Time(0)
   toleranciaNoShowMin Int      @map("tolerancia_no_show_min")

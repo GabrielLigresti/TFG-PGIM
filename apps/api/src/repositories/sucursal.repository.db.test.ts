@@ -40,6 +40,7 @@ describe('sucursalRepository.crear', () => {
       {
         nombre: 'Norte',
         direccion: 'Calle Falsa 456',
+        barrio: 'SAN_NICOLAS',
         horarioApertura: '12:00',
         horarioCierre: '23:00',
         toleranciaNoShowMin: 15,
@@ -53,6 +54,31 @@ describe('sucursalRepository.crear', () => {
     expect(config.semanasHistoricoMinimo).toBe(8);
     expect(Number(config.cubiertosPorMozo)).toBe(20);
     expect(Number(config.platosPorCocineroHora)).toBe(12);
+  });
+});
+
+describe('sucursalRepository: barrio', () => {
+  const datos = {
+    nombre: 'Norte',
+    direccion: 'Calle Falsa 456',
+    barrio: 'BELGRANO' as const,
+    horarioApertura: '12:00',
+    horarioCierre: '23:00',
+    toleranciaNoShowMin: 15,
+    horariosServicio: [],
+  };
+
+  it('guarda el barrio al crear y lo cambia al editar', async () => {
+    const empleadoId = await crearEmpleado();
+    const creada = await sucursalRepository.crear(e.restauranteId, datos, empleadoId);
+    expect(creada.barrio).toBe('BELGRANO');
+
+    const editada = await sucursalRepository.actualizar(e.restauranteId, creada.id, {
+      ...datos,
+      barrio: 'PALERMO',
+    });
+    expect(editada.barrio).toBe('PALERMO');
+    expect((await sucursalRepository.buscar(e.restauranteId, creada.id))?.barrio).toBe('PALERMO');
   });
 });
 

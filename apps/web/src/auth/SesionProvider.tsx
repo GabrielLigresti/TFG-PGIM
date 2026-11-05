@@ -99,7 +99,7 @@ export function useSesion(): SesionContexto {
 
 // Pantalla de inicio que corresponde a cada sesión.
 export function rutaInicio(sesion: Sesion): string {
-  if (sesion.usuario.tipo === 'COMENSAL') return '/inicio';
+  if (sesion.usuario.tipo === 'COMENSAL') return '/';
   return sesion.sucursalActiva ? '/panel' : '/sucursal';
 }
 

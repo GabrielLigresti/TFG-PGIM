@@ -24,6 +24,7 @@ const seleccion = {
   id: true,
   nombre: true,
   direccion: true,
+  barrio: true,
   horarioApertura: true,
   horarioCierre: true,
   toleranciaNoShowMin: true,
@@ -55,6 +56,7 @@ export function columnas(
     SucursalInput,
     | 'nombre'
     | 'direccion'
+    | 'barrio'
     | 'horarioApertura'
     | 'horarioCierre'
     | 'toleranciaNoShowMin'
@@ -64,6 +66,7 @@ export function columnas(
   return {
     nombre: datos.nombre,
     direccion: datos.direccion,
+    barrio: datos.barrio,
     horarioApertura: deHora(datos.horarioApertura),
     horarioCierre: deHora(datos.horarioCierre),
     toleranciaNoShowMin: datos.toleranciaNoShowMin,

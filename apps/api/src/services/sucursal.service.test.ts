@@ -8,6 +8,7 @@ const centro: Sucursal = {
   id: 'centro',
   nombre: 'Centro',
   direccion: 'Calle 1',
+  barrio: 'SAN_NICOLAS',
   horarioApertura: '12:00',
   horarioCierre: '00:00',
   toleranciaNoShowMin: 15,

@@ -1,4 +1,4 @@
-import type { ModeloRa, RestauranteComensal } from '@pgim/shared';
+import type { Barrio, ModeloRa, RestauranteComensal } from '@pgim/shared';
 import type { Prisma } from '../generated/prisma/client';
 import { prisma } from '../lib/prisma';
 import { aRecetaFila, seleccionReceta, type RecetaFila } from './receta.repository';
@@ -27,6 +27,7 @@ export interface SucursalConMenu {
   id: string;
   nombre: string;
   direccion: string;
+  barrio: Barrio;
   restaurante: { id: string; nombre: string };
   menuActivo: {
     nombre: string;
@@ -85,7 +86,7 @@ export const comensalRepository: ComensalRepository = {
         nombre: true,
         sucursales: {
           where: { activa: true },
-          select: { id: true, nombre: true, direccion: true },
+          select: { id: true, nombre: true, direccion: true, barrio: true },
           orderBy: { nombre: 'asc' },
         },
       },
@@ -101,6 +102,7 @@ export const comensalRepository: ComensalRepository = {
         id: true,
         nombre: true,
         direccion: true,
+        barrio: true,
         restauranteId: true,
         restaurante: { select: { id: true, nombre: true } },
         menuActivo: {

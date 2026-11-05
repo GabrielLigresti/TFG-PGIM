@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { barrioSchema, type Barrio } from './barrios';
 import { horaSchema, minutosFin, minutosInicio, nombreSchema, type Referencia } from './comun';
 
 export const FRANJAS = ['ALMUERZO', 'CENA'] as const;
@@ -20,6 +21,7 @@ export type HorarioServicio = z.infer<typeof horarioServicioSchema>;
 const camposSucursal = {
   nombre: nombreSchema,
   direccion: z.string().trim().min(1, 'Ingresá la dirección').max(200),
+  barrio: barrioSchema,
   horarioApertura: horaSchema,
   horarioCierre: horaSchema,
   toleranciaNoShowMin: z.number().int().min(0).max(240),
@@ -77,6 +79,7 @@ export interface Sucursal {
   id: string;
   nombre: string;
   direccion: string;
+  barrio: Barrio;
   horarioApertura: string;
   horarioCierre: string;
   toleranciaNoShowMin: number;

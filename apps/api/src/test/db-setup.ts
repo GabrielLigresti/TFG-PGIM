@@ -40,6 +40,7 @@ export async function crearEscenario(): Promise<Escenario> {
       restauranteId,
       nombre: 'Centro',
       direccion: 'Calle Falsa 123',
+      barrio: 'SAN_NICOLAS',
       horarioApertura: hora('12:00'),
       horarioCierre: hora('00:00'),
       toleranciaNoShowMin: 15,
