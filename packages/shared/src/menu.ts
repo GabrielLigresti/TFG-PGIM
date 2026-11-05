@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { fechaSchema, nombreSchema, type Referencia } from './comun';
+import type { EstadoEscaneo } from './escaneo';
 
 // CU-16: categorías, platos y menús con vigencia.
 
@@ -80,6 +81,8 @@ export interface Plato {
   // Insumo que se revende como viene (por ejemplo, una bebida), o null.
   reventa: { id: string; nombre: string } | null;
   modeloRa: ModeloRa | null;
+  // Último escaneo del plato, en cualquier estado, o null.
+  escaneo: { id: string; estado: EstadoEscaneo } | null;
 }
 
 // Un menú agrupa platos del restaurante con una vigencia; cada sucursal elige

@@ -37,11 +37,11 @@ docs/modelos/     ← modelos UML y DER versionados (fuente de verdad del diseñ
 
 | Modelo | Versión vigente |
 |---|---|
-| Clases unificado | `clases/0-unificado/v3` |
+| Clases unificado | `clases/0-unificado/v4` |
 | DER 1 — Organización, salón y consumo | `der/1-organizacion-salon-consumo/v2` |
-| DER 2 — Menú, recetas e inventario | `der/2-menu-recetas-inventario/v2` |
+| DER 2 — Menú, recetas e inventario | `der/2-menu-recetas-inventario/v3` |
 | DER 3 — Fidelización, simulador y alertas | `der/3-fidelizacion-simulador-alertas/v3` |
-| Estados (reserva, pedido, pago, planificación) | `estado/*/v1` |
+| Estados (reserva, pedido, pago, planificación, escaneo) | `estado/*/v1` |
 
 - **`schema.prisma` deriva del DER vigente.** Tablas en snake_case con `@@map`; modelos y campos en camelCase, con `@map`.
 - **Si al implementar hace falta cambiar el modelo:** no tocar el schema primero. Proponer el cambio a Gabriel y, con su aprobación, actualizar el DER y/o las clases, después `HISTORIAL.md` y recién al final el schema.

@@ -4,7 +4,9 @@ import {
   CheckCheck,
   Circle,
   Clock,
+  Eye,
   Flame,
+  Loader,
   Ban,
   CalendarClock,
   Pencil,
@@ -15,10 +17,12 @@ import {
 } from 'lucide-react';
 import type {
   EstadoBeneficio,
+  EstadoEscaneo,
   EstadoMesaSalon,
   EstadoPago,
   EstadoPedido,
   EstadoReserva,
+  NivelCalidad,
 } from '@pgim/shared';
 
 // Única fuente de etiqueta, tono e ícono de cada estado. Ninguna pantalla
@@ -32,6 +36,8 @@ export interface InfoEstado {
   etiqueta: string;
   tono: Tono;
   icono: LucideIcon;
+  // El ícono gira (algo en curso); respeta "reducir movimiento".
+  gira?: boolean;
 }
 
 export const ESTADOS = {
@@ -82,6 +88,20 @@ export const ESTADOS = {
     EN_RIESGO: { etiqueta: 'En riesgo', tono: 'warn', icono: TriangleAlert },
     FALTANTE: { etiqueta: 'Faltante', tono: 'bad', icono: X },
   } satisfies Record<'OK' | 'EN_RIESGO' | 'FALTANTE', InfoEstado>,
+  escaneo: {
+    PENDIENTE: { etiqueta: 'Generando', tono: 'acento', icono: Loader, gira: true },
+    PROCESANDO: { etiqueta: 'Generando', tono: 'acento', icono: Loader, gira: true },
+    EN_REVISION: { etiqueta: 'Para revisar', tono: 'warn', icono: Eye },
+    PUBLICADO: { etiqueta: 'Con modelo', tono: 'ok', icono: Check },
+    DESCARTADO: { etiqueta: 'Descartado', tono: 'neutro', icono: X },
+    FALLIDO: { etiqueta: 'Falló', tono: 'bad', icono: TriangleAlert },
+  } satisfies Record<EstadoEscaneo, InfoEstado>,
+  // Nivel de cada criterio del informe de calidad del video.
+  calidad: {
+    OK: { etiqueta: 'Bien', tono: 'ok', icono: Check },
+    ADVERTENCIA: { etiqueta: 'Atención', tono: 'warn', icono: TriangleAlert },
+    RECHAZO: { etiqueta: 'No sirve', tono: 'bad', icono: X },
+  } satisfies Record<NivelCalidad, InfoEstado>,
 } as const;
 
 export type EntidadConEstado = keyof typeof ESTADOS;
