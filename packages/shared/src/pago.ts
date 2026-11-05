@@ -47,3 +47,29 @@ export interface ResultadoPago {
   puntosSumados: number;
   desbloqueados: string[];
 }
+
+// Pagos del día de la sucursal (CU-23): solo los ya resueltos.
+export interface PagoDelDia {
+  id: string;
+  fecha: string;
+  mesaNumero: number;
+  comensalNombre: string;
+  monto: number;
+  metodo: MetodoPago | null;
+  estado: 'APROBADO' | 'RECHAZADO';
+  comprobanteNumero: string | null;
+}
+
+// Un aprobado sin método (pago de $0 o pasarela de prueba) va a SIN_METODO.
+export interface TotalesPagosDelDia {
+  cobrado: number;
+  aprobados: number;
+  rechazados: number;
+  porMetodo: { TARJETA: number; BILLETERA_VIRTUAL: number; SIN_METODO: number };
+}
+
+export interface PagosDelDia {
+  fecha: string;
+  totales: TotalesPagosDelDia;
+  pagos: PagoDelDia[];
+}

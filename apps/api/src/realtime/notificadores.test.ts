@@ -15,7 +15,9 @@ const evento: EventoReserva = {
 
 function ioFalso() {
   const emit = jest.fn();
-  return { emit, io: { to: jest.fn(() => ({ emit })), in: jest.fn() } };
+  // Por defecto no hay sockets conectados: los avisos filtrados por sesión no tienen a quién llegar.
+  const vacio = () => ({ fetchSockets: jest.fn().mockResolvedValue([]) });
+  return { emit, io: { to: jest.fn(() => ({ emit })), in: jest.fn(vacio) } };
 }
 
 const sesionDe = (tipo: 'EMPLEADO' | 'COMENSAL', permisos: string[], sucursalId = 'S') => ({
@@ -199,6 +201,58 @@ describe('notificadores', () => {
       estado: 'RECHAZADO',
       puntosSumados: 0,
       desbloqueados: [],
+    });
+  });
+
+  describe('un pago resuelto', () => {
+    const pagoAprobado = {
+      tipo: 'PAGO_APROBADO' as const,
+      pagoId: 'P',
+      cuentaMesaId: 'M',
+      sucursalId: 'S',
+      comensalId: 'C',
+      puntosSumados: 0,
+      desbloqueados: [],
+    };
+    const pagoRechazado = {
+      tipo: 'PAGO_RECHAZADO' as const,
+      pagoId: 'P',
+      cuentaMesaId: 'M',
+      sucursalId: 'S',
+      comensalId: 'C',
+    };
+    const publicar = async (
+      sockets: ReturnType<typeof socketDe>[],
+      pago: typeof pagoAprobado | typeof pagoRechazado = pagoAprobado,
+    ) => {
+      const { io } = ioFalso();
+      io.in.mockReturnValue({ fetchSockets: jest.fn().mockResolvedValue(sockets) });
+      const bus = crearBusEventos();
+      registrarNotificadores(io as never, bus);
+      bus.publicar(pago);
+      await new Promise((r) => setImmediate(r));
+      expect(io.in).toHaveBeenCalledWith('sucursal:S');
+    };
+
+    it('llega solo a los empleados de la sucursal con pago.ver', async () => {
+      const conPago = socketDe(sesionDe('EMPLEADO', ['pago.ver']));
+      const conPagoYPedidos = socketDe(sesionDe('EMPLEADO', ['pago.ver', 'pedido.ver']));
+      const cocina = socketDe(sesionDe('EMPLEADO', ['pedido.ver']));
+      const otraSucursal = socketDe(sesionDe('EMPLEADO', ['pago.ver'], 'OTRA'));
+      const comensal = socketDe(sesionDe('COMENSAL', ['pago.ver']));
+      const sinSesion = socketDe(undefined);
+      await publicar([conPago, conPagoYPedidos, cocina, otraSucursal, comensal, sinSesion]);
+      expect(conPago.emit).toHaveBeenCalledWith('pagos:cambio');
+      expect(conPagoYPedidos.emit).toHaveBeenCalledWith('pagos:cambio');
+      for (const s of [cocina, otraSucursal, comensal, sinSesion]) {
+        expect(s.emit).not.toHaveBeenCalled();
+      }
+    });
+
+    it('un pago rechazado también se avisa', async () => {
+      const conPago = socketDe(sesionDe('EMPLEADO', ['pago.ver']));
+      await publicar([conPago], pagoRechazado);
+      expect(conPago.emit).toHaveBeenCalledWith('pagos:cambio');
     });
   });
 

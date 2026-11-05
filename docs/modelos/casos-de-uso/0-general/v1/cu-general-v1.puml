@@ -68,6 +68,7 @@ rectangle "PGIM" {
     usecase "CU-06 Pagar\ncuenta" as CU06
     usecase "Emitir comprobante\ny acreditar puntos" as COMP
     usecase "Canjear recompensa\npor puntos" as CANJE
+    usecase "CU-23 Consultar\npagos del día" as CU23
   }
   rectangle "Stock, simulador y métricas" {
     usecase "CU-07 Configurar\nreceta" as CU07
@@ -103,6 +104,8 @@ STF -- CU08
 STF -- CU22
 STF -- CU12
 STF -- CU18
+GER -- CU23
+STF -- CU23
 
 ' --- Comensal y sistemas externos (abajo)
 CU01 -- COM
@@ -139,6 +142,7 @@ CU16 -[hidden]down- CU05
 CU17 -[hidden]down- CU04
 CU19 -[hidden]down- CU08
 CU08 -[hidden]down- CU22
+CANP -[hidden]right- CU23
 ' módulos en dos filas
 HUE -[hidden]down- CU07
 CU02 -[hidden]down- CU19

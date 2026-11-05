@@ -15,6 +15,7 @@ import { mesaComensalRouter } from './routes/mesa-comensal';
 import { mesasRouter } from './routes/mesas';
 import { metricasRouter } from './routes/metricas';
 import { categoriasRouter, menusRouter, platosRouter } from './routes/menu';
+import { pagosRouter } from './routes/pagos';
 import { pagosWebhookRouter } from './routes/pagos-webhook';
 import { pedidosRouter } from './routes/pedidos';
 import { personalRouter } from './routes/personal';
@@ -91,6 +92,7 @@ export function createApp() {
   app.use(`${API_PREFIX}/reservas`, reservasPanelRouter);
   app.use(`${API_PREFIX}/salon`, salonRouter);
   app.use(`${API_PREFIX}/pagos/webhook`, pagosWebhookRouter);
+  app.use(`${API_PREFIX}/pagos`, pagosRouter);
   app.use(`${API_PREFIX}/pedidos`, pedidosRouter);
   app.use(`${API_PREFIX}/alertas`, alertasRouter);
   app.use(`${API_PREFIX}/apertura`, aperturaRouter);

@@ -93,6 +93,26 @@ export function registrarNotificadores(io: Pick<Server, 'to' | 'in'>, bus: BusEv
           .catch(() => {}); // efecto secundario: la alerta ya está guardada
         break;
       }
+      // "Pagos del día" es solo para quien tiene pago.ver: el aviso no lleva datos
+      // y va únicamente a los sockets de la sucursal cuya sesión lo tiene.
+      case 'PAGO_APROBADO':
+      case 'PAGO_RECHAZADO': {
+        const { sucursalId } = evento;
+        void io
+          .in(salaSucursal(sucursalId))
+          .fetchSockets()
+          .then((sockets) => {
+            for (const socket of sockets) {
+              const sesion = socket.data.sesion as Sesion | undefined;
+              if (sesion?.usuario.tipo !== 'EMPLEADO') continue;
+              if (sesion.sucursalActiva?.id !== sucursalId) continue;
+              if (!sesion.permisos.includes('pago.ver')) continue;
+              socket.emit(EVENTOS_SOCKET.pagosCambio);
+            }
+          })
+          .catch(() => {}); // efecto secundario: el pago ya quedó guardado
+        break;
+      }
       // Aviso a toda la sucursal, sin datos: cada empleado consulta sus turnos.
       case 'PLANIFICACION_CONFIRMADA':
         io.to(salaSucursal(evento.sucursalId)).emit(EVENTOS_SOCKET.turnosPublicados);

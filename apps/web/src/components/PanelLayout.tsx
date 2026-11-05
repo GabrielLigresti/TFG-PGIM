@@ -20,6 +20,7 @@ import {
   UserRound,
   Users,
   Utensils,
+  Wallet,
   X,
   type LucideIcon,
 } from 'lucide-react';
@@ -73,6 +74,14 @@ export const SECCIONES: SeccionPanel[] = [
     permisos: ['pedido.ver'],
     grupo: 'Operación',
     icono: ChefHat,
+  },
+  {
+    ruta: 'pagos',
+    titulo: 'Pagos del día',
+    descripcion: 'Pagos aprobados y rechazados de hoy',
+    permisos: ['pago.ver'],
+    grupo: 'Operación',
+    icono: Wallet,
   },
   {
     ruta: 'alertas',
