@@ -1,4 +1,4 @@
-import { API_PREFIX } from '@pgim/shared';
+import { API_PREFIX, type InformeCalidad } from '@pgim/shared';
 
 export class ApiError extends Error {
   constructor(
@@ -26,6 +26,21 @@ export async function subirArchivo<T>(ruta: string, archivo: Blob) {
   const res = await fetch(`${API_PREFIX}${ruta}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/octet-stream' },
+    body: archivo,
+  });
+  return leerRespuesta<T>(res);
+}
+
+// Sube el video de un escaneo (POST binario). El informe de calidad viaja en el
+// encabezado X-Calidad-Video: JSON en UTF-8 codificado en base64url, sin relleno.
+export async function enviarVideo<T>(ruta: string, archivo: Blob, informe: InformeCalidad) {
+  const bytes = new TextEncoder().encode(JSON.stringify(informe));
+  let binario = '';
+  for (const b of bytes) binario += String.fromCharCode(b);
+  const codificado = btoa(binario).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const res = await fetch(`${API_PREFIX}${ruta}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/octet-stream', 'X-Calidad-Video': codificado },
     body: archivo,
   });
   return leerRespuesta<T>(res);

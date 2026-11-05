@@ -9,6 +9,7 @@ import {
   Campo,
   Casilla,
   EncabezadoPagina,
+  Estado,
   EstadoCarga,
   Etiqueta,
   Modal,
@@ -19,10 +20,10 @@ import { ApiError, subirArchivo } from '../../lib/api';
 import { aNumero, formatoPesos } from '../../lib/formato';
 import { useGuardar } from '../../lib/useGuardar';
 import { useRecurso } from '../../lib/useRecurso';
-import { ModeloRaModal } from './ModeloRaModal';
+import { EscaneoModal } from './EscaneoModal';
 import { useConfirmar } from '../../components/Confirmacion';
 
-// CU-16: platos (con su modelo RA) y categorías. Los menús van en su propia pantalla.
+// CU-16: platos (con su modelo 3D) y categorías. Los menús van en su propia pantalla.
 const LIMITE_FOTO_MB = 5;
 
 export function PlatosPage() {
@@ -110,8 +111,16 @@ export function PlatosPage() {
                 valor: (p) => (p.disponible ? 'Sí' : <Etiqueta tono="bad">Agotado</Etiqueta>),
               },
               {
-                titulo: 'RA',
-                valor: (p) => (p.modeloRa ? <Etiqueta tono="ok">Con modelo</Etiqueta> : '—'),
+                titulo: 'Modelo',
+                // Un escaneo en curso o por revisar tiene prioridad sobre "Con modelo".
+                valor: (p) => {
+                  const e = p.escaneo?.estado;
+                  if (e === 'PENDIENTE' || e === 'PROCESANDO' || e === 'EN_REVISION') {
+                    return <Estado entidad="escaneo" valor={e} />;
+                  }
+                  if (e === 'FALLIDO' && !p.modeloRa) return <Estado entidad="escaneo" valor={e} />;
+                  return p.modeloRa ? <Estado entidad="escaneo" valor="PUBLICADO" /> : '—';
+                },
               },
               {
                 titulo: 'Receta',
@@ -143,7 +152,7 @@ export function PlatosPage() {
                 )}
                 {tienePermiso('menu.editar') && (
                   <Boton variante="secundario" onClick={() => setModelo(p)}>
-                    Modelo RA
+                    Modelo 3D
                   </Boton>
                 )}
                 {tienePermiso('menu.eliminar') && p.activo && (
@@ -208,14 +217,7 @@ export function PlatosPage() {
         />
       )}
       {modelo && (
-        <ModeloRaModal
-          plato={modelo}
-          onCerrar={() => setModelo(null)}
-          onGuardado={() => {
-            setModelo(null);
-            platos.recargar();
-          }}
-        />
+        <EscaneoModal plato={modelo} onCerrar={() => setModelo(null)} onCambio={platos.recargar} />
       )}
       {categoria && (
         <FormularioCategoria

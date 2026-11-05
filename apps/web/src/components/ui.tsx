@@ -183,10 +183,14 @@ export function Estado({
   valor: string;
   publico?: Publico;
 }) {
-  const { etiqueta, tono, icono: Icono } = infoEstado(entidad, valor, publico);
+  const { etiqueta, tono, icono: Icono, gira } = infoEstado(entidad, valor, publico);
   return (
     <span className={`${claseEtiqueta} ${CLASES_TONO[tono]}`}>
-      <Icono aria-hidden className="size-3.5" strokeWidth={2.4} />
+      <Icono
+        aria-hidden
+        className={`size-3.5 ${gira ? 'motion-safe:animate-spin' : ''}`}
+        strokeWidth={2.4}
+      />
       {etiqueta}
     </span>
   );
