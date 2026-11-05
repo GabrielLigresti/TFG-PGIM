@@ -43,6 +43,7 @@ const platoBase: Plato = {
   sinReceta: false,
   reventa: null,
   modeloRa: null,
+  escaneo: null,
 };
 
 const conModelo: Plato = {

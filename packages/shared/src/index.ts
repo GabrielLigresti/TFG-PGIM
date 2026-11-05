@@ -10,6 +10,7 @@ export * from './personal';
 export * from './inventario';
 export * from './stock';
 export * from './menu';
+export * from './escaneo';
 export * from './comensal';
 export * from './salon';
 export * from './reserva';

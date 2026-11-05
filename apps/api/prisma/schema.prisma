@@ -186,6 +186,16 @@ enum TipoAlerta {
   @@map("tipo_alerta")
 }
 
+// Diagrama de estados estado/escaneo-plato/v1.
+enum EstadoEscaneo {
+  PENDIENTE
+  PROCESANDO
+  EN_REVISION
+  PUBLICADO
+  DESCARTADO
+  FALLIDO
+}
+
 enum Severidad {
   INFO
   ADVERTENCIA
@@ -212,6 +222,7 @@ model Restaurante {
   cuentasFidelidad      CuentaFidelidad[]
   gruposBeneficios      GrupoBeneficios[]
   beneficios            Beneficio[]
+  escaneosPlato         EscaneoPlato[]
 
   @@map("restaurante")
 }
@@ -290,6 +301,7 @@ model Empleado {
   turnos           Turno[]
   movimientosStock MovimientoStock[]
   tandasProduccion TandaProduccion[]
+  escaneosPlato    EscaneoPlato[]
 
   @@index([restauranteId])
   @@index([rolId])
@@ -597,6 +609,7 @@ model ItemMenu {
   insumo       ComponenteInventario? @relation(fields: [insumoId], references: [id])
   menus        MenuItem[]
   modeloRa     ModeloRA?
+  escaneos     EscaneoPlato[]
   receta       Receta?
   lineasPedido LineaPedido[]
   demandasItem DemandaItem[]
@@ -619,6 +632,33 @@ model ModeloRA {
   itemMenu ItemMenu @relation(fields: [itemMenuId], references: [id], onDelete: Cascade)
 
   @@map("modelo_ra")
+}
+
+// Escaneo del plato para generar su modelo RA. Un solo escaneo PENDIENTE,
+// PROCESANDO o EN_REVISION por plato: índice único parcial en la migración.
+model EscaneoPlato {
+  id               String        @id @default(uuid(7)) @db.Uuid
+  restauranteId    String        @map("restaurante_id") @db.Uuid
+  itemMenuId       String        @map("item_menu_id") @db.Uuid
+  empleadoId       String        @map("empleado_id") @db.Uuid
+  estado           EstadoEscaneo @default(PENDIENTE)
+  proveedor        String
+  tareaProveedorId String?       @map("tarea_proveedor_id")
+  rutaVideo        String?       @map("ruta_video")
+  urlModelo        String?       @map("url_modelo")
+  urlModeloIos     String?       @map("url_modelo_ios")
+  calidad          Json
+  error            String?
+  creadoEn         DateTime      @default(now()) @map("creado_en") @db.Timestamptz(6)
+  actualizadoEn    DateTime      @updatedAt @map("actualizado_en") @db.Timestamptz(6)
+
+  restaurante Restaurante @relation(fields: [restauranteId], references: [id])
+  itemMenu    ItemMenu    @relation(fields: [itemMenuId], references: [id])
+  empleado    Empleado    @relation(fields: [empleadoId], references: [usuarioId])
+
+  @@index([restauranteId, itemMenuId])
+  @@index([estado])
+  @@map("escaneo_plato")
 }
 
 // CHECK unidad_base en GRAMO, MILILITRO o UNIDAD: en la migración.

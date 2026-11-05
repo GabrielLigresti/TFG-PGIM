@@ -78,13 +78,15 @@ const seleccionPlato = {
   modeloRa: {
     select: { urlModelo: true, urlModeloIos: true, escalaReal: true, porcionGramos: true },
   },
+  escaneos: { orderBy: { creadoEn: 'desc' }, take: 1, select: { id: true, estado: true } },
 } satisfies Prisma.ItemMenuSelect;
 
 type FilaPlato = Prisma.ItemMenuGetPayload<{ select: typeof seleccionPlato }>;
 
-function aPlato({ receta, insumo, modeloRa, ...fila }: FilaPlato): Plato {
+function aPlato({ receta, insumo, modeloRa, escaneos, ...fila }: FilaPlato): Plato {
   return {
     ...fila,
+    escaneo: escaneos[0] ?? null,
     modeloRa: modeloRa && { ...modeloRa, escalaReal: Number(modeloRa.escalaReal) },
     precio: Number(fila.precio),
     tieneReceta: receta !== null,
