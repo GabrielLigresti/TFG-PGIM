@@ -8,6 +8,12 @@ jest.mock('../repositories/usuario.repository', () => ({
   usuarioRepository: { findCredencialesByEmail: jest.fn(), findSesionById: jest.fn() },
 }));
 
+// Límite chico para probar el 413 sin mandar 100 MB.
+jest.mock('@pgim/shared', () => ({
+  ...jest.requireActual('@pgim/shared'),
+  LIMITE_VIDEO_MB: 1,
+}));
+
 // Las rutas se prueban sin base: el servicio se reemplaza y los casos de negocio
 // (plato ajeno, escaneo activo, rechazo) se simulan con el error que lanza.
 jest.mock('../services/escaneo.service', () => ({
@@ -108,6 +114,26 @@ describe('POST /api/platos/:id/escaneos', () => {
       .send(video);
 
     expect(res.status).toBe(403);
+    expect(escaneoService.crear).not.toHaveBeenCalled();
+  });
+
+  it('sin sesión responde 401', async () => {
+    const res = await request(app)
+      .post(`/api/platos/${ID}/escaneos`)
+      .set('Content-Type', 'application/octet-stream')
+      .set('X-Calidad-Video', encabezado(informe()))
+      .send(video);
+
+    expect(res.status).toBe(401);
+    expect(escaneoService.crear).not.toHaveBeenCalled();
+  });
+
+  it('responde 413 si el video supera el límite', async () => {
+    const res = await enviar()
+      .set('X-Calidad-Video', encabezado(informe()))
+      .send(Buffer.alloc(1024 * 1024 + 1));
+
+    expect(res.status).toBe(413);
     expect(escaneoService.crear).not.toHaveBeenCalled();
   });
 

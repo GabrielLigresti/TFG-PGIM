@@ -1,4 +1,4 @@
-import express, { Router } from 'express';
+import express, { Router, type RequestHandler } from 'express';
 import {
   LIMITE_VIDEO_MB,
   categoriaInputSchema,
@@ -7,6 +7,7 @@ import {
   modeloRaInputSchema,
   platoInputSchema,
   type CategoriaInput,
+  type InformeCalidad,
   type MenuInput,
   type ModeloRaInput,
   type PlatoInput,
@@ -136,17 +137,24 @@ const archivoVideo = express.raw({
   limit: `${LIMITE_VIDEO_MB}mb`,
 });
 
+// El encabezado se valida antes de leer el cuerpo: un pedido sin informe no sube nada.
+const informeDelEncabezado: RequestHandler = (req, res, next) => {
+  res.locals.informe = leerInformeCalidad(req.header('X-Calidad-Video'));
+  next();
+};
+
 platosRouter.post(
   '/:id/escaneos',
   requierePermiso('menu.editar'),
   validarParams(idParamSchema),
+  informeDelEncabezado,
   archivoVideo,
   async (req, res) => {
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
       res.status(400).json({ error: 'Falta el video' });
       return;
     }
-    const informe = leerInformeCalidad(req.header('X-Calidad-Video'));
+    const informe = res.locals.informe as InformeCalidad;
     res
       .status(201)
       .json(
