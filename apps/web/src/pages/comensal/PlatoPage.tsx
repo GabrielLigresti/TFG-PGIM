@@ -21,7 +21,8 @@ export function PlatoPage() {
   );
   const plato = datos?.plato;
   const { sesion } = useSesion();
-  const mesa = useMiMesa(sucursalId ?? null, sesion?.usuario.tipo === 'COMENSAL').datos;
+  const miMesa = useMiMesa(sucursalId ?? null, sesion?.usuario.tipo === 'COMENSAL');
+  const mesa = miMesa.datos;
   const carrito = useCarrito(mesa?.cuentaMesaId ?? null);
   const { avisar } = useAvisos();
   const [cantidad, setCantidad] = useState(1);
@@ -51,11 +52,12 @@ export function PlatoPage() {
   }
 
   // Sin sesión de comensal no hay mesa: la acción es reservar, como en la carta.
+  // Mientras se consulta la mesa no se ofrece nada, para que no parpadee.
   const accion = !plato ? null : puedePedir ? (
     <Boton densidad="comensal" className="flex-1" onClick={agregarDesdeFicha}>
       Agregar al pedido · {formatoPesos(plato.precio * cantidad)}
     </Boton>
-  ) : !mesa ? (
+  ) : !mesa && !miMesa.cargando ? (
     <Link
       to={`/s/${sucursalId}/reservar`}
       className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-control bg-accent px-4 text-sm font-semibold text-white hover:bg-accent-hover"
