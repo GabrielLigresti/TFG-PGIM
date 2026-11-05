@@ -463,15 +463,22 @@ describe('procesarEnCurso', () => {
     });
   });
 
-  it('PROCESANDO vencido con el proveedor en LISTO pero guardarModelo falla: FALLIDO', async () => {
+  it('PROCESANDO con guardarModelo fallando: reintenta y, vencido, falla sin consultar', async () => {
     const proveedor = proveedorFalso({
       consultar: jest.fn().mockResolvedValue({ estado: 'LISTO', glb: GLB }),
     });
+    const reciente = procesando({ actualizadoEn: new Date(AHORA.getTime() - 5 * MINUTO) });
+    const a = armar([reciente], proveedor);
+    a.deps.modelos.guardarModelo.mockRejectedValue(new Error('disco'));
+    await a.service.procesarEnCurso();
+    expect(a.repo.cambiarEstado).not.toHaveBeenCalled();
+
     const vencido = procesando({ actualizadoEn: new Date(AHORA.getTime() - 31 * MINUTO) });
-    const { service, repo, deps } = armar([vencido], proveedor);
-    deps.modelos.guardarModelo.mockRejectedValue(new Error('disco'));
-    await service.procesarEnCurso();
-    expect(repo.cambiarEstado).toHaveBeenCalledWith(R, 'e1', 'PROCESANDO', {
+    const b = armar([vencido], proveedor);
+    (proveedor.consultar as jest.Mock).mockClear();
+    await b.service.procesarEnCurso();
+    expect(proveedor.consultar).not.toHaveBeenCalled();
+    expect(b.repo.cambiarEstado).toHaveBeenCalledWith(R, 'e1', 'PROCESANDO', {
       estado: 'FALLIDO',
       error: 'El escaneo tardó demasiado',
       rutaVideo: null,
