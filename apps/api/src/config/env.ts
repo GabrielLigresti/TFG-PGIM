@@ -16,6 +16,14 @@ const envSchema = z.object({
   MP_ACCESS_TOKEN: z.string().min(1).optional(),
   MP_WEBHOOK_SECRET: z.string().min(1).optional(),
   PUBLIC_URL: z.url().optional(),
+  // Escaneo de platos: qué proveedor genera el modelo 3D y cada cuánto la tarea
+  // de fondo consulta los escaneos en curso. El simulado es para la demo.
+  PROVEEDOR_3D: z.string().min(1).default('simulado'),
+  SIMULADO_DEMORA_MS: z.coerce.number().int().min(0).default(20000),
+  SIMULADO_FALLA: z.stringbool().default(false),
+  ESCANEO_INTERVALO_MS: z.coerce.number().int().positive().default(10000),
+  // Pasado este tiempo un escaneo sin resultado se da por fallido.
+  ESCANEO_TIMEOUT_MIN: z.coerce.number().int().positive().default(30),
 });
 
 export const env = envSchema.parse(process.env);
