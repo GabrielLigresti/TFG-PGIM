@@ -117,7 +117,7 @@ Solo tipos, zod y funciones sin dependencias, utilizables desde la web y desde J
 | Nitidez | > 50 % de cuadros bajo el umbral | > 20 % | "El video está movido: grabá más despacio" |
 | Exposición | luminancia media fuera de rango o > 30 % quemados o negros | > 10 % | "Hay poca luz: grabá con luz pareja, sin flash" |
 | Brillos | — | > 15 % de brillos centrales | "Hay muchos reflejos: evitá la luz directa sobre el plato" |
-| Recorrido | diferencia media casi nula (cámara quieta) o > 20 % de saltos bruscos | recorrido corto | "Dá una vuelta lenta y completa alrededor del plato" |
+| Recorrido | diferencia media casi nula (cámara quieta) o > 20 % de saltos bruscos | recorrido corto | "Da una vuelta lenta y completa alrededor del plato" |
 
 - `evaluarCalidad(muestras, metadatos, umbrales)` devuelve `InformeCalidad { version, nivelGlobal, metadatos, criterios: ResultadoCriterio[] }`. `nivelGlobal` es el peor nivel de los criterios, y `version` identifica la versión del algoritmo, para comparar informes de distintas versiones al calibrar.
 - `UMBRALES_POR_DEFECTO` en `shared`. **Los valores son iniciales:** se calibran con videos reales cuando haya un proveedor elegido.
