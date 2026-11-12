@@ -28,6 +28,7 @@ Implementás **una sola tarea** de un plan de TFG-PGIM. Hablá y escribí en esp
 - **Dependencias:** no agregues ninguna sin que la tarea lo diga.
 - **Credenciales:** nunca en código, tests, commits ni logs.
 - **Repo público:** nada de material privado ni datos reales.
+- **Comandos de Bash:** corré todo desde el directorio de trabajo que te dieron, con rutas literales y un comando simple por llamada. Nada de variables de shell en rutas, `cd` a rutas calculadas ni `git -C`: la guarda del worktree los rechaza. No adivines rutas: buscalas antes con Glob.
 
 ## Verificación y commit
 
@@ -40,11 +41,12 @@ Implementás **una sola tarea** de un plan de TFG-PGIM. Hablá y escribí en esp
 
 ## Informe final
 
-Devolvé solo esto, en no más de 15 líneas:
+Devolvé solo esto, en no más de 20 líneas:
 
 - **Estado:** hecho, parcial o frenado.
 - **Commits:** el SHA y el mensaje de cada uno.
 - **Archivos tocados.**
+- **Resumen del cambio:** qué hace cada archivo nuevo o modificado, en una línea, y cualquier decisión que no esté en el plan. Opus lo usa en lugar de leer el diff completo en las tareas no críticas, así que tiene que alcanzar para decidir si abrir un archivo.
 - **Tests agregados,** y si pasan.
 - **Desvíos del plan y dudas,** con el motivo de cada uno.
 
