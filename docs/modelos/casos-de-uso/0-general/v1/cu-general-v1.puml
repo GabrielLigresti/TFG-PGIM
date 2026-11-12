@@ -41,7 +41,7 @@ EMP <|-- STF
 rectangle "PGIM" {
   rectangle "Personal y acceso" {
     usecase "CU-01 Iniciar sesión" as CU01
-    usecase "Ingresar\ncon huella" as HUE
+    usecase "Ingresar\ncon Google" as HUE
     usecase "CU-20 Gestionar\ncuenta de usuario" as CU20
     usecase "CU-02 Gestionar\nroles y permisos" as CU02
     usecase "CU-11 Registrar\nrestaurante" as CU11

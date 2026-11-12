@@ -1,0 +1,172 @@
+erDiagram
+    RESTAURANTE ||--|{ SUCURSAL : tiene
+    RESTAURANTE ||--o{ ROL : define
+    RESTAURANTE ||--o{ EMPLEADO : emplea
+    USUARIO ||--o| EMPLEADO : es
+    USUARIO ||--o| COMENSAL : es
+    ROL ||--o{ ROL_PERMISO : otorga
+    PERMISO ||--o{ ROL_PERMISO : incluido_en
+    ROL ||--o{ EMPLEADO : asignado_a
+    EMPLEADO ||--o{ EMPLEADO_SUCURSAL : trabaja_en
+    SUCURSAL ||--o{ EMPLEADO_SUCURSAL : cuenta_con
+    EMPLEADO ||--o{ TURNO : cumple
+    SUCURSAL ||--o{ TURNO : programa
+    SUCURSAL ||--|{ HORARIO_SERVICIO : define
+    SUCURSAL ||--o{ MESA : tiene
+    MESA ||--o{ RESERVA : recibe
+    SUCURSAL ||--o{ RESERVA : registra
+    COMENSAL ||--o{ RESERVA : realiza
+    RESERVA ||--o| CUENTA_MESA : abre
+    CUENTA_MESA ||--o{ PEDIDO : agrupa
+    SUCURSAL ||--o{ PEDIDO : prepara
+    SUCURSAL ||--o{ COMPROBANTE : numera
+    PEDIDO ||--|{ LINEA_PEDIDO : contiene
+    CUENTA_MESA ||--o{ PAGO : recibe
+    COMENSAL ||--o{ PAGO : efectua
+    PAGO ||--o| COMPROBANTE : emite
+    COMENSAL ||--o{ MEDIO_PAGO_GUARDADO : guarda
+
+    RESTAURANTE {
+        uuid id PK
+        varchar nombre
+        varchar cuit UK
+    }
+    SUCURSAL {
+        uuid id PK
+        uuid restaurante_id FK
+        varchar nombre
+        varchar direccion
+        Barrio barrio "48 barrios oficiales de CABA"
+        time horario_apertura
+        time horario_cierre
+        int tolerancia_no_show_min
+        uuid menu_activo_id FK "null si no tiene menu asignado"
+        bool activa "baja logica"
+    }
+    USUARIO {
+        uuid id PK
+        varchar email UK
+        varchar password_hash "null si la cuenta se creo con Google"
+        varchar google_id UK "sub del ID token de Google; null si nunca entro con Google"
+        TipoUsuario tipo "EMPLEADO | COMENSAL; un solo tipo por cuenta"
+        bool activo
+    }
+    EMPLEADO {
+        uuid usuario_id PK, FK
+        uuid restaurante_id FK
+        uuid rol_id FK
+        varchar nombre_completo
+        varchar foto_url "null si no tiene foto"
+        int horas_semanales_max
+    }
+    COMENSAL {
+        uuid usuario_id PK, FK
+        varchar nombre
+        varchar telefono "null si no lo informa"
+    }
+    ROL {
+        uuid id PK
+        uuid restaurante_id FK
+        varchar nombre "UK con restaurante_id"
+        bool predeterminado
+        Arquetipo arquetipo "MOZO | COCINERO | OTRO"
+        bool activo
+    }
+    PERMISO {
+        uuid id PK
+        varchar codigo UK
+        varchar modulo
+        varchar accion
+    }
+    ROL_PERMISO {
+        uuid rol_id PK, FK
+        uuid permiso_id PK, FK
+    }
+    EMPLEADO_SUCURSAL {
+        uuid empleado_id PK, FK
+        uuid sucursal_id PK, FK
+    }
+    HORARIO_SERVICIO {
+        uuid id PK
+        uuid sucursal_id FK
+        FranjaServicio franja "ALMUERZO | CENA; UK con sucursal_id"
+        time hora_inicio
+        time hora_fin
+    }
+    TURNO {
+        uuid id PK
+        uuid planificacion_id FK
+        uuid empleado_id FK
+        uuid sucursal_id FK
+        date fecha
+        FranjaServicio franja "ALMUERZO | CENA; UK con empleado_id y fecha"
+    }
+    MESA {
+        uuid id PK
+        uuid sucursal_id FK
+        int numero "UK con sucursal_id"
+        int capacidad
+        numeric pos_x
+        numeric pos_y
+        bool activa
+    }
+    RESERVA {
+        uuid id PK
+        uuid sucursal_id FK "redundante con mesa; consultas por sucursal"
+        uuid mesa_id FK
+        uuid comensal_id FK
+        timestamptz inicio "hora en punto; fin = inicio + 1 h; UK parcial con mesa_id si PENDIENTE o ACTIVA"
+        int cantidad_personas
+        ModoAsignacion modo_asignacion "MANUAL | AUTOMATICA"
+        EstadoReserva estado "PENDIENTE | ACTIVA | FINALIZADA | CANCELADA | VENCIDA (State)"
+    }
+    CUENTA_MESA {
+        uuid id PK
+        uuid reserva_id FK, UK
+        timestamptz abierta_en
+        timestamptz cerrada_en "null si ABIERTA"
+        EstadoCuenta estado "ABIERTA | CERRADA"
+    }
+    PEDIDO {
+        uuid id PK
+        uuid cuenta_mesa_id FK
+        uuid sucursal_id FK "redundante; cola de cocina por sucursal"
+        int numero "correlativo por sucursal; UK con sucursal_id"
+        timestamptz creado_en
+        timestamptz listo_en "null hasta LISTO"
+        EstadoPedido estado "CONFIRMADO | EN_PREPARACION | LISTO | ENTREGADO | CANCELADO (State)"
+        varchar motivo_cancelacion "solo CANCELADO"
+    }
+    LINEA_PEDIDO {
+        uuid id PK
+        uuid pedido_id FK
+        uuid item_menu_id FK
+        int cantidad
+        numeric precio_unitario "copia del precio vigente"
+        varchar observaciones "null si no hay"
+    }
+    PAGO {
+        uuid id PK
+        uuid cuenta_mesa_id FK
+        uuid comensal_id FK "titular de la reserva"
+        numeric monto "monto final, con los descuentos aplicados"
+        MetodoPago metodo "TARJETA | BILLETERA_VIRTUAL; null hasta APROBADO: lo informa Mercado Pago (y en un pago de $0)"
+        EstadoPago estado "PENDIENTE | APROBADO | RECHAZADO (State)"
+        varchar referencia_externa UK "id de Mercado Pago; null hasta la notificacion"
+        timestamptz fecha
+    }
+    COMPROBANTE {
+        uuid id PK
+        uuid pago_id FK, UK
+        uuid sucursal_id FK "redundante, como en PEDIDO"
+        varchar numero "UK con sucursal_id; correlativo por sucursal"
+        timestamptz fecha_emision
+        numeric total
+    }
+    MEDIO_PAGO_GUARDADO {
+        uuid id PK
+        uuid comensal_id FK
+        varchar token_pasarela
+        varchar marca
+        char ultimos4
+    }
