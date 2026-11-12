@@ -2,7 +2,7 @@
 
 Plataforma de gestión de restaurantes multi-sucursal (TFG de Ingeniería Informática, UCEMA). "PGIM" es un nombre provisorio.
 
-**Fecha límite:** app 100% funcional el 23/11/2026. Solo lo estético puede quedar pendiente.
+**Fecha límite:** app 100% funcional el 24/11/2026. Solo lo estético puede quedar pendiente.
 
 ---
 
