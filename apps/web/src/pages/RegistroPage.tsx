@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../lib/api';
 import { destinoTrasLogin, useSesion } from '../auth/SesionProvider';
+import { BotonGoogle } from '../auth/BotonGoogle';
 import { Cargando } from '../components/Cargando';
 
 const claseCampo =
@@ -10,7 +11,7 @@ const claseCampo =
 // Registro simple de comensal. Al terminar vuelve a donde lo mandó el login
 // (por ejemplo, el menú de la sucursal que abrió con el QR).
 export function RegistroPage() {
-  const { sesion, cargando, registrar } = useSesion();
+  const { sesion, cargando, registrar, loginConGoogle } = useSesion();
   const navigate = useNavigate();
   const { state } = useLocation();
   const [nombre, setNombre] = useState('');
@@ -38,6 +39,16 @@ export function RegistroPage() {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo crear la cuenta');
       setEnviando(false);
+    }
+  }
+
+  async function onGoogle(credential: string) {
+    setError(null);
+    try {
+      const nueva = await loginConGoogle(credential);
+      navigate(destinoTrasLogin(nueva, state), { replace: true });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo crear la cuenta con Google');
     }
   }
 
@@ -115,6 +126,8 @@ export function RegistroPage() {
         >
           {enviando ? 'Creando la cuenta…' : 'Crear cuenta'}
         </button>
+
+        <BotonGoogle onCredential={onGoogle} />
 
         <p className="text-center text-sm text-meta">
           ¿Ya tenés cuenta?{' '}

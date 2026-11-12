@@ -1,0 +1,106 @@
+import { useEffect, useRef, useState } from 'react';
+
+// Tipado mínimo de Google Identity Services (lo que usamos).
+interface RespuestaGoogle {
+  credential?: string;
+}
+interface GoogleId {
+  initialize(opciones: { client_id: string; callback: (respuesta: RespuestaGoogle) => void }): void;
+  renderButton(
+    elemento: HTMLElement,
+    opciones: {
+      theme: 'outline';
+      size: 'large';
+      shape: 'rectangular';
+      text: 'continue_with';
+      locale: string;
+      width: number;
+    },
+  ): void;
+}
+declare global {
+  interface Window {
+    google?: { accounts: { id: GoogleId } };
+  }
+}
+
+const URL_GIS = 'https://accounts.google.com/gsi/client';
+const ANCHO_MAXIMO = 400; // el máximo que acepta Google
+
+let carga: Promise<boolean> | null = null;
+
+// Carga el script una sola vez; resuelve false si no se pudo cargar.
+function cargarScript(): Promise<boolean> {
+  carga ??= new Promise((resolver) => {
+    if (window.google?.accounts?.id) return resolver(true);
+    const script = document.createElement('script');
+    script.src = URL_GIS;
+    script.async = true;
+    script.onload = () => resolver(true);
+    script.onerror = () => {
+      carga = null; // permite reintentar al volver a la pantalla
+      resolver(false);
+    };
+    document.head.appendChild(script);
+  });
+  return carga;
+}
+
+function useScriptGoogle(clientId: string | undefined): boolean {
+  const [listo, setListo] = useState(false);
+  useEffect(() => {
+    if (!clientId) return;
+    let activo = true;
+    void cargarScript().then((ok) => {
+      if (activo) setListo(ok);
+    });
+    return () => {
+      activo = false;
+    };
+  }, [clientId]);
+  return listo;
+}
+
+// Botón oficial "Continuar con Google". Sin client ID o sin script, no muestra nada
+// (ni el separador): la pantalla queda con el ingreso por email.
+export function BotonGoogle({ onCredential }: { onCredential: (credential: string) => void }) {
+  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const listo = useScriptGoogle(clientId);
+  const contenedor = useRef<HTMLDivElement>(null);
+  // Siempre la última función, sin reinicializar Google en cada render.
+  const alCredencial = useRef(onCredential);
+  alCredencial.current = onCredential;
+
+  useEffect(() => {
+    const elemento = contenedor.current;
+    const id = window.google?.accounts.id;
+    if (!listo || !clientId || !elemento || !id) return;
+    id.initialize({
+      client_id: clientId,
+      // Cerrar el popup no llama al callback, así que no hay error que mostrar.
+      callback: ({ credential }) => {
+        if (credential) alCredencial.current(credential);
+      },
+    });
+    id.renderButton(elemento, {
+      theme: 'outline',
+      size: 'large',
+      shape: 'rectangular',
+      text: 'continue_with',
+      locale: 'es',
+      width: Math.min(ANCHO_MAXIMO, Math.floor(elemento.clientWidth)),
+    });
+  }, [listo, clientId]);
+
+  if (!clientId || !listo) return null;
+  return (
+    <>
+      <div className="flex items-center gap-3" aria-hidden="true">
+        <span className="h-px flex-1 bg-line" />
+        <span className="text-sm text-meta">o</span>
+        <span className="h-px flex-1 bg-line" />
+      </div>
+      <div ref={contenedor} className="flex min-h-11 justify-center" />
+    </>
+  );
+}

@@ -28,6 +28,10 @@ npm run dev
 
 La web queda en http://localhost:5173 y la API en http://localhost:3000.
 
+### Ingreso con Google (opcional)
+
+Para activar "Continuar con Google" en el login y el registro del comensal, creá un client ID de OAuth (aplicación web) en Google Cloud y cargá el mismo valor en `GOOGLE_CLIENT_ID` de `apps/api/.env` y en `VITE_GOOGLE_CLIENT_ID` de `apps/web/.env` (ver `apps/web/.env.example`). En los orígenes autorizados van `http://localhost:5173` y la URL fija del túnel, si se usa. Sin client ID, el botón no aparece y el ingreso por email sigue igual.
+
 ### HTTPS con un túnel
 
 La cámara (realidad aumentada) solo funciona con HTTPS. Con `npm run dev` corriendo, `npm run tunnel` abre un quick tunnel de Cloudflare hacia la web y muestra una URL `https://*.trycloudflare.com`, distinta en cada arranque. Mientras está abierto, cualquiera con esa URL entra al entorno de desarrollo: levantarlo solo cuando se usa.

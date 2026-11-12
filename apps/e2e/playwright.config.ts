@@ -44,7 +44,8 @@ export default defineConfig({
       },
     },
     {
-      command: `npx vite --port ${PUERTO_WEB} --strictPort`,
+      // env -u: sin client ID de Google, la web no muestra el botón aunque la terminal lo tenga.
+      command: `env -u VITE_GOOGLE_CLIENT_ID npx vite --port ${PUERTO_WEB} --strictPort`,
       cwd: resolve(__dirname, '../web'),
       url: URL_WEB,
       reuseExistingServer: false,

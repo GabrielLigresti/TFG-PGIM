@@ -2,10 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router';
 import { ApiError } from '../lib/api';
 import { destinoTrasLogin as destino, useSesion } from '../auth/SesionProvider';
+import { BotonGoogle } from '../auth/BotonGoogle';
 import { Cargando } from '../components/Cargando';
 
 export function LoginPage() {
-  const { sesion, cargando, login } = useSesion();
+  const { sesion, cargando, login, loginConGoogle } = useSesion();
   const navigate = useNavigate();
   const { state } = useLocation();
   const [email, setEmail] = useState('');
@@ -26,6 +27,16 @@ export function LoginPage() {
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo iniciar sesión');
       setEnviando(false);
+    }
+  }
+
+  async function onGoogle(credential: string) {
+    setError(null);
+    try {
+      const nueva = await loginConGoogle(credential);
+      navigate(destino(nueva, state), { replace: true });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : 'No se pudo iniciar sesión con Google');
     }
   }
 
@@ -77,6 +88,8 @@ export function LoginPage() {
         >
           {enviando ? 'Ingresando…' : 'Ingresar'}
         </button>
+
+        <BotonGoogle onCredential={onGoogle} />
 
         <p className="text-center text-sm text-meta">
           ¿No tenés cuenta?{' '}
