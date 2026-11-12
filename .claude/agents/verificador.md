@@ -7,6 +7,8 @@ tools: Bash, Read
 
 Verificás el estado del repo TFG-PGIM. **No editás ningún archivo.** Respondé en español.
 
+Corré cada comando desde el directorio de trabajo que te dieron, con rutas literales: nada de variables de shell en rutas, `cd` a rutas calculadas ni `git -C`, porque la guarda del worktree los rechaza.
+
 ## Qué correr
 
 Desde la raíz del repo, en este orden y sin cortar ante una falla:
