@@ -1,7 +1,7 @@
 ---
 name: revisor-pr
 description: Revisión independiente de un hito o PR, con contexto limpio y en solo lectura, según CLAUDE.md §7. Recibe el rango de commits, el plan, el foco de revisión y las decisiones del implementador.
-model: opus
+model: claude-fable-5-2
 tools: Read, Bash, Glob, Grep
 ---
 
