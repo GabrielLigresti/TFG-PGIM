@@ -316,29 +316,15 @@ model Sucursal {
 model Usuario {
   id           String      @id @default(uuid(7)) @db.Uuid
   email        String      @unique
-  passwordHash String      @map("password_hash")
+  passwordHash String?     @map("password_hash")
+  googleId     String?     @unique @map("google_id")
   tipo         TipoUsuario
   activo       Boolean     @default(true)
 
-  empleado                Empleado?
-  comensal                Comensal?
-  credencialesBiometricas CredencialBiometrica[]
+  empleado Empleado?
+  comensal Comensal?
 
   @@map("usuario")
-}
-
-model CredencialBiometrica {
-  id             String  @id @default(uuid(7)) @db.Uuid
-  usuarioId      String  @map("usuario_id") @db.Uuid
-  credentialId   String  @unique @map("credential_id")
-  clavePublica   String  @map("clave_publica") @db.Text
-  dispositivo    String?
-  contadorFirmas Int     @default(0) @map("contador_firmas")
-
-  usuario Usuario @relation(fields: [usuarioId], references: [id])
-
-  @@index([usuarioId])
-  @@map("credencial_biometrica")
 }
 
 model Empleado {

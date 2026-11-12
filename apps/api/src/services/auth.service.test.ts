@@ -10,6 +10,12 @@ beforeAll(async () => {
 });
 
 describe('iniciarSesion', () => {
+  it('una cuenta sin contraseña da el mismo 401 que un email inexistente', async () => {
+    await expect(service.iniciarSesion('google@demo.test', PASSWORD)).rejects.toEqual(
+      new AppError(401, 'Email o contraseña incorrectos'),
+    );
+  });
+
   it('con una sola sucursal la deja como sucursal activa', async () => {
     const { token, sesion } = await service.iniciarSesion('mozo@demo.test', PASSWORD);
 

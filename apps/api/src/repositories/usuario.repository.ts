@@ -8,7 +8,7 @@ interface Referencia {
 
 export interface CredencialesUsuario {
   id: string;
-  passwordHash: string;
+  passwordHash: string | null;
   activo: boolean;
 }
 

@@ -94,7 +94,32 @@ describe('cuentaRepository: comensal y contraseña', () => {
 
     await cuentaRepository.guardarPasswordHash(id, 'nuevo-hash');
 
-    expect(await cuentaRepository.findPasswordHash(id)).toBe('nuevo-hash');
-    expect(await cuentaRepository.findPasswordHash(e.comensalId)).toBe('x');
+    expect(await cuentaRepository.findPasswordHash(id)).toEqual({ passwordHash: 'nuevo-hash' });
+    expect(await cuentaRepository.findPasswordHash(e.comensalId)).toEqual({ passwordHash: 'x' });
+  });
+});
+
+describe('cuentaRepository: cuentas sin contraseña', () => {
+  it('findComensal informa tieneContrasena según el hash', async () => {
+    const sin = await prisma.usuario.create({
+      data: {
+        email: `sin-${Date.now()}@prueba.test`,
+        passwordHash: null,
+        tipo: 'COMENSAL',
+        comensal: { create: { nombre: 'Sin clave' } },
+      },
+    });
+    expect((await cuentaRepository.findComensal(sin.id))?.tieneContrasena).toBe(false);
+    expect((await cuentaRepository.findComensal(e.comensalId))?.tieneContrasena).toBe(true);
+  });
+
+  it('findPasswordHash distingue inexistente de sin hash', async () => {
+    const sin = await prisma.usuario.create({
+      data: { email: `sin2-${Date.now()}@prueba.test`, passwordHash: null, tipo: 'COMENSAL' },
+    });
+    expect(await cuentaRepository.findPasswordHash(sin.id)).toEqual({ passwordHash: null });
+    expect(
+      await cuentaRepository.findPasswordHash('01900000-0000-7000-8000-0000000000ff'),
+    ).toBeNull();
   });
 });

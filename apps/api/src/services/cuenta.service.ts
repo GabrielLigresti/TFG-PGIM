@@ -59,9 +59,12 @@ export function createCuentaService(repo: CuentaRepository, fotos: ArchivosFoto 
 
     // No cierra sesiones: el token no depende de la contraseña.
     async cambiarContrasena(usuarioId: string, actual: string, nueva: string): Promise<void> {
-      const hash = await repo.findPasswordHash(usuarioId);
-      if (!hash) throw new AppError(404, NO_EXISTE);
-      if (!(await verifyPassword(actual, hash))) {
+      const credencial = await repo.findPasswordHash(usuarioId);
+      if (!credencial) throw new AppError(404, NO_EXISTE);
+      if (!credencial.passwordHash) {
+        throw new AppError(400, 'Tu cuenta entra con Google y no tiene contraseña');
+      }
+      if (!(await verifyPassword(actual, credencial.passwordHash))) {
         throw new AppError(400, 'La contraseña actual no es correcta');
       }
       await repo.guardarPasswordHash(usuarioId, await hashPassword(nueva));

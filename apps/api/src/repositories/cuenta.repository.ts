@@ -4,6 +4,7 @@ export interface DatosComensal {
   email: string;
   nombre: string;
   telefono: string | null;
+  tieneContrasena: boolean;
 }
 
 export interface DatosEmpleado {
@@ -31,7 +32,8 @@ export interface CuentaRepository {
   ): Promise<boolean>;
   guardarFotoEmpleado(usuarioId: string, restauranteId: string, fotoUrl: string): Promise<boolean>;
   findFotoEmpleado(usuarioId: string, restauranteId: string): Promise<string | null>;
-  findPasswordHash(usuarioId: string): Promise<string | null>;
+  // null si el usuario no existe; { passwordHash: null } si no tiene contraseña.
+  findPasswordHash(usuarioId: string): Promise<{ passwordHash: string | null } | null>;
   guardarPasswordHash(usuarioId: string, passwordHash: string): Promise<void>;
 }
 
@@ -39,13 +41,14 @@ export const cuentaRepository: CuentaRepository = {
   async findComensal(usuarioId) {
     const comensal = await prisma.comensal.findUnique({
       where: { usuarioId },
-      select: { nombre: true, telefono: true, usuario: { select: { email: true } } },
+      select: { nombre: true, telefono: true, usuario: { select: { email: true, passwordHash: true } } },
     });
     return (
       comensal && {
         email: comensal.usuario.email,
         nombre: comensal.nombre,
         telefono: comensal.telefono,
+        tieneContrasena: comensal.usuario.passwordHash !== null,
       }
     );
   },
@@ -113,7 +116,7 @@ export const cuentaRepository: CuentaRepository = {
       where: { id: usuarioId },
       select: { passwordHash: true },
     });
-    return usuario?.passwordHash ?? null;
+    return usuario && { passwordHash: usuario.passwordHash };
   },
 
   async guardarPasswordHash(usuarioId, passwordHash) {

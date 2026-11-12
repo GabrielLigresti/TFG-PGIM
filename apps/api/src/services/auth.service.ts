@@ -55,11 +55,13 @@ export function createAuthService(
     async iniciarSesion(email: string, password: string): Promise<SesionIniciada> {
       const credenciales = await repo.findCredencialesByEmail(email);
       hashFicticio ??= hashPassword('contraseña-ficticia');
+      // Sin contraseña (cuenta de Google) se compara igual contra el hash
+      // ficticio y responde lo mismo que un email inexistente.
       const valida = await verifyPassword(
         password,
         credenciales?.passwordHash ?? (await hashFicticio),
       );
-      if (!credenciales || !valida) throw new AppError(401, CREDENCIALES_INCORRECTAS);
+      if (!credenciales?.passwordHash || !valida) throw new AppError(401, CREDENCIALES_INCORRECTAS);
       if (!credenciales.activo) throw new AppError(403, CUENTA_DESHABILITADA);
 
       const usuario = await cargarActivo(credenciales.id);

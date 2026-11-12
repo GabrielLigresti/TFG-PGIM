@@ -15,6 +15,7 @@ export const IDS = {
   mozo: '01900000-0000-7000-8000-000000000032',
   inactivo: '01900000-0000-7000-8000-000000000033',
   comensal: '01900000-0000-7000-8000-000000000034',
+  comensalGoogle: '01900000-0000-7000-8000-000000000035',
 } as const;
 
 const centro = { id: IDS.centro, nombre: 'Centro' };
@@ -54,17 +55,32 @@ export const USUARIOS: UsuarioSesion[] = [
     comensal: { nombre: 'Comensal' },
     empleado: null,
   },
+  {
+    id: IDS.comensalGoogle,
+    email: 'google@demo.test',
+    tipo: 'COMENSAL',
+    activo: true,
+    comensal: { nombre: 'Comensal Google' },
+    empleado: null,
+  },
 ];
 
 export const PASSWORD = 'secreta123';
 
-// Repositorio en memoria con los usuarios de arriba, todos con PASSWORD.
+// Repositorio en memoria con los usuarios de arriba, todos con PASSWORD salvo el de Google.
 export async function crearRepositorioFalso(): Promise<UsuarioRepository> {
   const passwordHash = await hashPassword(PASSWORD);
   return {
     async findCredencialesByEmail(email): Promise<CredencialesUsuario | null> {
       const usuario = USUARIOS.find((u) => u.email === email);
-      return usuario ? { id: usuario.id, passwordHash, activo: usuario.activo } : null;
+      if (!usuario) return null;
+      // El comensal de Google no tiene contraseña.
+      const sinClave = usuario.id === IDS.comensalGoogle;
+      return {
+        id: usuario.id,
+        passwordHash: sinClave ? null : passwordHash,
+        activo: usuario.activo,
+      };
     },
     async findSesionById(id) {
       return USUARIOS.find((u) => u.id === id) ?? null;

@@ -10,9 +10,12 @@ function repoFalso(
   sobre: Partial<jest.Mocked<CuentaRepository>> = {},
 ): jest.Mocked<CuentaRepository> {
   return {
-    findComensal: jest
-      .fn()
-      .mockResolvedValue({ email: 'c@demo.test', nombre: 'Cora', telefono: '1155' }),
+    findComensal: jest.fn().mockResolvedValue({
+      email: 'c@demo.test',
+      nombre: 'Cora',
+      telefono: '1155',
+      tieneContrasena: true,
+    }),
     findEmpleado: jest.fn().mockImplementation(async (_u: string, restauranteId: string) =>
       restauranteId === R
         ? {
@@ -52,6 +55,7 @@ describe('cuentaService.obtener', () => {
       email: 'c@demo.test',
       nombre: 'Cora',
       telefono: '1155',
+      tieneContrasena: true,
     });
   });
 
@@ -87,9 +91,30 @@ describe('cuentaService: datos', () => {
 });
 
 describe('cuentaService.cambiarContrasena', () => {
+  it('cambiar la contraseña de una cuenta sin contraseña da 400', async () => {
+    const repo = repoFalso({
+      findPasswordHash: jest.fn().mockResolvedValue({ passwordHash: null }),
+    });
+    const error = await createCuentaService(repo, fotosFalsas())
+      .cambiarContrasena(U, 'x', 'nueva1234')
+      .catch((e) => e);
+    expect(error).toEqual(new AppError(400, 'Tu cuenta entra con Google y no tiene contraseña'));
+    expect(repo.guardarPasswordHash).not.toHaveBeenCalled();
+  });
+
+  it('el usuario inexistente da 404', async () => {
+    const repo = repoFalso({ findPasswordHash: jest.fn().mockResolvedValue(null) });
+    const error = await createCuentaService(repo, fotosFalsas())
+      .cambiarContrasena(U, 'x', 'nueva1234')
+      .catch((e) => e);
+    expect(error).toEqual(new AppError(404, 'La cuenta no existe'));
+  });
+
   it('con la actual errónea responde 400 y no guarda', async () => {
     const repo = repoFalso({
-      findPasswordHash: jest.fn().mockResolvedValue(await hashPassword('vieja1234')),
+      findPasswordHash: jest
+        .fn()
+        .mockResolvedValue({ passwordHash: await hashPassword('vieja1234') }),
     });
     const s = createCuentaService(repo, fotosFalsas());
     const error = await s.cambiarContrasena(U, 'otra-cosa', 'nueva1234').catch((e) => e);
@@ -100,7 +125,9 @@ describe('cuentaService.cambiarContrasena', () => {
 
   it('con la actual correcta guarda un hash que acepta la nueva', async () => {
     const repo = repoFalso({
-      findPasswordHash: jest.fn().mockResolvedValue(await hashPassword('vieja1234')),
+      findPasswordHash: jest
+        .fn()
+        .mockResolvedValue({ passwordHash: await hashPassword('vieja1234') }),
     });
     await createCuentaService(repo, fotosFalsas()).cambiarContrasena(U, 'vieja1234', 'nueva1234');
     const [id, hash] = repo.guardarPasswordHash.mock.calls[0]!;
