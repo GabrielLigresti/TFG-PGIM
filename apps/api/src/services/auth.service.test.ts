@@ -1,6 +1,13 @@
 import { verificarToken } from '../lib/jwt';
 import { AppError } from '../lib/errors';
-import { IDS, PASSWORD, crearRepositorioFalso } from '../test/fake-usuarios';
+import type { IdentidadGoogle } from '../lib/google';
+import {
+  GOOGLE_ID_FALSO,
+  IDS,
+  PASSWORD,
+  crearRepositorioFalso,
+  type RepositorioFalso,
+} from '../test/fake-usuarios';
 import { createAuthService, type AuthService } from './auth.service';
 
 let service: AuthService;
@@ -172,5 +179,172 @@ describe('registrarRestaurante', () => {
     const registrar = jest.fn().mockRejectedValue(error);
 
     await expect((await armar(registrar)).registrarRestaurante(datos)).rejects.toBe(error);
+  });
+});
+
+describe('iniciarSesionConGoogle', () => {
+  const REINTENTAR = new AppError(401, 'No pudimos validar tu cuenta de Google. Probá de nuevo.');
+  const PERSONAL = new AppError(
+    403,
+    'Esta cuenta es del personal de un restaurante. Entrá con tu email y contraseña.',
+  );
+
+  let repo: RepositorioFalso;
+  let crear: jest.SpyInstance;
+  let vincular: jest.SpyInstance;
+  let buscarPorEmail: jest.SpyInstance;
+  let buscarPorGoogleId: jest.SpyInstance;
+
+  function servicioCon(identidad: Partial<IdentidadGoogle> | null): AuthService {
+    const verificar = jest.fn().mockResolvedValue(
+      identidad && {
+        sub: 'sub-nuevo',
+        email: 'ana@gmail.com',
+        emailVerificado: true,
+        nombre: 'Ana',
+        ...identidad,
+      },
+    );
+    return createAuthService(repo, undefined, { verificar });
+  }
+
+  beforeEach(async () => {
+    repo = await crearRepositorioFalso();
+    crear = jest.spyOn(repo, 'crearComensalGoogle');
+    vincular = jest.spyOn(repo, 'vincularGoogle');
+    buscarPorEmail = jest.spyOn(repo, 'findCuentaByEmail');
+    buscarPorGoogleId = jest.spyOn(repo, 'findCuentaByGoogleId');
+  });
+
+  it('crea un comensal nuevo y devuelve su sesión', async () => {
+    const { token, sesion } = await servicioCon({}).iniciarSesionConGoogle('cred');
+
+    expect(crear).toHaveBeenCalledWith({
+      email: 'ana@gmail.com',
+      googleId: 'sub-nuevo',
+      nombre: 'Ana',
+    });
+    expect(sesion.usuario.tipo).toBe('COMENSAL');
+    expect(verificarToken(token)).toEqual({ usuarioId: IDS.comensalNuevo, sucursalId: null });
+  });
+
+  it('entra por google_id aunque el email haya cambiado', async () => {
+    const { sesion } = await servicioCon({
+      sub: GOOGLE_ID_FALSO,
+      email: 'otro@gmail.com',
+    }).iniciarSesionConGoogle('cred');
+
+    expect(sesion.usuario.id).toBe(IDS.comensalGoogle);
+    expect(crear).not.toHaveBeenCalled();
+    expect(vincular).not.toHaveBeenCalled();
+  });
+
+  it('vincula un comensal existente por email', async () => {
+    const { sesion } = await servicioCon({ email: 'comensal@demo.test' }).iniciarSesionConGoogle(
+      'cred',
+    );
+
+    expect(sesion.usuario.id).toBe(IDS.comensal);
+    expect(vincular).toHaveBeenCalledWith(IDS.comensal, 'sub-nuevo');
+  });
+
+  it('rechaza a un empleado sin vincular', async () => {
+    await expect(
+      servicioCon({ email: 'mozo@demo.test' }).iniciarSesionConGoogle('cred'),
+    ).rejects.toEqual(PERSONAL);
+    expect(vincular).not.toHaveBeenCalled();
+  });
+
+  it('rechaza a un empleado deshabilitado con el 403 de personal', async () => {
+    await expect(
+      servicioCon({ email: 'inactivo@demo.test' }).iniciarSesionConGoogle('cred'),
+    ).rejects.toEqual(PERSONAL);
+    expect(vincular).not.toHaveBeenCalled();
+  });
+
+  it('rechaza a un comensal deshabilitado sin vincular', async () => {
+    await expect(
+      servicioCon({ email: 'baja@demo.test' }).iniciarSesionConGoogle('cred'),
+    ).rejects.toEqual(new AppError(403, 'La cuenta está deshabilitada'));
+    expect(vincular).not.toHaveBeenCalled();
+  });
+
+  it('rechaza un email sin verificar', async () => {
+    await expect(
+      servicioCon({ emailVerificado: false }).iniciarSesionConGoogle('cred'),
+    ).rejects.toEqual(REINTENTAR);
+    expect(crear).not.toHaveBeenCalled();
+  });
+
+  it('un token inválido da 401', async () => {
+    await expect(servicioCon(null).iniciarSesionConGoogle('cred')).rejects.toEqual(REINTENTAR);
+  });
+
+  it('sin verificador configurado da 503', async () => {
+    const sinGoogle = createAuthService(repo, undefined, null);
+
+    await expect(sinGoogle.iniciarSesionConGoogle('cred')).rejects.toEqual(
+      new AppError(503, 'El ingreso con Google no está disponible'),
+    );
+  });
+
+  it('busca por el email en minúsculas que llega del verificador', async () => {
+    await servicioCon({ email: 'ana@gmail.com' }).iniciarSesionConGoogle('cred');
+
+    expect(buscarPorEmail).toHaveBeenCalledWith('ana@gmail.com');
+  });
+
+  it('un nombre vacío usa la parte del email antes de la @', async () => {
+    await servicioCon({ nombre: '   ', email: 'juan.perez@gmail.com' }).iniciarSesionConGoogle(
+      'cred',
+    );
+
+    expect(crear).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'juan.perez' }));
+  });
+
+  it('un nombre ausente usa la parte del email antes de la @', async () => {
+    await servicioCon({ nombre: null, email: 'juan.perez@gmail.com' }).iniciarSesionConGoogle(
+      'cred',
+    );
+
+    expect(crear).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'juan.perez' }));
+  });
+
+  it('un nombre largo se recorta a 100', async () => {
+    await servicioCon({ nombre: 'a'.repeat(150) }).iniciarSesionConGoogle('cred');
+
+    expect(crear).toHaveBeenCalledWith(expect.objectContaining({ nombre: 'a'.repeat(100) }));
+  });
+
+  it('ante una clave duplicada en el alta relee y entra', async () => {
+    repo.forzarClaveDuplicada();
+
+    const { sesion } = await servicioCon({}).iniciarSesionConGoogle('cred');
+
+    expect(sesion.usuario.id).toBe(IDS.comensalNuevo);
+    expect(crear).toHaveBeenCalledTimes(1);
+    // Una lectura inicial y una sola relectura.
+    expect(buscarPorGoogleId).toHaveBeenCalledTimes(2);
+  });
+
+  it('ante una clave duplicada en el vínculo relee y entra sin volver a vincular', async () => {
+    repo.forzarClaveDuplicada();
+
+    const { sesion } = await servicioCon({ email: 'comensal@demo.test' }).iniciarSesionConGoogle(
+      'cred',
+    );
+
+    expect(sesion.usuario.id).toBe(IDS.comensal);
+    expect(vincular).toHaveBeenCalledTimes(1);
+    expect(buscarPorGoogleId).toHaveBeenCalledTimes(2);
+  });
+
+  it('si la relectura no encuentra la cuenta propaga el error', async () => {
+    crear.mockRejectedValue(Object.assign(new Error('dup'), { code: 'P2002' }));
+
+    await expect(servicioCon({}).iniciarSesionConGoogle('cred')).rejects.toMatchObject({
+      code: 'P2002',
+    });
+    expect(crear).toHaveBeenCalledTimes(1);
   });
 });
