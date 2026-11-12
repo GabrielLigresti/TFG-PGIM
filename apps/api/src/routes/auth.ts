@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import {
+  loginGoogleRequestSchema,
   loginRequestSchema,
   registroComensalSchema,
   registroRestauranteSchema,
   seleccionarSucursalSchema,
+  type LoginGoogleRequest,
   type LoginRequest,
   type RegistroComensal,
   type RegistroRestaurante,
@@ -19,6 +21,16 @@ export const authRouter = Router();
 // Cuentan solo los intentos fallidos: frena la fuerza bruta sin bloquear a
 // quien entra y sale varias veces (por ejemplo, al probar distintos roles).
 const limiteLogin = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  standardHeaders: 'draft-8',
+  legacyHeaders: false,
+  message: { error: 'Demasiados intentos. Probá de nuevo en unos minutos.' },
+});
+
+// Instancia propia: no comparte contador con el login por contraseña.
+const limiteGoogle = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
   skipSuccessfulRequests: true,
@@ -51,6 +63,12 @@ const limiteRegistroRestaurante = rateLimit({
 authRouter.post('/login', limiteLogin, validar(loginRequestSchema), async (req, res) => {
   const { email, password } = req.body as LoginRequest;
   const { token, sesion } = await authService.iniciarSesion(email, password);
+  res.cookie(COOKIE_SESION, token, opcionesCookie(req)).json(sesion);
+});
+
+authRouter.post('/google', limiteGoogle, validar(loginGoogleRequestSchema), async (req, res) => {
+  const { credential } = req.body as LoginGoogleRequest;
+  const { token, sesion } = await authService.iniciarSesionConGoogle(credential);
   res.cookie(COOKIE_SESION, token, opcionesCookie(req)).json(sesion);
 });
 

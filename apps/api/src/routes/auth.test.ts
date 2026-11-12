@@ -5,16 +5,22 @@ import { createApp } from '../app';
 import { firmarToken } from '../lib/jwt';
 import { autenticar, requierePermiso, tenant } from '../middleware/auth';
 import { errorHandler } from '../middleware/error-handler';
-import { IDS, PASSWORD, crearRepositorioFalso } from '../test/fake-usuarios';
+import { GOOGLE_ID_FALSO, IDS, PASSWORD, crearRepositorioFalso } from '../test/fake-usuarios';
 
 jest.mock('../repositories/usuario.repository', () => {
   const repo = {
     findCredencialesByEmail: jest.fn(),
     findSesionById: jest.fn(),
     crearComensal: jest.fn(),
+    findCuentaByGoogleId: jest.fn(),
+    findCuentaByEmail: jest.fn(),
+    vincularGoogle: jest.fn(),
+    crearComensalGoogle: jest.fn(),
   };
   return { usuarioRepository: repo };
 });
+
+jest.mock('../lib/google', () => ({ verificadorGoogle: { verificar: jest.fn() } }));
 
 beforeAll(async () => {
   const { usuarioRepository } = jest.requireMock('../repositories/usuario.repository');
@@ -22,6 +28,10 @@ beforeAll(async () => {
   usuarioRepository.findCredencialesByEmail.mockImplementation(falso.findCredencialesByEmail);
   usuarioRepository.findSesionById.mockImplementation(falso.findSesionById);
   usuarioRepository.crearComensal.mockImplementation(falso.crearComensal);
+  usuarioRepository.findCuentaByGoogleId.mockImplementation(falso.findCuentaByGoogleId);
+  usuarioRepository.findCuentaByEmail.mockImplementation(falso.findCuentaByEmail);
+  usuarioRepository.vincularGoogle.mockImplementation(falso.vincularGoogle);
+  usuarioRepository.crearComensalGoogle.mockImplementation(falso.crearComensalGoogle);
 });
 
 function cookieDe(usuarioId: string, sucursalId: string | null = IDS.centro): string {
@@ -64,6 +74,43 @@ describe('POST /api/auth/login', () => {
 
   it('responde 400 si faltan datos', async () => {
     const res = await request(createApp()).post('/api/auth/login').send({ email: 'x' });
+
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('POST /api/auth/google', () => {
+  const verificar = () =>
+    jest.requireMock('../lib/google').verificadorGoogle.verificar as jest.Mock;
+
+  it('setea la cookie y devuelve la sesión del comensal', async () => {
+    verificar().mockResolvedValueOnce({
+      sub: GOOGLE_ID_FALSO,
+      email: 'google@demo.test',
+      emailVerificado: true,
+      nombre: 'Comensal Google',
+    });
+
+    const res = await request(createApp()).post('/api/auth/google').send({ credential: 'tok' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.usuario.tipo).toBe('COMENSAL');
+    const cookie = String(res.headers['set-cookie']);
+    expect(cookie).toMatch(/^sesion=/);
+    expect(cookie).toMatch(/HttpOnly/);
+  });
+
+  it('token inválido da 401 con el mensaje de reintento', async () => {
+    verificar().mockResolvedValueOnce(null);
+
+    const res = await request(createApp()).post('/api/auth/google').send({ credential: 'malo' });
+
+    expect(res.status).toBe(401);
+    expect(res.body).toEqual({ error: 'No pudimos validar tu cuenta de Google. Probá de nuevo.' });
+  });
+
+  it('body sin credential da 400', async () => {
+    const res = await request(createApp()).post('/api/auth/google').send({});
 
     expect(res.status).toBe(400);
   });
