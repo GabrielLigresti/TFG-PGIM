@@ -16,6 +16,9 @@ const envSchema = z.object({
   MP_ACCESS_TOKEN: z.string().min(1).optional(),
   MP_WEBHOOK_SECRET: z.string().min(1).optional(),
   PUBLIC_URL: z.url().optional(),
+  // Ingreso con Google del comensal. Si falta, el botón no se muestra y la ruta
+  // responde 503.
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
   // Escaneo de platos: qué proveedor genera el modelo 3D y cada cuánto la tarea
   // de fondo consulta los escaneos en curso. El simulado es para la demo.
   PROVEEDOR_3D: z.string().min(1).default('simulado'),
