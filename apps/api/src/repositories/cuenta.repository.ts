@@ -41,7 +41,11 @@ export const cuentaRepository: CuentaRepository = {
   async findComensal(usuarioId) {
     const comensal = await prisma.comensal.findUnique({
       where: { usuarioId },
-      select: { nombre: true, telefono: true, usuario: { select: { email: true, passwordHash: true } } },
+      select: {
+        nombre: true,
+        telefono: true,
+        usuario: { select: { email: true, passwordHash: true } },
+      },
     });
     return (
       comensal && {
