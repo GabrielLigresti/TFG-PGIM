@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { Box, Check, Loader, Video } from 'lucide-react';
 import {
   LIMITE_VIDEO_MB,
@@ -33,8 +40,24 @@ type Modo = 'inicio' | 'elegir' | 'revisando' | 'informe';
 type Dimensiones = { src: string; ancho: number; profundidad: number };
 
 const CUADROS = 30;
-// Con un modelo publicado, el aviso de un escaneo fallido se muestra solo mientras es reciente.
-const AVISO_FALLA_MS = 24 * 60 * 60 * 1000;
+const CLAVE_FALLA_VISTA = 'pgim:escaneo-falla-vista:';
+
+// localStorage puede no estar disponible (modo privado, cuota): nunca debe romper la pantalla.
+function fallaYaVista(id: string): boolean {
+  try {
+    return localStorage.getItem(CLAVE_FALLA_VISTA + id) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function recordarFallaVista(id: string) {
+  try {
+    localStorage.setItem(CLAVE_FALLA_VISTA + id, '1');
+  } catch {
+    // Sin almacenamiento, el aviso se oculta solo durante esta apertura del modal.
+  }
+}
 
 // Pie del modal: en el celular los botones se apilan a ancho completo con el
 // principal arriba (por eso el principal va último); en escritorio van en fila.
@@ -132,7 +155,9 @@ export function EscaneoModal({
   const [medidas, setMedidas] = useState<Dimensiones | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [abiertoEn] = useState(() => Date.now());
+  const [avisoNoEnviado, setAvisoNoEnviado] = useState(false);
+  // Escaneos fallidos cuyo aviso se cerró en esta apertura (cubre también si localStorage falla).
+  const [fallasCerradas, setFallasCerradas] = useState<string[]>([]);
 
   const estado = escaneo?.estado;
   const vista =
@@ -155,8 +180,10 @@ export function EscaneoModal({
 
   // Cuando manda el estado del escaneo (generando o para revisar), lo del video anterior ya
   // no aplica: ni su informe ni el error de ese envío. Si el escaneo falla, se vuelve al inicio.
+  // El aviso de "no se envió" sí se conserva. Va en un efecto de layout para que un error viejo
+  // no llegue a pintarse en la vista de revisión.
   const mandaElEscaneo = vista === 'generando' || vista === 'revision';
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!mandaElEscaneo) return;
     setModo('inicio');
     setVideo(null);
@@ -164,13 +191,18 @@ export function EscaneoModal({
     setError(null);
   }, [mandaElEscaneo]);
 
-  // Un plato sin modelo muestra siempre por qué falló su último escaneo; uno con modelo, solo
-  // si la falla es reciente, para que un intento viejo no tape un modelo que funciona.
-  const avisoFalla =
+  // El último escaneo fallido se avisa hasta que el usuario lo cierra, tenga o no modelo el plato.
+  const fallaVisible =
     escaneo?.estado === 'FALLIDO' &&
-    (!actual || abiertoEn - Date.parse(escaneo.actualizadoEn) < AVISO_FALLA_MS)
-      ? (escaneo.error ?? 'No pudimos armar el modelo. Probá de nuevo.')
+    !fallasCerradas.includes(escaneo.id) &&
+    !fallaYaVista(escaneo.id)
+      ? escaneo
       : null;
+
+  function cerrarFalla(id: string) {
+    recordarFallaVista(id);
+    setFallasCerradas((ids) => [...ids, id]);
+  }
 
   // Cada vista empieza con su propio diámetro: el borrador no hereda el del modelo publicado.
   const precargado = useRef<string | null>(null);
@@ -230,6 +262,7 @@ export function EscaneoModal({
     if (typeof datos === 'string') return setError(datos);
     void ejecutar(async () => {
       await api(`/escaneos/${escaneo.id}/publicar`, { method: 'POST', body: datos });
+      setAvisoNoEnviado(false);
       onCambio();
       onCerrar();
     }, 'No se pudo publicar el modelo');
@@ -247,6 +280,7 @@ export function EscaneoModal({
       return;
     void ejecutar(async () => {
       await api(`/escaneos/${escaneo.id}/descartar`, { method: 'POST' });
+      setAvisoNoEnviado(false);
       setModo('inicio');
       recargar();
       onCambio();
@@ -297,8 +331,13 @@ export function EscaneoModal({
       try {
         await enviarVideo<Escaneo>(`/platos/${plato.id}/escaneos`, video, informe);
       } catch (e) {
-        // Un escaneo que ya estaba en curso: se muestra ese en vez del informe.
-        if (e instanceof ApiError && e.status === 409) recargar();
+        // Un escaneo que ya estaba en curso: se muestra ese en vez del informe y se avisa
+        // que este video no se envió.
+        if (e instanceof ApiError && e.status === 409) {
+          setAvisoNoEnviado(true);
+          recargar();
+          return;
+        }
         throw e;
       }
       setVideo(null);
@@ -341,6 +380,14 @@ export function EscaneoModal({
     </div>
   );
 
+  const avisoNoEnviadoTexto = (
+    <Aviso>
+      {avisoNoEnviado
+        ? 'Ya había un escaneo en curso para este plato. Tu video no se envió.'
+        : null}
+    </Aviso>
+  );
+
   const cuerpo = (() => {
     switch (vista) {
       case 'cargando':
@@ -349,6 +396,7 @@ export function EscaneoModal({
       case 'generando':
         return (
           <>
+            {avisoNoEnviadoTexto}
             <div className="grid h-64 place-content-center justify-items-center gap-2 text-center">
               <Loader aria-hidden className="size-8 text-accent motion-safe:animate-spin" />
               <p className="text-lg font-semibold text-ink">Estamos armando el modelo</p>
@@ -458,6 +506,7 @@ export function EscaneoModal({
       case 'revision':
         return (
           <form onSubmit={publicar} className="space-y-4">
+            {avisoNoEnviadoTexto}
             {escaneo?.urlModelo && (
               <Vista
                 src={escaneo.urlModelo}
@@ -497,7 +546,18 @@ export function EscaneoModal({
               <Vacio icono={Box} titulo="Este plato todavía no tiene modelo 3D" />
             )}
             {actual && camposMedidas}
-            <Aviso>{avisoFalla}</Aviso>
+            <Aviso
+              accion={
+                fallaVisible && (
+                  <Boton variante="fantasma" onClick={() => cerrarFalla(fallaVisible.id)}>
+                    Entendido
+                  </Boton>
+                )
+              }
+            >
+              {fallaVisible &&
+                (fallaVisible.error ?? 'No pudimos armar el modelo. Probá de nuevo.')}
+            </Aviso>
             <Aviso>{error}</Aviso>
             <Pie>
               {actual && (
