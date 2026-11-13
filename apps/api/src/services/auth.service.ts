@@ -63,9 +63,11 @@ export function createAuthService(
 
   // El orden importa: primero el tipo, después el estado y recién entonces se
   // vincula, así un empleado (activo o no) nunca queda vinculado.
-  function validarCuenta(cuenta: CuentaGoogle): void {
+  function validarCuenta(cuenta: CuentaGoogle, { sub }: IdentidadGoogle): void {
     if (cuenta.tipo === 'EMPLEADO') throw new AppError(403, CUENTA_DEL_PERSONAL);
     if (!cuenta.activo) throw new AppError(403, CUENTA_DESHABILITADA);
+    // Encontrada por email pero ya vinculada a otra cuenta de Google: no se pisa.
+    if (cuenta.googleId && cuenta.googleId !== sub) throw new AppError(401, GOOGLE_NO_VALIDADO);
   }
 
   return {
@@ -104,7 +106,11 @@ export function createAuthService(
       try {
         const cuenta = await buscarCuenta(identidad);
         if (cuenta) {
-          validarCuenta(cuenta);
+          validarCuenta(cuenta, identidad);
+          // Riesgo aceptado: el registro con contraseña no verifica el email, así
+          // que quien lo registró primero puede quedar vinculado a esa cuenta. Es
+          // un límite conocido de la demo; verificar el email antes de vincular
+          // está previsto como expansión futura.
           if (!cuenta.googleId) await repo.vincularGoogle(cuenta.id, identidad.sub);
           usuarioId = cuenta.id;
         } else {
@@ -121,7 +127,9 @@ export function createAuthService(
         // sola vez y no se vuelve a escribir.
         const cuenta = await buscarCuenta(identidad);
         if (!cuenta) throw err;
-        validarCuenta(cuenta);
+        validarCuenta(cuenta, identidad);
+        // Tras ganar un registro con contraseña la cuenta entra sin vincular; el
+        // vínculo se hace en el ingreso siguiente.
         usuarioId = cuenta.id;
       }
 

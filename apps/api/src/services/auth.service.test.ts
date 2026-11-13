@@ -288,10 +288,50 @@ describe('iniciarSesionConGoogle', () => {
     );
   });
 
-  it('busca por el email en minúsculas que llega del verificador', async () => {
-    await servicioCon({ email: 'ana@gmail.com' }).iniciarSesionConGoogle('cred');
+  it('rechaza una cuenta vinculada a otro google_id sin vincular', async () => {
+    await expect(
+      servicioCon({ email: 'google@demo.test', sub: 'sub-otro' }).iniciarSesionConGoogle('cred'),
+    ).rejects.toEqual(REINTENTAR);
+    expect(vincular).not.toHaveBeenCalled();
+  });
 
-    expect(buscarPorEmail).toHaveBeenCalledWith('ana@gmail.com');
+  it('la relectura tras una clave duplicada rechaza a un empleado', async () => {
+    crear.mockRejectedValue(Object.assign(new Error('dup'), { code: 'P2002' }));
+    buscarPorGoogleId.mockResolvedValue(null);
+    buscarPorEmail
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: IDS.mozo, tipo: 'EMPLEADO', activo: true, googleId: null });
+
+    await expect(servicioCon({}).iniciarSesionConGoogle('cred')).rejects.toEqual(PERSONAL);
+    expect(vincular).not.toHaveBeenCalled();
+  });
+
+  it('la relectura tras una clave duplicada rechaza una cuenta deshabilitada', async () => {
+    crear.mockRejectedValue(Object.assign(new Error('dup'), { code: 'P2002' }));
+    buscarPorGoogleId.mockResolvedValue(null);
+    buscarPorEmail.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: IDS.comensalInactivo,
+      tipo: 'COMENSAL',
+      activo: false,
+      googleId: null,
+    });
+
+    await expect(servicioCon({}).iniciarSesionConGoogle('cred')).rejects.toEqual(
+      new AppError(403, 'La cuenta está deshabilitada'),
+    );
+  });
+
+  it('la relectura tras una clave duplicada rechaza otro google_id', async () => {
+    crear.mockRejectedValue(Object.assign(new Error('dup'), { code: 'P2002' }));
+    buscarPorGoogleId.mockResolvedValue(null);
+    buscarPorEmail.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      id: IDS.comensal,
+      tipo: 'COMENSAL',
+      activo: true,
+      googleId: 'sub-otro',
+    });
+
+    await expect(servicioCon({}).iniciarSesionConGoogle('cred')).rejects.toEqual(REINTENTAR);
   });
 
   it('un nombre vacío usa la parte del email antes de la @', async () => {

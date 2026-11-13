@@ -109,6 +109,23 @@ describe('POST /api/auth/google', () => {
     expect(res.body).toEqual({ error: 'No pudimos validar tu cuenta de Google. Probá de nuevo.' });
   });
 
+  it('un empleado recibe el 403 de personal', async () => {
+    verificar().mockResolvedValueOnce({
+      sub: 'sub-empleado',
+      email: 'mozo@demo.test',
+      emailVerificado: true,
+      nombre: 'Mozo',
+    });
+
+    const res = await request(createApp()).post('/api/auth/google').send({ credential: 'tok' });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({
+      error: 'Esta cuenta es del personal de un restaurante. Entrá con tu email y contraseña.',
+    });
+    expect(res.headers['set-cookie']).toBeUndefined();
+  });
+
   it('body sin credential da 400', async () => {
     const res = await request(createApp()).post('/api/auth/google').send({});
 
