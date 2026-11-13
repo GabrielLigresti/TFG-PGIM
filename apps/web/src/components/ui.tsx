@@ -142,18 +142,28 @@ const CLASES_AVISO = {
   bad: { clase: 'border-bad/30 bg-bad-soft text-bad', icono: TriangleAlert },
 };
 
-// Mensaje dentro de la pantalla. Por defecto, un error.
-export function Aviso({ children, tono = 'bad' }: { children: ReactNode; tono?: 'ok' | 'bad' }) {
+// Mensaje dentro de la pantalla. Por defecto, un error. Con `accion` (un botón discreto) se
+// ubica a la derecha del texto y, si no entra, baja debajo.
+export function Aviso({
+  children,
+  tono = 'bad',
+  accion,
+}: {
+  children: ReactNode;
+  tono?: 'ok' | 'bad';
+  accion?: ReactNode;
+}) {
   if (!children) return null;
   const { clase, icono: Icono } = CLASES_AVISO[tono];
   return (
-    <p
+    <div
       role={tono === 'bad' ? 'alert' : 'status'}
-      className={`flex items-start gap-2 rounded-panel border px-3 py-2 text-sm ${clase}`}
+      className={`flex items-start gap-2 rounded-panel border px-3 py-2 text-sm ${accion ? 'flex-wrap' : ''} ${clase}`}
     >
       <Icono aria-hidden className="mt-0.5 size-4 shrink-0" />
-      <span>{children}</span>
-    </p>
+      <span className={accion ? 'min-w-0 flex-1 basis-48' : ''}>{children}</span>
+      {accion && <span className="ml-auto">{accion}</span>}
+    </div>
   );
 }
 
