@@ -41,7 +41,7 @@ EMP <|-- STF
 rectangle "PGIM" {
   rectangle "Personal y acceso" {
     usecase "CU-01 Iniciar sesión" as CU01
-    usecase "Ingresar\ncon Google" as HUE
+    usecase "Ingresar\ncon Google" as GOO
     usecase "CU-20 Gestionar\ncuenta de usuario" as CU20
     usecase "CU-02 Gestionar\nroles y permisos" as CU02
     usecase "CU-11 Registrar\nrestaurante" as CU11
@@ -118,7 +118,7 @@ CU06 -- MP
 CU21 -- SYS
 
 ' --- include / extend
-CU01 <.. HUE : <<extend>>
+CU01 <.. GOO : <<extend>>
 CU03 <.. AUTO : <<extend>>
 CU03 <.. CANR : <<extend>>
 CU03 <.. CU21 : <<extend>>
@@ -144,7 +144,7 @@ CU19 -[hidden]down- CU08
 CU08 -[hidden]down- CU22
 CANP -[hidden]right- CU23
 ' módulos en dos filas
-HUE -[hidden]down- CU07
+GOO -[hidden]down- CU07
 CU02 -[hidden]down- CU19
 CU21 -[hidden]down- CU16
 CANR -[hidden]down- CU17

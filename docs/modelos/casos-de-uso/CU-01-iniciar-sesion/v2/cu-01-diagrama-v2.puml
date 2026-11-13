@@ -1,5 +1,5 @@
 @startuml cu-01-diagrama-v2
-' v2 (12/11): sin ingreso con huella; el comensal puede ingresar con Google.
+' v2 (12/11): el extend anterior se reemplaza por el ingreso con Google del comensal.
 ' Formato Vialia: actor de palitos, límite del sistema con pestaña "Sistema",
 ' casos de uso en elipses celestes sin número, «include»/«extend» punteados.
 left to right direction

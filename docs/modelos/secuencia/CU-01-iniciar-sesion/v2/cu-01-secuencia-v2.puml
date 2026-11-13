@@ -1,5 +1,5 @@
 @startuml cu-01-secuencia-v2
-' v2 (12/11): el ingreso con huella se reemplaza por el ingreso con Google del comensal.
+' v2 (12/11): el flujo alternativo A pasa a ser el ingreso con Google del comensal.
 ' Formato Vialia: participantes ":Clase", barras de activación celestes,
 ' sin numeración ni fragmentos; los flujos alternativos y las excepciones van como notas.
 skinparam dpi 200

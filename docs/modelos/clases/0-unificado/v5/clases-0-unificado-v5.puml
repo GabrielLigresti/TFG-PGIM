@@ -1,6 +1,6 @@
 @startuml clases-0-unificado-v5
 ' Diagrama de clases unificado — PGIM
-' v5 (12/11): se quita CredencialBiometrica (sin ingreso con huella) y el comensal puede entrar con Google:
+' v5 (12/11): se quita CredencialBiometrica y el comensal puede entrar con Google:
 ' Usuario.passwordHash opcional, Usuario.googleId y vincularGoogle().
 ' v4 (05/11): escaneo de platos para el modelo RA: EscaneoPlato con patrón State (6 estados), Proveedor3D (Adapter) con
 ' ProveedorSimulado, ResultadoEscaneo, verificación de calidad del video (CriterioCalidad, Strategy, con 5 criterios),
