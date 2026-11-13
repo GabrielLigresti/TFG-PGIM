@@ -41,7 +41,11 @@ function cargarScript(): Promise<boolean> {
     const script = document.createElement('script');
     script.src = URL_GIS;
     script.async = true;
-    script.onload = () => resolver(Boolean(window.google?.accounts?.id));
+    script.onload = () => {
+      const ok = Boolean(window.google?.accounts?.id);
+      if (!ok) carga = null; // script vacío (por ejemplo, un bloqueador): se reintenta después
+      resolver(ok);
+    };
     script.onerror = () => {
       carga = null; // permite reintentar al volver a la pantalla
       resolver(false);
