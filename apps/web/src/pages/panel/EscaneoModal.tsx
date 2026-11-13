@@ -33,6 +33,8 @@ type Modo = 'inicio' | 'elegir' | 'revisando' | 'informe';
 type Dimensiones = { src: string; ancho: number; profundidad: number };
 
 const CUADROS = 30;
+// Con un modelo publicado, el aviso de un escaneo fallido se muestra solo mientras es reciente.
+const AVISO_FALLA_MS = 24 * 60 * 60 * 1000;
 
 // Pie del modal: en el celular los botones se apilan a ancho completo con el
 // principal arriba (por eso el principal va último); en escritorio van en fila.
@@ -130,6 +132,7 @@ export function EscaneoModal({
   const [medidas, setMedidas] = useState<Dimensiones | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [abiertoEn] = useState(() => Date.now());
 
   const estado = escaneo?.estado;
   const vista =
@@ -149,6 +152,25 @@ export function EscaneoModal({
     if (estadoPrevio.current !== estado && estadoPrevio.current !== undefined) onCambio();
     estadoPrevio.current = estado;
   });
+
+  // Cuando manda el estado del escaneo (generando o para revisar), lo del video anterior ya
+  // no aplica: ni su informe ni el error de ese envío. Si el escaneo falla, se vuelve al inicio.
+  const mandaElEscaneo = vista === 'generando' || vista === 'revision';
+  useEffect(() => {
+    if (!mandaElEscaneo) return;
+    setModo('inicio');
+    setVideo(null);
+    setInforme(null);
+    setError(null);
+  }, [mandaElEscaneo]);
+
+  // Un plato sin modelo muestra siempre por qué falló su último escaneo; uno con modelo, solo
+  // si la falla es reciente, para que un intento viejo no tape un modelo que funciona.
+  const avisoFalla =
+    escaneo?.estado === 'FALLIDO' &&
+    (!actual || abiertoEn - Date.parse(escaneo.actualizadoEn) < AVISO_FALLA_MS)
+      ? (escaneo.error ?? 'No pudimos armar el modelo. Probá de nuevo.')
+      : null;
 
   // Cada vista empieza con su propio diámetro: el borrador no hereda el del modelo publicado.
   const precargado = useRef<string | null>(null);
@@ -475,9 +497,7 @@ export function EscaneoModal({
               <Vacio icono={Box} titulo="Este plato todavía no tiene modelo 3D" />
             )}
             {actual && camposMedidas}
-            {estado === 'FALLIDO' && (
-              <Aviso>{escaneo?.error ?? 'No pudimos armar el modelo. Probá de nuevo.'}</Aviso>
-            )}
+            <Aviso>{avisoFalla}</Aviso>
             <Aviso>{error}</Aviso>
             <Pie>
               {actual && (
