@@ -160,6 +160,29 @@ describe('crear', () => {
     expect(repo.crear).not.toHaveBeenCalled();
   });
 
+  it('crea el escaneo si el informe trae una ADVERTENCIA (Enviar igual)', async () => {
+    const { service, repo } = montar();
+    await service.crear(
+      R,
+      'bife',
+      'emp',
+      video(),
+      informe({ nivelGlobal: 'ADVERTENCIA', criterios: criterios({ NITIDEZ: 'ADVERTENCIA' }) }),
+    );
+    expect(repo.crear).toHaveBeenCalled();
+  });
+
+  it('422 si el informe trae seis criterios, uno repetido', async () => {
+    const { service, repo } = montar();
+    const cinco = criterios();
+    await falla(
+      service.crear(R, 'bife', 'emp', video(), informe({ criterios: [...cinco, cinco[0]!] })),
+      422,
+      'El informe de calidad está incompleto',
+    );
+    expect(repo.crear).not.toHaveBeenCalled();
+  });
+
   it('422 si al informe le falta algún criterio', async () => {
     const { service, repo } = montar();
     await falla(
