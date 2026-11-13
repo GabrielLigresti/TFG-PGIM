@@ -32,11 +32,13 @@ export function LoginPage() {
 
   async function onGoogle(credential: string) {
     setError(null);
+    setEnviando(true);
     try {
       const nueva = await loginConGoogle(credential);
       navigate(destino(nueva, state), { replace: true });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo iniciar sesión con Google');
+      setEnviando(false);
     }
   }
 

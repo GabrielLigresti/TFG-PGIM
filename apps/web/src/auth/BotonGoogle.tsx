@@ -27,7 +27,12 @@ declare global {
 const URL_GIS = 'https://accounts.google.com/gsi/client';
 const ANCHO_MAXIMO = 400; // el máximo que acepta Google
 
+const ANCHO_PREDETERMINADO = 240; // si el contenedor todavía no tiene medida
+
 let carga: Promise<boolean> | null = null;
+let inicializado = false;
+// Último onCredential montado: el que atiende el callback único de Google.
+let alCredencial: ((credential: string) => void) | null = null;
 
 // Carga el script una sola vez; resuelve false si no se pudo cargar.
 function cargarScript(): Promise<boolean> {
@@ -36,7 +41,7 @@ function cargarScript(): Promise<boolean> {
     const script = document.createElement('script');
     script.src = URL_GIS;
     script.async = true;
-    script.onload = () => resolver(true);
+    script.onload = () => resolver(Boolean(window.google?.accounts?.id));
     script.onerror = () => {
       carga = null; // permite reintentar al volver a la pantalla
       resolver(false);
@@ -67,28 +72,30 @@ export function BotonGoogle({ onCredential }: { onCredential: (credential: strin
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const listo = useScriptGoogle(clientId);
   const contenedor = useRef<HTMLDivElement>(null);
-  // Siempre la última función, sin reinicializar Google en cada render.
-  const alCredencial = useRef(onCredential);
-  alCredencial.current = onCredential;
+  // Google se inicializa una sola vez; el callback usa el último botón montado.
+  alCredencial = onCredential;
 
   useEffect(() => {
     const elemento = contenedor.current;
     const id = window.google?.accounts.id;
     if (!listo || !clientId || !elemento || !id) return;
-    id.initialize({
-      client_id: clientId,
-      // Cerrar el popup no llama al callback, así que no hay error que mostrar.
-      callback: ({ credential }) => {
-        if (credential) alCredencial.current(credential);
-      },
-    });
+    if (!inicializado) {
+      inicializado = true;
+      id.initialize({
+        client_id: clientId,
+        // Cerrar el popup no llama al callback, así que no hay error que mostrar.
+        callback: ({ credential }) => {
+          if (credential) alCredencial?.(credential);
+        },
+      });
+    }
     id.renderButton(elemento, {
       theme: 'outline',
       size: 'large',
       shape: 'rectangular',
       text: 'continue_with',
       locale: 'es',
-      width: Math.min(ANCHO_MAXIMO, Math.floor(elemento.clientWidth)),
+      width: Math.min(ANCHO_MAXIMO, Math.floor(elemento.clientWidth) || ANCHO_PREDETERMINADO),
     });
   }, [listo, clientId]);
 

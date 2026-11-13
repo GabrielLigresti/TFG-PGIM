@@ -44,11 +44,13 @@ export function RegistroPage() {
 
   async function onGoogle(credential: string) {
     setError(null);
+    setEnviando(true);
     try {
       const nueva = await loginConGoogle(credential);
       navigate(destinoTrasLogin(nueva, state), { replace: true });
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'No se pudo crear la cuenta con Google');
+      setEnviando(false);
     }
   }
 
