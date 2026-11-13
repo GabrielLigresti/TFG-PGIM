@@ -328,6 +328,8 @@ export function EscaneoModal({
   function enviar() {
     if (!video || !informe) return;
     void ejecutar(async () => {
+      // Cada envío empieza limpio: el aviso de un intento anterior no vale para este.
+      setAvisoNoEnviado(false);
       try {
         await enviarVideo<Escaneo>(`/platos/${plato.id}/escaneos`, video, informe);
       } catch (e) {
