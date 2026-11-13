@@ -31,7 +31,13 @@ export type CuentaEmpleadoInput = z.infer<typeof cuentaEmpleadoSchema>;
 export type CambiarContrasenaInput = z.infer<typeof cambiarContrasenaSchema>;
 
 export type CuentaUsuario =
-  | { tipo: 'COMENSAL'; email: string; nombre: string; telefono: string | null }
+  | {
+      tipo: 'COMENSAL';
+      email: string;
+      nombre: string;
+      telefono: string | null;
+      tieneContrasena: boolean;
+    }
   | {
       tipo: 'EMPLEADO';
       email: string;

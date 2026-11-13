@@ -21,6 +21,8 @@ interface SesionContexto {
   sesion: Sesion | null;
   cargando: boolean;
   login(email: string, password: string): Promise<Sesion>;
+  // Ingreso o alta del comensal con la credencial de Google.
+  loginConGoogle(credential: string): Promise<Sesion>;
   // Alta de comensal: queda con la sesión iniciada.
   registrar(datos: RegistroComensal): Promise<Sesion>;
   // Alta de restaurante con su primera sucursal y su administrador: queda con la sesión iniciada.
@@ -72,6 +74,8 @@ export function SesionProvider({ children }: { children: ReactNode }) {
       cargando,
       login: async (email, password) =>
         guardar(await api('/auth/login', { method: 'POST', body: { email, password } })),
+      loginConGoogle: async (credential) =>
+        guardar(await api('/auth/google', { method: 'POST', body: { credential } })),
       registrar: async (datos) =>
         guardar(await api('/auth/registro', { method: 'POST', body: datos })),
       registrarRestaurante: async (datos) =>

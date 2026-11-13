@@ -14,6 +14,10 @@ export const loginRequestSchema = z.object({
 
 export type LoginRequest = z.infer<typeof loginRequestSchema>;
 
+export const loginGoogleRequestSchema = z.object({ credential: z.string().min(1) });
+
+export type LoginGoogleRequest = z.infer<typeof loginGoogleRequestSchema>;
+
 export const seleccionarSucursalSchema = z.object({
   sucursalId: z.uuid(),
 });

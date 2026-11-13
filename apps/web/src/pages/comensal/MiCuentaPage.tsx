@@ -28,7 +28,13 @@ export function MiCuentaPage() {
             />
           </Panel>
           <Panel titulo="Contraseña">
-            <FormularioContrasena />
+            {cuenta.tieneContrasena ? (
+              <FormularioContrasena />
+            ) : (
+              <p className="text-sm text-meta">
+                No necesitás contraseña: entrás con tu cuenta de Google.
+              </p>
+            )}
           </Panel>
         </div>
       )}

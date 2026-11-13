@@ -49,7 +49,12 @@ export default defineConfig({
       url: URL_WEB,
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { API_URL: `http://localhost:${PUERTO_API}` },
+      env: {
+        API_URL: `http://localhost:${PUERTO_API}`,
+        // Vacío: la variable de proceso le gana al apps/web/.env y la web no
+        // muestra el botón de Google aunque el desarrollo tenga client ID.
+        VITE_GOOGLE_CLIENT_ID: '',
+      },
     },
   ],
 });
