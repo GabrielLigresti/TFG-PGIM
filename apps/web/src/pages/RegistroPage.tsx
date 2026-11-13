@@ -19,6 +19,8 @@ export function RegistroPage() {
   const [password, setPassword] = useState('');
   const [telefono, setTelefono] = useState('');
   const [error, setError] = useState<string | null>(null);
+  // El error de Google se muestra debajo de su botón, donde la persona está mirando.
+  const [errorGoogle, setErrorGoogle] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
   if (cargando) return <Cargando />;
@@ -27,6 +29,7 @@ export function RegistroPage() {
   async function onSubmit(evento: FormEvent<HTMLFormElement>) {
     evento.preventDefault();
     setError(null);
+    setErrorGoogle(null);
     setEnviando(true);
     try {
       const nueva = await registrar({
@@ -44,12 +47,13 @@ export function RegistroPage() {
 
   async function onGoogle(credential: string) {
     setError(null);
+    setErrorGoogle(null);
     setEnviando(true);
     try {
       const nueva = await loginConGoogle(credential);
       navigate(destinoTrasLogin(nueva, state), { replace: true });
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : 'No se pudo crear la cuenta con Google');
+      setErrorGoogle(e instanceof ApiError ? e.message : 'No se pudo crear la cuenta con Google');
       setEnviando(false);
     }
   }
@@ -130,6 +134,12 @@ export function RegistroPage() {
         </button>
 
         <BotonGoogle onCredential={onGoogle} />
+
+        {errorGoogle && (
+          <p role="alert" className="rounded-control bg-bad-soft px-3 py-2 text-sm text-bad">
+            {errorGoogle}
+          </p>
+        )}
 
         <p className="text-center text-sm text-meta">
           ¿Ya tenés cuenta?{' '}
