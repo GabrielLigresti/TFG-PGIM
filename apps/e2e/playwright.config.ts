@@ -44,13 +44,17 @@ export default defineConfig({
       },
     },
     {
-      // env -u: sin client ID de Google, la web no muestra el botón aunque la terminal lo tenga.
-      command: `env -u VITE_GOOGLE_CLIENT_ID npx vite --port ${PUERTO_WEB} --strictPort`,
+      command: `npx vite --port ${PUERTO_WEB} --strictPort`,
       cwd: resolve(__dirname, '../web'),
       url: URL_WEB,
       reuseExistingServer: false,
       timeout: 60_000,
-      env: { API_URL: `http://localhost:${PUERTO_API}` },
+      env: {
+        API_URL: `http://localhost:${PUERTO_API}`,
+        // Vacío: la variable de proceso le gana al apps/web/.env y la web no
+        // muestra el botón de Google aunque el desarrollo tenga client ID.
+        VITE_GOOGLE_CLIENT_ID: '',
+      },
     },
   ],
 });
