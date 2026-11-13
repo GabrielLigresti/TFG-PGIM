@@ -188,7 +188,18 @@ export function createEscaneoService(repo: EscaneoRepository, deps: Dependencias
         throw new AppError(404, 'El plato no existe');
       }
       const real = leerMetadatosMp4(video);
-      if (informe.nivelGlobal === 'RECHAZO') {
+      // El nivel global lo calcula el navegador: no se le cree si los criterios dicen otra cosa.
+      const informados = new Set(informe.criterios.map((c) => c.criterio));
+      if (
+        informe.criterios.length !== CRITERIOS.length ||
+        CRITERIOS.some((c) => !informados.has(c.id))
+      ) {
+        throw new AppError(422, 'El informe de calidad está incompleto');
+      }
+      if (
+        informe.nivelGlobal === 'RECHAZO' ||
+        informe.criterios.some((c) => c.nivel === 'RECHAZO')
+      ) {
         throw new AppError(422, 'El video no pasó la revisión de calidad');
       }
       const proveedor = deps.proveedores.activo();

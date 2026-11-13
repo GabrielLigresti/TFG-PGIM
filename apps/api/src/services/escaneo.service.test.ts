@@ -1,7 +1,9 @@
 import {
+  CRITERIOS,
   UMBRALES_POR_DEFECTO,
   type EstadoEscaneo,
   type InformeCalidad,
+  type NivelCalidad,
   type Plato,
 } from '@pgim/shared';
 import type { Proveedor3D } from '../escaneo/proveedor-3d';
@@ -16,11 +18,22 @@ import { createEscaneoService } from './escaneo.service';
 const R = 'restaurante';
 const AHORA = new Date('2026-11-05T12:00:00Z');
 
+// Los cinco criterios en OK, salvo los que se pisen.
+const criterios = (
+  niveles: Partial<Record<InformeCalidad['criterios'][number]['criterio'], NivelCalidad>> = {},
+): InformeCalidad['criterios'] =>
+  CRITERIOS.map((c) => ({
+    criterio: c.id,
+    nivel: niveles[c.id] ?? 'OK',
+    valor: 1,
+    mensaje: null,
+  }));
+
 const informe = (parcial: Partial<InformeCalidad> = {}): InformeCalidad => ({
   version: 1,
   nivelGlobal: 'OK',
   metadatos: { ancho: 1920, alto: 1080, duracionS: 30 },
-  criterios: [],
+  criterios: criterios(),
   ...parcial,
 });
 
@@ -128,6 +141,48 @@ describe('crear', () => {
       service.crear(R, 'bife', 'emp', video(), informe({ nivelGlobal: 'RECHAZO' })),
       422,
       'El video no pasó la revisión de calidad',
+    );
+  });
+
+  it('422 si un criterio trae RECHAZO aunque el nivel global diga OK', async () => {
+    const { service, repo } = montar();
+    await falla(
+      service.crear(
+        R,
+        'bife',
+        'emp',
+        video(),
+        informe({ criterios: criterios({ NITIDEZ: 'RECHAZO' }) }),
+      ),
+      422,
+      'El video no pasó la revisión de calidad',
+    );
+    expect(repo.crear).not.toHaveBeenCalled();
+  });
+
+  it('422 si al informe le falta algún criterio', async () => {
+    const { service, repo } = montar();
+    await falla(
+      service.crear(R, 'bife', 'emp', video(), informe({ criterios: criterios().slice(1) })),
+      422,
+      'El informe de calidad está incompleto',
+    );
+    expect(repo.crear).not.toHaveBeenCalled();
+  });
+
+  it('422 si el informe repite un criterio en lugar de traer los cinco', async () => {
+    const { service } = montar();
+    const [primero, ...resto] = criterios();
+    await falla(
+      service.crear(
+        R,
+        'bife',
+        'emp',
+        video(),
+        informe({ criterios: [primero!, primero!, ...resto.slice(1)] }),
+      ),
+      422,
+      'El informe de calidad está incompleto',
     );
   });
 
