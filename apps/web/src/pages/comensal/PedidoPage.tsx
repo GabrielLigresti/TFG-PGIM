@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { Trash2, TriangleAlert } from 'lucide-react';
+import { Trash2, TriangleAlert, Utensils } from 'lucide-react';
 import type { FaltaStock, MenuSucursal, PedidoCola, PedidoInput } from '@pgim/shared';
 import { useAvisos } from '../../components/AvisoEmergente';
 import { LayoutComensal, TituloComensal } from '../../components/LayoutComensal';
@@ -30,6 +30,10 @@ export function PedidoPage() {
     sucursalId ? `/publico/sucursales/${sucursalId}/menu` : null,
   );
   const [preciosNuevos, setPreciosNuevos] = useState<string[]>([]);
+  // La foto de cada plato sale del menú, no del carrito guardado.
+  const fotos = new Map(
+    (menu.datos?.menu?.categorias ?? []).flatMap((c) => c.platos).map((p) => [p.id, p.fotoUrl]),
+  );
   const { actualizar } = carrito;
   useEffect(() => {
     if (!menu.datos?.menu || !cuentaMesaId) return;
@@ -118,8 +122,22 @@ export function PedidoPage() {
                     key={`${l.plato.id}-${i}`}
                     className={`space-y-3 rounded-panel border bg-surface p-4 ${falta ? 'border-bad/40' : 'border-line'}`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className="font-semibold text-ink">{l.plato.nombre}</span>
+                    <div className="flex items-start gap-3">
+                      {fotos.get(l.plato.id) ? (
+                        <img
+                          src={fotos.get(l.plato.id)!}
+                          alt=""
+                          className="size-16 shrink-0 rounded-xl object-cover"
+                        />
+                      ) : (
+                        <span
+                          aria-hidden
+                          className="grid size-16 shrink-0 place-items-center rounded-xl bg-papel-hondo text-tinta-clasica/55"
+                        >
+                          <Utensils className="size-6" strokeWidth={1.5} />
+                        </span>
+                      )}
+                      <span className="flex-1 font-semibold text-ink">{l.plato.nombre}</span>
                       <span className="shrink-0 font-semibold tabular-nums text-ink">
                         {formatoPesos(l.plato.precio * l.cantidad)}
                       </span>

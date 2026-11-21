@@ -129,8 +129,11 @@ export function ReservarPage() {
         <div className="space-y-3 rounded-panel border border-line bg-surface p-5">
           <TituloComensal>¡Reserva confirmada!</TituloComensal>
           <p className="text-text">
-            Mesa {confirmada.mesa.numero} en {confirmada.sucursal.nombre}, el{' '}
-            {formatoDiaYHora(confirmada.inicio)} h, para {confirmada.cantidadPersonas}{' '}
+            Mesa {confirmada.mesa.numero} en{' '}
+            {sucursal
+              ? `${sucursal.restaurante.nombre} · ${sucursal.nombre}`
+              : confirmada.sucursal.nombre}
+            , el {formatoDiaYHora(confirmada.inicio)} h, para {confirmada.cantidadPersonas}{' '}
             {confirmada.cantidadPersonas === 1 ? 'persona' : 'personas'}.
           </p>
           <p className="text-sm text-meta">
@@ -174,8 +177,8 @@ export function ReservarPage() {
         <TituloComensal>Reservar mesa</TituloComensal>
       </div>
       <p className="mb-4 text-sm text-meta">
-        {sucursal ? `${sucursal.nombre} · ` : ''}Turnos de una hora, hasta{' '}
-        {DIAS_ANTICIPACION_RESERVA} días antes.
+        {sucursal ? `${sucursal.restaurante.nombre} · ${sucursal.nombre} · ` : ''}Turnos de una
+        hora, hasta {DIAS_ANTICIPACION_RESERVA} días antes.
       </p>
 
       <div className="mb-5 grid grid-cols-2 gap-3">
